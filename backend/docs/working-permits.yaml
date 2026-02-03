@@ -1,0 +1,268 @@
+paths:
+  /api/working-permits:
+    get:
+      tags:
+        - Working Permits
+      summary: Çalışma izin türlerini listele
+      description: |
+        Şirketin çalışma izin türlerini listeler.
+        Varsayılan (sistem) izin türleri ve şirket özel izin türleri birlikte döner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: query
+          schema:
+            type: string
+          description: Şirket ID (company_admin için opsiyonel)
+      responses:
+        '200':
+          description: İzin türleri listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkingPermit'
+        '400':
+          description: Şirket bilgisi gerekli
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Working Permits
+      summary: Çalışma izin türü oluştur
+      description: Yeni bir çalışma izin türü oluşturur.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: İzin türü adı
+                  example: "Taşınma İzni"
+                description:
+                  type: string
+                  description: Açıklama
+                parentPermitId:
+                  type: string
+                  description: Üst kategori ID (alt kategori için)
+                companyId:
+                  type: string
+                  description: Şirket ID (bayi_admin için zorunlu)
+      responses:
+        '201':
+          description: İzin türü oluşturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/WorkingPermit'
+        '400':
+          description: Validation hatası
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/working-permits/{id}:
+    get:
+      tags:
+        - Working Permits
+      summary: İzin türü detayı
+      description: Tek bir izin türünün detayını getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: İzin türü ID
+      responses:
+        '200':
+          description: İzin türü detayı
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkingPermit'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Working Permits
+      summary: İzin türü güncelle
+      description: |
+        Mevcut izin türünü günceller.
+        **Not:** Varsayılan (sistem) izin türleri sadece super_admin tarafından değiştirilebilir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                parentPermitId:
+                  type: string
+                  description: Üst kategori ID (null ile kaldırılabilir)
+      responses:
+        '200':
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/WorkingPermit'
+        '400':
+          description: Sistem varsayılanı değiştirilemez veya circular reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Working Permits
+      summary: İzin türü sil
+      description: |
+        İzin türünü siler.
+        **Not:**
+        - Varsayılan izin türleri sadece super_admin tarafından silinebilir.
+        - Alt kategorisi olan izin türleri silinemez.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "İzin türü silindi"
+        '400':
+          description: Sistem varsayılanı silinemez veya alt kategoriler mevcut
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    WorkingPermit:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: İzin türü adı
+          example: "Yıllık İzin"
+        description:
+          type: string
+          description: Açıklama
+        isDefault:
+          type: boolean
+          description: Sistem varsayılanı mı
+        createdBy:
+          type: string
+          enum: [super_admin, company]
+          description: Oluşturan kaynak
+        company:
+          type: object
+          description: Şirket bilgisi (şirket özel izinler için)
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        parentPermitId:
+          type: object
+          description: Üst kategori (alt kategoriler için)
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

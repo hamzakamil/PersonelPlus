@@ -1,0 +1,296 @@
+paths:
+  /api/employees:
+    get:
+      tags:
+        - Employees
+      summary: Çalışan listesi
+      description: |
+        Şirkete ait çalışanları listeler.
+        - Filtreleme ve sayfalama desteklenir
+        - Departman, durum ve arama filtresi kullanılabilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Şirket ID'si
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Sayfa numarası
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Sayfa başına kayıt sayısı
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Ad, soyad veya email'de arama
+        - name: department
+          in: query
+          schema:
+            type: string
+          description: Departman ID'si ile filtrele
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, pending]
+          description: Durum filtresi
+      responses:
+        '200':
+          description: Çalışan listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Employee'
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      totalPages:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Employees
+      summary: Yeni çalışan ekle
+      description: |
+        Şirkete yeni bir çalışan ekler.
+        **Not:** TC Kimlik numarası şirket içinde benzersiz olmalıdır.
+        **Not:** Email adresi sistem genelinde benzersiz olmalıdır.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - firstName
+                - lastName
+                - tcKimlikNo
+                - email
+                - company
+                - department
+              properties:
+                firstName:
+                  type: string
+                  description: Ad
+                  example: Ahmet
+                lastName:
+                  type: string
+                  description: Soyad
+                  example: Yılmaz
+                tcKimlikNo:
+                  type: string
+                  pattern: '^[0-9]{11}$'
+                  description: TC Kimlik numarası (11 hane)
+                  example: '12345678901'
+                email:
+                  type: string
+                  format: email
+                  description: Email adresi
+                  example: ahmet.yilmaz@sirket.com
+                phone:
+                  type: string
+                  description: Telefon numarası
+                  example: '05321234567'
+                company:
+                  type: string
+                  description: Şirket ID'si
+                department:
+                  type: string
+                  description: Departman ID'si
+                hireDate:
+                  type: string
+                  format: date
+                  description: İşe giriş tarihi
+                  example: '2024-01-15'
+                salary:
+                  type: number
+                  description: Maaş (TRY)
+                  example: 25000
+                birthDate:
+                  type: string
+                  format: date
+                  description: Doğum tarihi
+                gender:
+                  type: string
+                  enum: [male, female, other]
+                  description: Cinsiyet
+      responses:
+        '201':
+          description: Çalışan başarıyla oluşturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Employee'
+                  message:
+                    type: string
+                    example: Çalışan başarıyla oluşturuldu
+        '400':
+          description: Validation hatası veya duplicate kayıt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/employees/{id}:
+    get:
+      tags:
+        - Employees
+      summary: Çalışan detayı
+      description: Belirtilen ID'ye sahip çalışanın detaylarını döner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Çalışan ID'si
+      responses:
+        '200':
+          description: Çalışan detayları
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Employee'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Employees
+      summary: Çalışan güncelle
+      description: Mevcut bir çalışanın bilgilerini günceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Çalışan ID'si
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                phone:
+                  type: string
+                department:
+                  type: string
+                salary:
+                  type: number
+                status:
+                  type: string
+                  enum: [active, inactive, pending]
+      responses:
+        '200':
+          description: Çalışan başarıyla güncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Employee'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Employees
+      summary: Çalışan sil
+      description: |
+        Çalışanı sistemden siler.
+        **Uyarı:** Bu işlem geri alınamaz.
+        **Not:** Aktif izin talepleri veya avans talepleri olan çalışanlar silinemez.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Çalışan ID'si
+      responses:
+        '200':
+          description: Çalışan başarıyla silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Çalışan başarıyla silindi
+        '400':
+          description: Çalışan silinemez
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'

@@ -1,0 +1,462 @@
+paths:
+  /api/overtime-requests:
+    get:
+      tags:
+        - Overtime Requests
+      summary: Fazla mesai taleplerini listele
+      description: |
+        Fazla mesai taleplerini filtrelerle listeler.
+        - Sirket, calisan, durum, tarih araligi filtreleri
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company
+          in: query
+          schema:
+            type: string
+          description: Sirket ID
+        - name: employee
+          in: query
+          schema:
+            type: string
+          description: Calisan ID
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+          description: Durum filtresi
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Baslangic tarihi
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Bitis tarihi
+        - name: year
+          in: query
+          schema:
+            type: integer
+          description: Yil
+        - name: month
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          description: Ay (1-12)
+      responses:
+        '200':
+          description: Fazla mesai talepleri
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OvertimeRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Overtime Requests
+      summary: Yeni fazla mesai talebi
+      description: |
+        Yeni bir fazla mesai talebi olusturur.
+        - Ayni tarih ve tur icin tekrar talep olusturulamaz
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employeeId
+                - date
+                - overtimeType
+                - requestedHours
+              properties:
+                employeeId:
+                  type: string
+                  description: Calisan ID
+                date:
+                  type: string
+                  format: date
+                  description: Mesai tarihi
+                overtimeType:
+                  type: string
+                  enum: [DAY, NIGHT]
+                  description: Mesai turu (gunduz/gece)
+                requestedHours:
+                  type: number
+                  description: Talep edilen saat
+                  example: 2
+                startTime:
+                  type: string
+                  description: Baslangic saati (HH:mm)
+                  example: '18:00'
+                endTime:
+                  type: string
+                  description: Bitis saati (HH:mm)
+                  example: '20:00'
+                reason:
+                  type: string
+                  description: Mesai nedeni
+      responses:
+        '201':
+          description: Talep olusturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OvertimeRequest'
+        '400':
+          description: Gecersiz veri veya zaten mevcut talep
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/overtime-requests/pending:
+    get:
+      tags:
+        - Overtime Requests
+      summary: Bekleyen talepler
+      description: Onay bekleyen fazla mesai taleplerini listeler (yoneticiler icin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company
+          in: query
+          schema:
+            type: string
+          description: Sirket ID
+      responses:
+        '200':
+          description: Bekleyen talepler
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OvertimeRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/overtime-requests/employee/{employeeId}:
+    get:
+      tags:
+        - Overtime Requests
+      summary: Calisan talepleri
+      description: Bir calisanin fazla mesai taleplerini listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Calisan ID
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+        - name: year
+          in: query
+          schema:
+            type: integer
+        - name: month
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Calisan talepleri
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OvertimeRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/overtime-requests/{id}/approve:
+    put:
+      tags:
+        - Overtime Requests
+      summary: Talebi onayla
+      description: |
+        Fazla mesai talebini onaylar.
+        - Onaylanan talep otomatik olarak puantaja aktarilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Talep ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approvedHours:
+                  type: number
+                  description: Onaylanan saat (bos ise talep edilen saat kullanilir)
+                comment:
+                  type: string
+                  description: Onay yorumu
+      responses:
+        '200':
+          description: Talep onaylandi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OvertimeRequest'
+        '400':
+          description: Talep zaten islem gormis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/overtime-requests/{id}/reject:
+    put:
+      tags:
+        - Overtime Requests
+      summary: Talebi reddet
+      description: Fazla mesai talebini reddeder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Talep ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Ret nedeni
+      responses:
+        '200':
+          description: Talep reddedildi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OvertimeRequest'
+        '400':
+          description: Talep zaten islem gormis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/overtime-requests/{id}/cancel:
+    put:
+      tags:
+        - Overtime Requests
+      summary: Talebi iptal et
+      description: Fazla mesai talebini iptal eder (sadece bekleyen talepler).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Talep ID
+      responses:
+        '200':
+          description: Talep iptal edildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Talep iptal edildi
+        '400':
+          description: Sadece bekleyen talepler iptal edilebilir
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/overtime-requests/summary/{companyId}/{year}/{month}:
+    get:
+      tags:
+        - Overtime Requests
+      summary: Aylik ozet
+      description: |
+        Sirket icin aylik fazla mesai ozeti.
+        - Calisan bazinda gunduz ve gece mesai saatleri
+        - Bekleyen talep sayilari
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Yil
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          description: Ay (1-12)
+      responses:
+        '200':
+          description: Aylik ozet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        employee:
+                          type: object
+                        dayHours:
+                          type: number
+                        nightHours:
+                          type: number
+                        totalHours:
+                          type: number
+                        pendingDayCount:
+                          type: integer
+                        pendingNightCount:
+                          type: integer
+                  pendingCount:
+                    type: integer
+                    description: Toplam bekleyen talep sayisi
+                  year:
+                    type: integer
+                  month:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  schemas:
+    OvertimeRequest:
+      type: object
+      properties:
+        _id:
+          type: string
+        employee:
+          type: object
+          properties:
+            _id:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+            employeeNumber:
+              type: string
+        company:
+          type: string
+        date:
+          type: string
+          format: date
+        overtimeType:
+          type: string
+          enum: [DAY, NIGHT]
+          description: Gunduz veya gece mesaisi
+        requestedHours:
+          type: number
+          description: Talep edilen saat
+        approvedHours:
+          type: number
+          description: Onaylanan saat
+        startTime:
+          type: string
+        endTime:
+          type: string
+        reason:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+        approvedBy:
+          type: object
+        approvedAt:
+          type: string
+          format: date-time
+        approverComment:
+          type: string
+        rejectedBy:
+          type: object
+        rejectedAt:
+          type: string
+          format: date-time
+        rejectionReason:
+          type: string
+        isTransferredToPuantaj:
+          type: boolean
+          description: Puantaja aktarildi mi
+        transferredAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+

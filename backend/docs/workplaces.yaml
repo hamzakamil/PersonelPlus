@@ -1,0 +1,525 @@
+paths:
+  /api/workplaces:
+    get:
+      tags:
+        - Workplaces
+      summary: Isyeri listesi
+      description: |
+        Sirketin isyerlerini listeler.
+        - Super Admin: Tum isyerlerini gorebilir
+        - Bayi Admin: Bayisine ait sirketlerin isyerlerini gorebilir
+        - Company Admin: Kendi sirketinin isyerlerini gorebilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company
+          in: query
+          schema:
+            type: string
+          description: Sirket ID filtresi
+      responses:
+        '200':
+          description: Isyeri listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workplace'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Workplaces
+      summary: Yeni isyeri olustur
+      description: Yeni bir isyeri olusturur.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Isyeri adi
+                  example: Merkez Ofis
+                company:
+                  type: string
+                  description: Sirket ID (bayi_admin/super_admin icin zorunlu)
+                sgkRegisterNumber:
+                  type: string
+                  description: SGK sicil numarasi (26 hane)
+                address:
+                  type: string
+                  description: Adres
+                phone:
+                  type: string
+                  description: Telefon
+                email:
+                  type: string
+                  format: email
+                  description: Email
+      responses:
+        '201':
+          description: Isyeri olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Workplace'
+        '400':
+          description: Isyeri adi gerekli
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/workplaces/{id}:
+    get:
+      tags:
+        - Workplaces
+      summary: Isyeri detayi
+      description: Belirtilen isyerinin detaylarini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Isyeri ID
+      responses:
+        '200':
+          description: Isyeri detaylari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Workplace'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Workplaces
+      summary: Isyeri guncelle
+      description: Isyeri bilgilerini gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Isyeri ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                sgkRegisterNumber:
+                  type: string
+                address:
+                  type: string
+                phone:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Isyeri guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Workplace'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Workplaces
+      summary: Isyeri sil
+      description: |
+        Isyerini siler.
+        - Varsayilan isyeri silinemez
+        - Calisani olan isyeri silinemez
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Isyeri ID
+      responses:
+        '200':
+          description: Isyeri silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Isyeri silindi
+        '400':
+          description: Varsayilan isyeri silinemez veya calisani var
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/workplaces/{workplaceId}/sections:
+    get:
+      tags:
+        - Workplaces
+      summary: Isyeri bolumleri
+      description: Isyerine ait bolumleri listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workplaceId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Isyeri ID
+      responses:
+        '200':
+          description: Bolum listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkplaceSection'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    post:
+      tags:
+        - Workplaces
+      summary: Yeni bolum olustur
+      description: Isyerine yeni bir bolum ekler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workplaceId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Isyeri ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Bolum adi
+                  example: Uretim Hatti A
+                parentSection:
+                  type: string
+                  description: Ust bolum ID
+                description:
+                  type: string
+                  description: Aciklama
+      responses:
+        '201':
+          description: Bolum olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/WorkplaceSection'
+        '400':
+          description: Bolum adi gerekli
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/workplaces/sections/{id}:
+    get:
+      tags:
+        - Workplaces
+      summary: Bolum detayi
+      description: Belirtilen bolumun detaylarini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bolum ID
+      responses:
+        '200':
+          description: Bolum detaylari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/WorkplaceSection'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Workplaces
+      summary: Bolum guncelle
+      description: Bolum bilgilerini gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bolum ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                parentSection:
+                  type: string
+                description:
+                  type: string
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Bolum guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/WorkplaceSection'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Workplaces
+      summary: Bolum sil
+      description: |
+        Bolumu siler.
+        - Alt bolumu olan bolum silinemez
+        - Calisani olan bolum silinemez
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bolum ID
+      responses:
+        '200':
+          description: Bolum silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Bolum silindi
+        '400':
+          description: Alt bolumu veya calisani var
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    Workplace:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Isyeri adi
+        company:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        sgkRegisterNumber:
+          type: string
+          description: SGK sicil numarasi (26 hane)
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        isDefault:
+          type: boolean
+          description: Varsayilan isyeri mi
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    WorkplaceSection:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Bolum adi
+        workplace:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        parentSection:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

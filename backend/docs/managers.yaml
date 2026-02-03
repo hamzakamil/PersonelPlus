@@ -1,0 +1,462 @@
+paths:
+  /api/managers/employee/{employeeId}/manager:
+    put:
+      tags:
+        - Managers
+      summary: Çalışana yönetici ata
+      description: Çalışana direkt yönetici ataması yapar. Approval chain otomatik güncellenir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Çalışan ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                managerId:
+                  type: string
+                  description: Atanacak yönetici ID (null gönderilirse yönetici kaldırılır)
+                  example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Yönetici başarıyla atandı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Yönetici başarıyla atandı"
+                  data:
+                    $ref: '#/components/schemas/Employee'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/managers/department/{departmentId}/manager:
+    put:
+      tags:
+        - Managers
+      summary: Departmana yönetici ata
+      description: Departmana yönetici ataması yapar. Tüm departman çalışanlarının approval chain'leri güncellenir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: departmentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Departman ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                managerId:
+                  type: string
+                  description: Atanacak yönetici ID
+      responses:
+        '200':
+          description: Departman yöneticisi başarıyla atandı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Departman yöneticisi başarıyla atandı"
+                  data:
+                    $ref: '#/components/schemas/Department'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/managers/employee/{employeeId}/approval-chain:
+    get:
+      tags:
+        - Managers
+      summary: Çalışanın onay zincirini getir
+      description: Çalışanın mevcut onay zincirini ve hiyerarşisini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Çalışan ID
+      responses:
+        '200':
+          description: Onay zinciri bilgileri
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      employee:
+                        type: object
+                        properties:
+                          _id:
+                            type: string
+                          firstName:
+                            type: string
+                          lastName:
+                            type: string
+                          position:
+                            type: string
+                          manager:
+                            type: object
+                          department:
+                            type: object
+                      approvalChain:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Employee'
+                      chainOrder:
+                        type: array
+                        items:
+                          type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/managers/workplace/{workplaceId}/manager:
+    put:
+      tags:
+        - Managers
+      summary: SGK işyerine yönetici ata
+      description: SGK işyerine yönetici ataması yapar.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workplaceId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: İşyeri ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                managerId:
+                  type: string
+                  description: Atanacak yönetici ID
+      responses:
+        '200':
+          description: İşyeri yöneticisi başarıyla atandı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/managers/workplace-section/{sectionId}/manager:
+    put:
+      tags:
+        - Managers
+      summary: İşyeri bölümüne yönetici ata
+      description: İşyeri bölümüne yönetici ataması yapar.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sectionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bölüm ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                managerId:
+                  type: string
+      responses:
+        '200':
+          description: Bölüm yöneticisi başarıyla atandı
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/managers/bulk-assign:
+    post:
+      tags:
+        - Managers
+      summary: Toplu yönetici atama
+      description: Birden fazla çalışana aynı yöneticiyi toplu olarak atar.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employeeIds
+              properties:
+                employeeIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Çalışan ID listesi
+                managerId:
+                  type: string
+                  description: Atanacak yönetici ID (null ise yönetici kaldırılır)
+      responses:
+        '200':
+          description: Toplu atama sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "5 çalışana yönetici atandı, 1 başarısız"
+                  data:
+                    type: object
+                    properties:
+                      success:
+                        type: array
+                        items:
+                          type: string
+                      failed:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            employeeId:
+                              type: string
+                            reason:
+                              type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/managers/organization:
+    get:
+      tags:
+        - Managers
+      summary: Organizasyon ağacı
+      description: Şirketin tam organizasyon yapısını hiyerarşik olarak getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company
+          in: query
+          schema:
+            type: string
+          description: Şirket ID (company_admin için opsiyonel)
+      responses:
+        '200':
+          description: Organizasyon yapısı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      organization:
+                        type: array
+                        description: İşyeri bazlı organizasyon ağacı
+                      unassigned:
+                        type: array
+                        description: Atanmamış çalışanlar
+                      summary:
+                        type: object
+                        properties:
+                          totalWorkplaces:
+                            type: integer
+                          totalSections:
+                            type: integer
+                          totalDepartments:
+                            type: integer
+                          totalEmployees:
+                            type: integer
+                          unassignedCount:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/managers/statistics:
+    get:
+      tags:
+        - Managers
+      summary: Yönetici atama istatistikleri
+      description: Şirketin yönetici atama durumunu özetler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company
+          in: query
+          schema:
+            type: string
+          description: Şirket ID
+      responses:
+        '200':
+          description: İstatistikler
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      employees:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          withManager:
+                            type: integer
+                          withoutManager:
+                            type: integer
+                          percentage:
+                            type: integer
+                      departments:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          withManager:
+                            type: integer
+                          withoutManager:
+                            type: integer
+                          percentage:
+                            type: integer
+                      workplaces:
+                        type: object
+                      sections:
+                        type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/managers/potential-managers:
+    get:
+      tags:
+        - Managers
+      summary: Potansiyel yönetici listesi
+      description: Yönetici olarak atanabilecek çalışan listesini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company
+          in: query
+          schema:
+            type: string
+          description: Şirket ID
+        - name: excludeId
+          in: query
+          schema:
+            type: string
+          description: Hariç tutulacak çalışan ID (kendi kendine yönetici olamaz)
+      responses:
+        '200':
+          description: Potansiyel yöneticiler
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        firstName:
+                          type: string
+                        lastName:
+                          type: string
+                        email:
+                          type: string
+                        position:
+                          type: string
+                        department:
+                          type: object
+                        workplace:
+                          type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'

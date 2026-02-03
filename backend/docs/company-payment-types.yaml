@@ -1,0 +1,316 @@
+paths:
+  /api/companies/{companyId}/payment-types:
+    get:
+      tags:
+        - Company Payment Types
+      summary: Şirket ödeme türlerini listele
+      description: |
+        Şirketin ödeme türlerini global türlerle birlikte listeler.
+        Her global tür için şirketin aktifleştirip aktifleştirmediği bilgisi döner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Şirket ID
+        - name: includeInactive
+          in: query
+          schema:
+            type: string
+            enum: ['true', 'false']
+          description: Pasif türleri de dahil et
+      responses:
+        '200':
+          description: Ödeme türleri listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    paymentType:
+                      $ref: '#/components/schemas/AdditionalPaymentType'
+                    companySettings:
+                      $ref: '#/components/schemas/CompanyPaymentType'
+                    isEnabled:
+                      type: boolean
+                      description: Şirket tarafından aktifleştirildi mi
+                    defaultAmount:
+                      type: number
+                      description: Şirketin varsayılan tutarı
+                    customName:
+                      type: string
+                      description: Şirketin özel adı
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Company Payment Types
+      summary: Ödeme türü aktifleştir
+      description: Şirket için bir ödeme türünü aktifleştirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - paymentTypeId
+              properties:
+                paymentTypeId:
+                  type: string
+                  description: Global ödeme türü ID
+                defaultAmount:
+                  type: number
+                  description: Varsayılan tutar
+                  example: 1000
+                customName:
+                  type: string
+                  description: Özel ad
+                settings:
+                  type: object
+                  properties:
+                    requiresApproval:
+                      type: boolean
+                      description: Onay gerektirir mi
+      responses:
+        '201':
+          description: Aktifleştirildi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyPaymentType'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/companies/{companyId}/payment-types/enabled:
+    get:
+      tags:
+        - Company Payment Types
+      summary: Aktif ödeme türleri
+      description: Şirketin aktifleştirdiği ödeme türlerini listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Aktif ödeme türleri
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyPaymentType'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/companies/{companyId}/payment-types/{id}:
+    put:
+      tags:
+        - Company Payment Types
+      summary: Ödeme türü ayarlarını güncelle
+      description: Şirketin ödeme türü ayarlarını günceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Şirket ödeme türü ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                defaultAmount:
+                  type: number
+                customName:
+                  type: string
+                isActive:
+                  type: boolean
+                settings:
+                  type: object
+      responses:
+        '200':
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyPaymentType'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Company Payment Types
+      summary: Ödeme türünü deaktif et
+      description: Şirketin ödeme türünü deaktif eder (silmez).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deaktif edildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Ödeme türü deaktif edildi"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/companies/{companyId}/payment-types/bulk-enable:
+    post:
+      tags:
+        - Company Payment Types
+      summary: Toplu ödeme türü aktifleştir
+      description: Birden fazla ödeme türünü toplu olarak aktifleştirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - paymentTypes
+              properties:
+                paymentTypes:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - paymentTypeId
+                    properties:
+                      paymentTypeId:
+                        type: string
+                      defaultAmount:
+                        type: number
+                      customName:
+                        type: string
+      responses:
+        '200':
+          description: Toplu aktifleştirme sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "5 ödeme türü aktifleştirildi"
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CompanyPaymentType'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  schemas:
+    AdditionalPaymentType:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Ödeme türü adı
+          example: "Yemek Yardımı"
+        code:
+          type: string
+          description: Kod
+          example: "YEMEK"
+        description:
+          type: string
+        paymentFrequency:
+          type: string
+          enum: [MONTHLY, ONE_TIME]
+          description: Ödeme sıklığı
+        isActive:
+          type: boolean
+        displayOrder:
+          type: integer
+
+    CompanyPaymentType:
+      type: object
+      properties:
+        _id:
+          type: string
+        company:
+          type: string
+        paymentType:
+          $ref: '#/components/schemas/AdditionalPaymentType'
+        defaultAmount:
+          type: number
+          description: Şirketin varsayılan tutarı
+        customName:
+          type: string
+          description: Şirketin özel adı
+        isActive:
+          type: boolean
+        settings:
+          type: object
+          properties:
+            requiresApproval:
+              type: boolean
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

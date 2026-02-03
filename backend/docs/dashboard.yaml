@@ -1,0 +1,206 @@
+paths:
+  /api/dashboard/company-admin/summary:
+    get:
+      tags:
+        - Dashboard
+      summary: Sirket Admin ozet kartlari
+      description: |
+        Sirket admin icin dashboard ozet bilgilerini doner.
+        - Bugun giris yapanlar
+        - Gec kalanlar
+        - Izinli olanlar
+        - Bekleyen talepler
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard ozeti
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      todayCheckIns:
+                        type: integer
+                        description: Bugun giris yapan calisan sayisi
+                      lateCount:
+                        type: integer
+                        description: Gec kalan calisan sayisi
+                      onLeaveCount:
+                        type: integer
+                        description: Izinli calisan sayisi
+                      pendingRequestsCount:
+                        type: integer
+                        description: Bekleyen talep sayisi (izin + ise giris/cikis)
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/dashboard/employee/summary:
+    get:
+      tags:
+        - Dashboard
+      summary: Calisan ozet kartlari
+      description: |
+        Calisan icin dashboard ozet bilgilerini doner.
+        - Bugun giris durumu
+        - Kalan izin gunleri
+        - Bekleyen izin talepleri
+        - Onaylanan gelecek izinler
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard ozeti
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      hasCheckedIn:
+                        type: boolean
+                        description: Bugun giris yapti mi
+                      remainingDays:
+                        type: number
+                        description: Kalan yillik izin gunleri
+                      pendingLeaveRequests:
+                        type: integer
+                        description: Bekleyen izin talebi sayisi
+                      upcomingLeaves:
+                        type: integer
+                        description: Onaylanan gelecek izin sayisi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Calisan bulunamadi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/dashboard/bayi-admin/summary:
+    get:
+      tags:
+        - Dashboard
+      summary: Bayi Admin ozet kartlari
+      description: |
+        Bayi admin icin dashboard ozet bilgilerini doner.
+        - Toplam sirket sayisi
+        - Bekleyen ise giris/cikis kayitlari
+        - Bugun giris yapanlar
+        - Toplam aktif calisan
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard ozeti
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      totalCompanies:
+                        type: integer
+                        description: Toplam sirket sayisi
+                      pendingEmploymentRecords:
+                        type: integer
+                        description: Bekleyen ise giris/cikis kayit sayisi
+                      todayCheckIns:
+                        type: integer
+                        description: Bugun giris yapan toplam calisan sayisi
+                      totalEmployees:
+                        type: integer
+                        description: Toplam aktif calisan sayisi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/dashboard/super-admin/summary:
+    get:
+      tags:
+        - Dashboard
+      summary: Super Admin ozet kartlari
+      description: |
+        Super admin icin dashboard ozet bilgilerini doner.
+        - Bayi sayilari (aktif/pasif/toplam)
+        - Sirket sayilari (aktif/pasif/toplam)
+        - Calisan sayilari (aktif/pasif/toplam)
+        - Izin talebi istatistikleri
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard ozeti
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      dealers:
+                        type: object
+                        properties:
+                          active:
+                            type: integer
+                            description: Aktif bayi sayisi
+                          passive:
+                            type: integer
+                            description: Pasif bayi sayisi
+                          total:
+                            type: integer
+                            description: Toplam bayi sayisi
+                      companies:
+                        type: object
+                        properties:
+                          active:
+                            type: integer
+                          passive:
+                            type: integer
+                          total:
+                            type: integer
+                      employees:
+                        type: object
+                        properties:
+                          active:
+                            type: integer
+                          passive:
+                            type: integer
+                          total:
+                            type: integer
+                      totalLeaveRequests:
+                        type: integer
+                        description: Toplam izin talebi sayisi
+                      approvedLeaveRequests:
+                        type: integer
+                        description: Onaylanan izin talebi sayisi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'

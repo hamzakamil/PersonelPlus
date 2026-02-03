@@ -1,0 +1,204 @@
+paths:
+  /api/quota/summary:
+    get:
+      tags:
+        - Quota
+      summary: Kota özeti
+      description: |
+        Kullanıcı rolüne göre kota özet bilgilerini döner.
+        - **bayi_admin**: Tüm şirketlerin kota durumu
+        - **super_admin**: Tüm bayilerin özeti veya belirli bir bayinin detayı
+        - **company_admin**: Kendi şirketinin kota durumu
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dealerId
+          in: query
+          schema:
+            type: string
+          description: Bayi ID (super_admin için)
+      responses:
+        '200':
+          description: Kota özet bilgileri
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    oneOf:
+                      - type: object
+                        description: Bayi admin için
+                        properties:
+                          dealer:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              name:
+                                type: string
+                          quota:
+                            type: object
+                            properties:
+                              total:
+                                type: integer
+                              used:
+                                type: integer
+                          companies:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                name:
+                                  type: string
+                                allocated:
+                                  type: integer
+                                used:
+                                  type: integer
+                                actualEmployeeCount:
+                                  type: integer
+                      - type: object
+                        description: Şirket admin için
+                        properties:
+                          company:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              name:
+                                type: string
+                          quota:
+                            type: object
+                            properties:
+                              allocated:
+                                type: integer
+                              used:
+                                type: integer
+                              isUnlimited:
+                                type: boolean
+                              actualEmployeeCount:
+                                type: integer
+                          dealer:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                              hasQuota:
+                                type: boolean
+                              remaining:
+                                type: integer
+                              total:
+                                type: integer
+                              expiresAt:
+                                type: string
+                                format: date-time
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/quota/allocate:
+    post:
+      tags:
+        - Quota
+      summary: Şirkete kota ata
+      description: Bayi admin veya super_admin şirkete kota ataması yapar.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - companyId
+                - quota
+              properties:
+                companyId:
+                  type: string
+                  description: Şirket ID
+                  example: "507f1f77bcf86cd799439011"
+                quota:
+                  type: integer
+                  description: Atanacak kota miktarı
+                  example: 50
+      responses:
+        '200':
+          description: Kota başarıyla atandı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Kota başarıyla atandı"
+                  data:
+                    type: object
+        '400':
+          description: Geçersiz parametreler veya yetersiz kota
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/quota/sync:
+    post:
+      tags:
+        - Quota
+      summary: Kota senkronizasyonu
+      description: Bayi kotasını ve tüm şirket kotalarını gerçek çalışan sayılarıyla senkronize eder.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dealerId:
+                  type: string
+                  description: Bayi ID (super_admin için)
+      responses:
+        '200':
+          description: Senkronizasyon tamamlandı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Kota senkronizasyonu tamamlandı"
+                  data:
+                    type: object
+                    properties:
+                      actualEmployeeCount:
+                        type: integer
+                        description: Gerçek çalışan sayısı
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'

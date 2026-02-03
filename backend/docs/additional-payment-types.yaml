@@ -1,0 +1,326 @@
+paths:
+  /api/additional-payment-types:
+    get:
+      tags:
+        - Additional Payment Types
+      summary: Odeme turlerini listele
+      description: Tum ek odeme turlerini listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [TRANSPORTATION, FOOD, FAMILY, CLOTHING, BONUS, OTHER]
+          description: Kategori filtresi
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Pasif turleri dahil et
+      responses:
+        '200':
+          description: Odeme turu listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdditionalPaymentType'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Additional Payment Types
+      summary: Yeni odeme turu olustur
+      description: Yeni ek odeme turu olusturur (sadece super_admin).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - code
+                - category
+              properties:
+                name:
+                  type: string
+                  description: Odeme turu adi
+                code:
+                  type: string
+                  description: Benzersiz kod
+                description:
+                  type: string
+                category:
+                  type: string
+                  enum: [TRANSPORTATION, FOOD, FAMILY, CLOTHING, BONUS, OTHER]
+                paymentFrequency:
+                  type: string
+                  enum: [MONTHLY, YEARLY, ONE_TIME]
+                  default: MONTHLY
+                isTaxExempt:
+                  type: boolean
+                  default: false
+                taxExemptLimit:
+                  type: number
+                  default: 0
+                displayOrder:
+                  type: integer
+                  default: 99
+      responses:
+        '201':
+          description: Odeme turu olusturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdditionalPaymentType'
+        '400':
+          description: Kod zaten kullaniliyor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/additional-payment-types/init:
+    post:
+      tags:
+        - Additional Payment Types
+      summary: Varsayilanlari baslat
+      description: Varsayilan odeme turlerini olusturur (sadece super_admin).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Varsayilanlar olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  created:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/additional-payment-types/meta/categories:
+    get:
+      tags:
+        - Additional Payment Types
+      summary: Kategorileri listele
+      description: Tum odeme turu kategorilerini listeler.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Kategori listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    name:
+                      type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/additional-payment-types/meta/frequencies:
+    get:
+      tags:
+        - Additional Payment Types
+      summary: Odeme sikliklarini listele
+      description: Tum odeme sikliklarini listeler.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Siklik listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    name:
+                      type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/additional-payment-types/{id}:
+    get:
+      tags:
+        - Additional Payment Types
+      summary: Odeme turu detayi
+      description: Tek odeme turu detayini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Odeme turu ID
+      responses:
+        '200':
+          description: Odeme turu detayi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdditionalPaymentType'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Additional Payment Types
+      summary: Odeme turu guncelle
+      description: Odeme turunu gunceller (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                code:
+                  type: string
+                description:
+                  type: string
+                category:
+                  type: string
+                paymentFrequency:
+                  type: string
+                isTaxExempt:
+                  type: boolean
+                taxExemptLimit:
+                  type: number
+                displayOrder:
+                  type: integer
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Odeme turu guncellendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdditionalPaymentType'
+        '400':
+          description: Kod zaten kullaniliyor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Additional Payment Types
+      summary: Odeme turu sil
+      description: |
+        Odeme turunu siler (sadece super_admin).
+        - Varsayilan turler silinmez, deaktif edilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Odeme turu silindi/deaktif edildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  paymentType:
+                    $ref: '#/components/schemas/AdditionalPaymentType'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    AdditionalPaymentType:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Odeme turu adi
+        code:
+          type: string
+          description: Benzersiz kod
+        description:
+          type: string
+        category:
+          type: string
+          enum: [TRANSPORTATION, FOOD, FAMILY, CLOTHING, BONUS, OTHER]
+        paymentFrequency:
+          type: string
+          enum: [MONTHLY, YEARLY, ONE_TIME]
+        isTaxExempt:
+          type: boolean
+          description: Vergiden muaf mi
+        taxExemptLimit:
+          type: number
+          description: Vergi muafiyet limiti
+        isDefault:
+          type: boolean
+          description: Sistem varsayilani mi
+        isActive:
+          type: boolean
+        displayOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+

@@ -1,0 +1,331 @@
+paths:
+  /api/weekend-settings/company/{companyId}:
+    get:
+      tags:
+        - Weekend Settings
+      summary: Sirket hafta tatili ayarlari
+      description: Sirketin hafta tatili ayarlarini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      responses:
+        '200':
+          description: Hafta tatili ayarlari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  companyId:
+                    type: string
+                  weekendDays:
+                    type: array
+                    items:
+                      type: integer
+                    description: Hafta tatili gunleri (0=Pazar, 6=Cumartesi)
+                    example: [0, 6]
+                  weekendDayNames:
+                    type: array
+                    items:
+                      type: string
+                    description: Gun isimleri
+                    example: ['Pazar', 'Cumartesi']
+                  weekendLeaveDeduction:
+                    type: string
+                    enum: [none, primary, all]
+                    description: Izin hesaplama yontemi
+                  primaryWeekendDay:
+                    type: integer
+                    description: Ana hafta tatili gunu
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Weekend Settings
+      summary: Sirket hafta tatili guncelle
+      description: Sirketin hafta tatili ayarlarini gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - weekendDays
+              properties:
+                weekendDays:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+                    maximum: 6
+                  description: Hafta tatili gunleri (0-6)
+                  example: [0, 6]
+                weekendLeaveDeduction:
+                  type: string
+                  enum: [none, primary, all]
+                  description: Izin hesaplama yontemi
+                primaryWeekendDay:
+                  type: integer
+                  minimum: 0
+                  maximum: 6
+                  description: Ana hafta tatili gunu
+      responses:
+        '200':
+          description: Ayarlar guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  companyId:
+                    type: string
+                  weekendDays:
+                    type: array
+                    items:
+                      type: integer
+                  weekendDayNames:
+                    type: array
+                    items:
+                      type: string
+                  weekendLeaveDeduction:
+                    type: string
+                  primaryWeekendDay:
+                    type: integer
+        '400':
+          description: Hafta tatili gunleri secilmeli
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/weekend-settings/department/{departmentId}:
+    get:
+      tags:
+        - Weekend Settings
+      summary: Departman hafta tatili ayarlari
+      description: |
+        Departmanin hafta tatili ayarlarini getirir.
+        - Departman ayari yoksa sirket varsayilani kullanilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: departmentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Departman ID
+      responses:
+        '200':
+          description: Hafta tatili ayarlari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  departmentId:
+                    type: string
+                  weekendDays:
+                    type: array
+                    items:
+                      type: integer
+                  weekendDayNames:
+                    type: array
+                    items:
+                      type: string
+                  source:
+                    type: string
+                    enum: [department, company]
+                    description: Ayar kaynagi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Weekend Settings
+      summary: Departman hafta tatili guncelle
+      description: |
+        Departmanin hafta tatili ayarlarini gunceller.
+        - Bos dizi gonderilirse sirket varsayilani kullanilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: departmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                weekendDays:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+                    maximum: 6
+                  description: Hafta tatili gunleri (bos ise sirket varsayilani)
+      responses:
+        '200':
+          description: Ayarlar guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  departmentId:
+                    type: string
+                  weekendDays:
+                    type: array
+                    items:
+                      type: integer
+                  weekendDayNames:
+                    type: array
+                    items:
+                      type: string
+                  source:
+                    type: string
+                    enum: [department, company]
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/weekend-settings/employee/{employeeId}:
+    get:
+      tags:
+        - Weekend Settings
+      summary: Calisan hafta tatili ayarlari
+      description: |
+        Calisanin hafta tatili ayarlarini getirir.
+        - Hiyerarsi: Calisan > Departman > Sirket
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Calisan ID
+      responses:
+        '200':
+          description: Hafta tatili ayarlari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  employeeId:
+                    type: string
+                  weekendDays:
+                    type: array
+                    items:
+                      type: integer
+                  weekendDayNames:
+                    type: array
+                    items:
+                      type: string
+                  source:
+                    type: string
+                    enum: [employee, department, company]
+                    description: Ayar kaynagi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Weekend Settings
+      summary: Calisan hafta tatili guncelle
+      description: |
+        Calisanin hafta tatili ayarlarini gunceller.
+        - Bos dizi gonderilirse departman/sirket varsayilani kullanilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                weekendDays:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+                    maximum: 6
+                  description: Hafta tatili gunleri (bos ise ust hiyerarsi)
+      responses:
+        '200':
+          description: Ayarlar guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  employeeId:
+                    type: string
+                  weekendDays:
+                    type: array
+                    items:
+                      type: integer
+                  weekendDayNames:
+                    type: array
+                    items:
+                      type: string
+                  source:
+                    type: string
+                    enum: [employee, department, company]
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+

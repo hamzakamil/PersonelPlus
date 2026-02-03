@@ -1,0 +1,13 @@
+{
+  "backend/**/*.js": [
+    "eslint --fix",
+    "prettier --write"
+  ],
+  "ui/**/*.{js,vue}": [
+    "eslint --fix",
+    "prettier --write"
+  ],
+  "*.{json,md,css}": [
+    "prettier --write"
+  ]
+}

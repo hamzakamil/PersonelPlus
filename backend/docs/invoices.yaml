@@ -1,0 +1,893 @@
+paths:
+  /api/invoices:
+    get:
+      tags:
+        - Invoices
+      summary: Tum faturalari listele
+      description: Tum faturalari filtrelerle listeler (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, sent, accepted, rejected, cancelled]
+          description: GIB durumu
+        - name: dealer
+          in: query
+          schema:
+            type: string
+          description: Bayi ID
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: invoiceType
+          in: query
+          schema:
+            type: string
+          description: Fatura tipi kodu
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Fatura no, UUID veya musteri adi ara
+      responses:
+        '200':
+          description: Fatura listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      invoices:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Invoice'
+                      pagination:
+                        type: object
+                      stats:
+                        type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Invoices
+      summary: Yeni fatura olustur
+      description: Yeni e-fatura olusturur (sadece super_admin).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceCreate'
+      responses:
+        '200':
+          description: Fatura olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Invoice'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/invoices/stats:
+    get:
+      tags:
+        - Invoices
+      summary: Fatura istatistikleri
+      description: Fatura ozet istatistiklerini doner (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Istatistikler
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      summary:
+                        type: object
+                        properties:
+                          totalInvoices:
+                            type: integer
+                          totalAmount:
+                            type: number
+                          totalTax:
+                            type: number
+                          draftCount:
+                            type: integer
+                          sentCount:
+                            type: integer
+                          acceptedCount:
+                            type: integer
+                          rejectedCount:
+                            type: integer
+                          cancelledCount:
+                            type: integer
+                      monthlyTrend:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            year:
+                              type: integer
+                            month:
+                              type: integer
+                            count:
+                              type: integer
+                            amount:
+                              type: number
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/invoices/my:
+    get:
+      tags:
+        - Invoices
+      summary: Kendi faturalarim
+      description: Bayi admin icin kendi faturalarini listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, sent, accepted, rejected, cancelled]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Fatura listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      invoices:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Invoice'
+                      pagination:
+                        type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/invoices/integrators:
+    get:
+      tags:
+        - Invoices
+      summary: Entegratorleri listele
+      description: Mevcut e-fatura entegratorlerini listeler.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Entegrator listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      integrators:
+                        type: array
+                        items:
+                          type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/invoices/integrators/test:
+    post:
+      tags:
+        - Invoices
+      summary: Entegrator baglanti testi
+      description: Entegrator baglantilarini test eder.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                integrator:
+                  type: string
+                  description: Test edilecek entegrator adi (bos ise tumu)
+      responses:
+        '200':
+          description: Test sonuclari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/invoices/check-taxpayer:
+    post:
+      tags:
+        - Invoices
+      summary: Mukellef sorgula
+      description: Vergi/TC kimlik numarasi ile mukellef sorgular.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - taxNumber
+              properties:
+                taxNumber:
+                  type: string
+                  description: Vergi veya TC kimlik numarasi
+      responses:
+        '200':
+          description: Mukellef bilgisi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '400':
+          description: Vergi numarasi zorunlu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/invoices/{id}:
+    get:
+      tags:
+        - Invoices
+      summary: Fatura detayi
+      description: Fatura detaylarini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Fatura ID
+      responses:
+        '200':
+          description: Fatura detayi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Invoices
+      summary: Fatura guncelle
+      description: Taslak faturayi gunceller (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                invoiceTypeCode:
+                  type: string
+                profileId:
+                  type: string
+                notes:
+                  type: string
+                accountingSupplierParty:
+                  type: object
+                accountingCustomerParty:
+                  type: object
+                invoiceLines:
+                  type: array
+                taxTotal:
+                  type: object
+                legalMonetaryTotal:
+                  type: object
+      responses:
+        '200':
+          description: Fatura guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Invoice'
+                  message:
+                    type: string
+        '400':
+          description: Sadece taslak faturalar guncellenebilir
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Invoices
+      summary: Fatura sil
+      description: Taslak faturayi siler (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Fatura silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Sadece taslak faturalar silinebilir
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/invoices/{id}/send:
+    post:
+      tags:
+        - Invoices
+      summary: Fatura gonder
+      description: Faturayi GIB'e gonderir (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Fatura gonderildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      invoice:
+                        $ref: '#/components/schemas/Invoice'
+                      integrator:
+                        type: object
+                  message:
+                    type: string
+        '400':
+          description: Sadece taslak faturalar gonderilebilir
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/invoices/{id}/check-status:
+    post:
+      tags:
+        - Invoices
+      summary: Fatura durumu sorgula
+      description: GIB'den fatura durumunu sorgular.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Durum bilgisi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      invoice:
+                        $ref: '#/components/schemas/Invoice'
+                      status:
+                        type: object
+        '400':
+          description: Taslak fatura durumu sorgulanamaz
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/invoices/{id}/cancel:
+    post:
+      tags:
+        - Invoices
+      summary: Fatura iptal
+      description: Faturayi iptal eder (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: Iptal nedeni
+      responses:
+        '200':
+          description: Fatura iptal edildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Invoice'
+                  message:
+                    type: string
+        '400':
+          description: Iptal nedeni zorunlu veya fatura zaten iptal edilmis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/invoices/{id}/xml:
+    get:
+      tags:
+        - Invoices
+      summary: Fatura XML indir
+      description: Faturanin XML dosyasini indirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: XML dosyasi
+          content:
+            application/xml:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/invoices/{id}/pdf:
+    get:
+      tags:
+        - Invoices
+      summary: Fatura PDF indir
+      description: |
+        Faturanin PDF dosyasini indirir.
+        - Taslak faturalarin PDF'i mevcut degildir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: PDF dosyasi
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Taslak faturanin PDF'i mevcut degil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/invoices/{id}/regenerate-xml:
+    post:
+      tags:
+        - Invoices
+      summary: XML yeniden olustur
+      description: Taslak faturanin XML'ini yeniden olusturur.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: XML yeniden olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Invoice'
+                  message:
+                    type: string
+        '400':
+          description: Sadece taslak faturalarin XML'i yeniden olusturulabilir
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/invoices/bulk-send:
+    post:
+      tags:
+        - Invoices
+      summary: Toplu fatura gonder
+      description: Birden fazla faturayi toplu olarak GIB'e gonderir.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - invoiceIds
+              properties:
+                invoiceIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Gonderilecek fatura ID'leri
+      responses:
+        '200':
+          description: Toplu gonderim sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      success:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            invoiceNumber:
+                              type: string
+                      failed:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            reason:
+                              type: string
+                  message:
+                    type: string
+        '400':
+          description: Fatura ID listesi zorunlu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  schemas:
+    Invoice:
+      type: object
+      properties:
+        _id:
+          type: string
+        invoiceNumber:
+          type: string
+          description: Fatura numarasi
+        uuid:
+          type: string
+          description: Fatura UUID
+        invoiceTypeCode:
+          type: string
+          description: Fatura tipi (SATIS, IADE, vs)
+        profileId:
+          type: string
+          description: Senaryo (TICARIFATURA, TEMELFATURA, vs)
+        issueDate:
+          type: string
+          format: date-time
+        dealer:
+          type: object
+        payment:
+          type: object
+        accountingSupplierParty:
+          type: object
+          description: Satici bilgileri
+        accountingCustomerParty:
+          type: object
+          description: Alici bilgileri
+        invoiceLines:
+          type: array
+          items:
+            type: object
+        taxTotal:
+          type: object
+          properties:
+            taxAmount:
+              type: number
+        legalMonetaryTotal:
+          type: object
+          properties:
+            lineExtensionAmount:
+              type: number
+            taxExclusiveAmount:
+              type: number
+            taxInclusiveAmount:
+              type: number
+            payableAmount:
+              type: number
+        gibStatus:
+          type: string
+          enum: [draft, sent, accepted, rejected, cancelled]
+        gibResponse:
+          type: object
+          properties:
+            ettn:
+              type: string
+            status:
+              type: string
+            statusCode:
+              type: string
+            statusDescription:
+              type: string
+        integrator:
+          type: object
+          properties:
+            name:
+              type: string
+            sentAt:
+              type: string
+              format: date-time
+        createdBy:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    InvoiceCreate:
+      type: object
+      required:
+        - dealer
+        - invoiceTypeCode
+        - accountingCustomerParty
+        - invoiceLines
+      properties:
+        dealer:
+          type: string
+          description: Bayi ID
+        invoiceTypeCode:
+          type: string
+        profileId:
+          type: string
+        notes:
+          type: string
+        accountingCustomerParty:
+          type: object
+        invoiceLines:
+          type: array
+          items:
+            type: object
+
+

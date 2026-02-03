@@ -1,0 +1,378 @@
+paths:
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: Kullanici listesi
+      description: |
+        Kullanicilari listeler (rol bazli filtreleme).
+        - Super Admin: Tum kullanicilari gorur (hierarchical tree)
+        - Bayi Admin: Kendi bayisine bagli kullanicilari gorur
+        - Company Admin: Kendi sirketine bagli kullanicilari gorur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dealerId
+          in: query
+          schema:
+            type: string
+          description: Bayi ID filtresi (super_admin)
+        - name: companyId
+          in: query
+          schema:
+            type: string
+          description: Sirket ID filtresi
+        - name: role
+          in: query
+          schema:
+            type: string
+          description: Rol adi filtresi
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Email arama
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Kullanici listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  meta:
+                    type: object
+                    properties:
+                      hierarchical:
+                        type: array
+                        description: Super admin icin hierarchical tree
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Users
+      summary: Yeni kullanici olustur
+      description: |
+        Yeni bir kullanici olusturur.
+        - Rol hiyerarsisi kontrolu yapilir
+        - Kullanici sadece kendinden dusuk seviyedeki rollere islem yapabilir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - roleName
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Kullanici email adresi
+                password:
+                  type: string
+                  description: Kullanici sifresi
+                roleName:
+                  type: string
+                  description: Rol adi
+                  example: employee
+                dealerId:
+                  type: string
+                  description: Bayi ID (super_admin icin)
+                companyId:
+                  type: string
+                  description: Sirket ID
+                isActive:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: Kullanici olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+                  message:
+                    type: string
+                    example: Kullanici basariyla olusturuldu
+        '400':
+          description: Email zaten kullanimda veya gecersiz rol
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Kullanici detayi
+      description: Belirtilen kullanicinin detaylarini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Kullanici ID
+      responses:
+        '200':
+          description: Kullanici detaylari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Users
+      summary: Kullanici guncelle
+      description: Kullanici bilgilerini gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Kullanici ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roleName:
+                  type: string
+                  description: Yeni rol adi
+                dealerId:
+                  type: string
+                  description: Bayi ID (super_admin)
+                companyId:
+                  type: string
+                  description: Sirket ID
+                isActive:
+                  type: boolean
+                password:
+                  type: string
+                  description: Yeni sifre
+      responses:
+        '200':
+          description: Kullanici guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+                  message:
+                    type: string
+                    example: Kullanici basariyla guncellendi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Users
+      summary: Kullanici sil
+      description: |
+        Kullaniciyi siler.
+        - Kullanici kendi hesabini silemez
+        - Rol hiyerarsisi kontrolu yapilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Kullanici ID
+      responses:
+        '200':
+          description: Kullanici silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Kullanici basariyla silindi
+        '400':
+          description: Kendi hesabinizi silemezsiniz
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/users/{id}/assign-role-permissions:
+    post:
+      tags:
+        - Users
+      summary: Kullaniciya rol ve yetki ata
+      description: |
+        Kullaniciya rol ve yetkiler atar.
+        - Bayi Admin: Kendi bayisine bagli sirketlerin kullanicilari icin
+        - Company Admin: Kendi sirketine bagli kullanicilar icin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Kullanici ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roleId:
+                  type: string
+                  description: Atanacak rol ID
+                permissionIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Atanacak yetki ID'leri
+                companies:
+                  type: array
+                  items:
+                    type: string
+                  description: Yetkinin gecerli oldugu sirketler
+      responses:
+        '200':
+          description: Rol ve yetkiler atandi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+                  message:
+                    type: string
+                    example: Rol ve yetkiler basariyla atandi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+            description:
+              type: string
+        dealer:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        company:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        isActive:
+          type: boolean
+        mustChangePassword:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

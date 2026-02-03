@@ -1,0 +1,187 @@
+paths:
+  /api/permissions:
+    get:
+      tags:
+        - Permissions
+      summary: Tum yetkileri listele
+      description: |
+        Sistemdeki tum yetkileri listeler.
+        - super_admin, bayi_admin ve company_admin erisebilir
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Yetki listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Permission'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Permissions
+      summary: Yeni yetki olustur
+      description: Yeni bir yetki tanimlar (sadece super_admin).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - description
+                - category
+              properties:
+                name:
+                  type: string
+                  description: Yetki adi (unique)
+                  example: employees.create
+                description:
+                  type: string
+                  description: Yetki aciklamasi
+                  example: Calisan olusturma yetkisi
+                category:
+                  type: string
+                  description: Yetki kategorisi
+                  example: employees
+      responses:
+        '201':
+          description: Yetki olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Permission'
+        '400':
+          description: Eksik alan veya yetki zaten mevcut
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/permissions/{id}:
+    put:
+      tags:
+        - Permissions
+      summary: Yetki guncelle
+      description: Mevcut bir yetkiyi gunceller (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Yetki ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                category:
+                  type: string
+      responses:
+        '200':
+          description: Yetki guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Permission'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Permissions
+      summary: Yetki sil
+      description: |
+        Yetkiyi ve iliskili RolePermission kayitlarini siler (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Yetki ID
+      responses:
+        '200':
+          description: Yetki silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: Yetki silindi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    Permission:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Yetki adi (unique)
+          example: employees.create
+        description:
+          type: string
+          description: Yetki aciklamasi
+        category:
+          type: string
+          description: Yetki kategorisi
+          example: employees
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+

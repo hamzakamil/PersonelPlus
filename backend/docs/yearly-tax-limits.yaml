@@ -1,0 +1,307 @@
+paths:
+  /api/yearly-tax-limits:
+    get:
+      tags:
+        - Yearly Tax Limits
+      summary: Yillik limitleri listele
+      description: Tum yillara ait vergi limitlerini listeler.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Limit listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/YearlyTaxLimits'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Yearly Tax Limits
+      summary: Yeni yil limiti ekle
+      description: Yeni yil icin vergi limitlerini ekler (sadece super_admin).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - year
+              properties:
+                year:
+                  type: integer
+                  description: Yil
+                  example: 2024
+                yemekLimits:
+                  type: object
+                  properties:
+                    dailyLimit:
+                      type: number
+                      description: Gunluk yemek limiti
+                    monthlyLimit:
+                      type: number
+                yolLimits:
+                  type: object
+                  properties:
+                    dailyLimit:
+                      type: number
+                      description: Gunluk yol limiti
+                    monthlyLimit:
+                      type: number
+                sgkLimits:
+                  type: object
+                  properties:
+                    tabanUcret:
+                      type: number
+                    tavanUcret:
+                      type: number
+                isActive:
+                  type: boolean
+                  default: false
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Limit eklendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YearlyTaxLimits'
+        '400':
+          description: Bu yil zaten mevcut
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/yearly-tax-limits/active:
+    get:
+      tags:
+        - Yearly Tax Limits
+      summary: Aktif yil limitleri
+      description: |
+        Aktif yilin vergi limitlerini getirir.
+        - Oncelikle isActive=true olanı arar
+        - Yoksa mevcut yili arar
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Aktif limitler
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YearlyTaxLimits'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/yearly-tax-limits/init:
+    post:
+      tags:
+        - Yearly Tax Limits
+      summary: Varsayilanlari baslat
+      description: Varsayilan yillik limitleri olusturur (sadece super_admin).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Varsayilanlar olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  created:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/yearly-tax-limits/{year}:
+    get:
+      tags:
+        - Yearly Tax Limits
+      summary: Yil limiti detayi
+      description: Belirtilen yilin vergi limitlerini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Yil
+      responses:
+        '200':
+          description: Limit detayi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YearlyTaxLimits'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Yearly Tax Limits
+      summary: Yil limitlerini guncelle
+      description: Belirtilen yilin vergi limitlerini gunceller (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                yemekLimits:
+                  type: object
+                  properties:
+                    dailyLimit:
+                      type: number
+                    monthlyLimit:
+                      type: number
+                yolLimits:
+                  type: object
+                  properties:
+                    dailyLimit:
+                      type: number
+                    monthlyLimit:
+                      type: number
+                sgkLimits:
+                  type: object
+                  properties:
+                    tabanUcret:
+                      type: number
+                    tavanUcret:
+                      type: number
+                isActive:
+                  type: boolean
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Limit guncellendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YearlyTaxLimits'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Yearly Tax Limits
+      summary: Yil limitlerini sil
+      description: |
+        Belirtilen yilin vergi limitlerini siler (sadece super_admin).
+        - Aktif yil silinemez
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Limit silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Aktif yil silinemez
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    YearlyTaxLimits:
+      type: object
+      properties:
+        _id:
+          type: string
+        year:
+          type: integer
+          description: Yil
+        yemekLimits:
+          type: object
+          properties:
+            dailyLimit:
+              type: number
+              description: Gunluk yemek muafiyet limiti
+            monthlyLimit:
+              type: number
+              description: Aylik yemek muafiyet limiti
+        yolLimits:
+          type: object
+          properties:
+            dailyLimit:
+              type: number
+              description: Gunluk yol muafiyet limiti
+            monthlyLimit:
+              type: number
+              description: Aylik yol muafiyet limiti
+        sgkLimits:
+          type: object
+          properties:
+            tabanUcret:
+              type: number
+              description: SGK taban ucret
+            tavanUcret:
+              type: number
+              description: SGK tavan ucret
+        isActive:
+          type: boolean
+          description: Aktif yil mi
+        notes:
+          type: string
+        createdBy:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+

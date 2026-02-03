@@ -1,0 +1,351 @@
+paths:
+  /api/packages:
+    get:
+      tags:
+        - Packages
+      summary: Paketleri listele
+      description: |
+        Tum abonelik paketlerini listeler.
+        - Auth olmayan kullanicilar sadece aktif paketleri gorur
+        - Auth olan kullanicilar tum paketleri gorur
+      responses:
+        '200':
+          description: Paket listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Package'
+
+    post:
+      tags:
+        - Packages
+      summary: Yeni paket olustur
+      description: Yeni bir abonelik paketi olusturur (sadece super_admin).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - code
+                - employeeLimit
+                - monthlyPrice
+                - yearlyPrice
+              properties:
+                name:
+                  type: string
+                  description: Paket adi
+                  example: Baslangic Paketi
+                code:
+                  type: string
+                  description: Paket kodu (unique)
+                  example: STARTER
+                employeeLimit:
+                  type: integer
+                  description: Calisan limiti
+                  example: 10
+                monthlyPrice:
+                  type: number
+                  description: Aylik fiyat (TRY)
+                  example: 299
+                yearlyPrice:
+                  type: number
+                  description: Yillik fiyat (TRY)
+                  example: 2990
+                pricePerEmployee:
+                  type: number
+                  description: Calisan basi fiyat
+                features:
+                  type: array
+                  items:
+                    type: string
+                  description: Paket ozellikleri
+                description:
+                  type: string
+                highlightText:
+                  type: string
+                  description: One cikan yazi
+                sortOrder:
+                  type: integer
+                  default: 0
+                isActive:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: Paket olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Package'
+        '400':
+          description: Gecersiz veri veya kod zaten mevcut
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/packages/active:
+    get:
+      tags:
+        - Packages
+      summary: Aktif paketler
+      description: Sadece aktif paketleri listeler (public endpoint).
+      responses:
+        '200':
+          description: Aktif paket listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Package'
+
+  /api/packages/{id}:
+    get:
+      tags:
+        - Packages
+      summary: Paket detayi
+      description: Belirtilen paketin detaylarini doner.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Paket ID
+      responses:
+        '200':
+          description: Paket detayi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Package'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Packages
+      summary: Paket guncelle
+      description: Mevcut bir paketi gunceller (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Paket ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                code:
+                  type: string
+                employeeLimit:
+                  type: integer
+                monthlyPrice:
+                  type: number
+                yearlyPrice:
+                  type: number
+                pricePerEmployee:
+                  type: number
+                features:
+                  type: array
+                  items:
+                    type: string
+                description:
+                  type: string
+                highlightText:
+                  type: string
+                sortOrder:
+                  type: integer
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Paket guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Package'
+        '400':
+          description: Kod zaten kullaniliyor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Packages
+      summary: Paket sil
+      description: |
+        Paketi siler (sadece super_admin).
+        - Aktif aboneligi olan paketler silinemez
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Paket ID
+      responses:
+        '200':
+          description: Paket silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Aktif abonelik mevcut
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/packages/{id}/toggle-active:
+    post:
+      tags:
+        - Packages
+      summary: Paket aktif/pasif toggle
+      description: Paketin aktif durumunu degistirir (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Paket ID
+      responses:
+        '200':
+          description: Durum degistirildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Package'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    Package:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Paket adi
+        code:
+          type: string
+          description: Paket kodu (unique)
+        employeeLimit:
+          type: integer
+          description: Calisan limiti
+        monthlyPrice:
+          type: number
+          description: Aylik fiyat (TRY)
+        yearlyPrice:
+          type: number
+          description: Yillik fiyat (TRY)
+        pricePerEmployee:
+          type: number
+          description: Calisan basi fiyat
+        features:
+          type: array
+          items:
+            type: string
+          description: Paket ozellikleri
+        description:
+          type: string
+        highlightText:
+          type: string
+        sortOrder:
+          type: integer
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+

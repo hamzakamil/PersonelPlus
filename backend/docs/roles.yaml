@@ -1,0 +1,365 @@
+paths:
+  /api/roles:
+    get:
+      tags:
+        - Roles
+      summary: Rol listesi
+      description: |
+        Rolleri listeler.
+        - Super Admin: Tum rolleri gorur
+        - Bayi Admin: Sistem rolleri ve kendi bayisine ait rolleri gorur
+        - Company Admin: Sistem rolleri ve kendi bayisine ait rolleri gorur
+        - Diger: Sadece sistem rollerini gorur
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Rol listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Roles
+      summary: Yeni rol olustur
+      description: |
+        Yeni bir rol olusturur.
+        - Super Admin: Her turlu rol olusturabilir
+        - Bayi Admin: Kendi bayisine ozel roller olusturabilir
+        - Company Admin: Kendi bayisine ozel roller olusturabilir
+        - Priority -1 sadece super_admin atayabilir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - description
+              properties:
+                name:
+                  type: string
+                  description: Rol adi (benzersiz)
+                  example: muhasebe_uzman
+                description:
+                  type: string
+                  description: Rol aciklamasi
+                  example: Muhasebe departmani uzman rolu
+                dealer:
+                  type: string
+                  description: Bayi ID (super_admin)
+                company:
+                  type: string
+                  description: Sirket ID
+                priority:
+                  type: integer
+                  description: Yetki seviyesi (-1 en yuksek)
+      responses:
+        '201':
+          description: Rol olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Role'
+        '400':
+          description: Rol adi zaten kullanimda
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/roles/{id}:
+    get:
+      tags:
+        - Roles
+      summary: Rol detayi
+      description: Belirtilen rolun detaylarini ve yetkilerini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Rol ID
+      responses:
+        '200':
+          description: Rol detaylari ve yetkileri
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      role:
+                        $ref: '#/components/schemas/Role'
+                      permissions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            permission:
+                              $ref: '#/components/schemas/Permission'
+                            companies:
+                              type: array
+                              items:
+                                type: object
+                            assignedBy:
+                              type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Roles
+      summary: Rol guncelle
+      description: |
+        Rol bilgilerini gunceller.
+        - Sistem rolleri sadece super_admin guncelleyebilir
+        - Priority -1 olan roller degistirilemez
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Rol ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                priority:
+                  type: integer
+      responses:
+        '200':
+          description: Rol guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Roles
+      summary: Rol sil
+      description: |
+        Rolu siler.
+        - Sistem rolleri silinemez
+        - Priority -1 olan roller silinemez
+        - Role sahip kullanicilar varsa silinemez
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Rol ID
+      responses:
+        '200':
+          description: Rol silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Rol silindi
+        '400':
+          description: Role sahip kullanicilar var
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/roles/{id}/permissions:
+    post:
+      tags:
+        - Roles
+      summary: Role yetki ata/kaldir
+      description: |
+        Role yetki ekler veya kaldirir.
+        - Bayi Admin: Kendi bayisine bagli sirketlerin kullanicilari icin
+        - Company Admin: Kendi sirketine bagli kullanicilar icin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Rol ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - permissionId
+                - action
+              properties:
+                permissionId:
+                  type: string
+                  description: Yetki ID
+                action:
+                  type: string
+                  enum: [add, remove]
+                  description: Islem tipi
+                companies:
+                  type: array
+                  items:
+                    type: string
+                  description: Yetkinin gecerli oldugu sirketler
+      responses:
+        '200':
+          description: Yetki atandi/kaldirildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Yetki atandi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    Role:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Rol adi
+        description:
+          type: string
+          description: Rol aciklamasi
+        isSystemRole:
+          type: boolean
+          description: Sistem rolu mu
+        priority:
+          type: integer
+          description: Yetki seviyesi (-1 en yuksek)
+        dealer:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        company:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        createdBy:
+          type: object
+          properties:
+            _id:
+              type: string
+            email:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Permission:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Yetki adi
+        resource:
+          type: string
+          description: Kaynak adi
+        action:
+          type: string
+          description: Eylem adi
+        description:
+          type: string
+          description: Yetki aciklamasi

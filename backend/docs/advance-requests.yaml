@@ -1,0 +1,573 @@
+paths:
+  /api/advance-requests:
+    get:
+      tags:
+        - Advance Requests
+      summary: Avans taleplerini listele
+      description: |
+        Avans taleplerini listeler.
+        - Calisan: Sadece kendi taleplerini gorur
+        - Yonetici: Sirketin tum taleplerini gorur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+          description: Durum filtresi
+        - name: employee
+          in: query
+          schema:
+            type: string
+          description: Calisan ID (yoneticiler icin)
+      responses:
+        '200':
+          description: Avans talepleri listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdvanceRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    post:
+      tags:
+        - Advance Requests
+      summary: Yeni avans talebi olustur
+      description: |
+        Yeni bir avans talebi olusturur.
+        - Sirket kurallari kontrol edilir (maksimum tutar, taksit sayisi vb.)
+        - Otomatik onay zinciri olusturulur
+        - Odeme plani hesaplanir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - reason
+              properties:
+                amount:
+                  type: number
+                  minimum: 1
+                  description: Talep edilen tutar (TRY)
+                  example: 5000
+                reason:
+                  type: string
+                  description: Avans talep nedeni
+                  example: Acil nakit ihtiyaci
+                installments:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                  description: Taksit sayisi
+                  example: 3
+      responses:
+        '201':
+          description: Avans talebi olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AdvanceRequest'
+                  message:
+                    type: string
+                    example: Avans talebiniz basariyla olusturuldu
+        '400':
+          description: Gecersiz tutar veya sirket kurali ihlali
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Calisan kaydi bulunamadi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/advance-requests/{id}:
+    get:
+      tags:
+        - Advance Requests
+      summary: Avans talebi detayi
+      description: Belirtilen avans talebinin detaylarini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Avans talebi ID
+      responses:
+        '200':
+          description: Avans talebi detaylari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AdvanceRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/advance-requests/{id}/approve:
+    post:
+      tags:
+        - Advance Requests
+      summary: Avans talebini onayla
+      description: |
+        Avans talebini onaylar.
+        - Onay zincirindeki kisi veya admin onaylayabilir
+        - Tum onaylar tamamlandiginda odeme kayitlari olusturulur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Avans talebi ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                  description: Onay yorumu
+      responses:
+        '200':
+          description: Avans talebi onaylandi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AdvanceRequest'
+                  message:
+                    type: string
+                    example: Avans talebi onaylandi
+        '400':
+          description: Sadece bekleyen talepler onaylanabilir
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/advance-requests/{id}/reject:
+    post:
+      tags:
+        - Advance Requests
+      summary: Avans talebini reddet
+      description: Avans talebini reddeder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Avans talebi ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: Ret nedeni
+                  example: Butce yetersizligi
+      responses:
+        '200':
+          description: Avans talebi reddedildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AdvanceRequest'
+                  message:
+                    type: string
+                    example: Avans talebi reddedildi
+        '400':
+          description: Ret nedeni zorunludur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/advance-requests/{id}/cancel:
+    post:
+      tags:
+        - Advance Requests
+      summary: Avans talebini iptal et
+      description: |
+        Avans talebini iptal eder.
+        - Sadece talep sahibi iptal edebilir
+        - Sadece bekleyen talepler iptal edilebilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Avans talebi ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Iptal nedeni
+      responses:
+        '200':
+          description: Avans talebi iptal edildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AdvanceRequest'
+                  message:
+                    type: string
+                    example: Avans talebiniz iptal edildi
+        '400':
+          description: Sadece bekleyen talepler iptal edilebilir
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/advance-requests/{id}/payment:
+    post:
+      tags:
+        - Advance Requests
+      summary: Odeme kaydi isle
+      description: Avans talebinin bir taksit odemesini kaydeder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Avans talebi ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - month
+              properties:
+                month:
+                  type: string
+                  format: date
+                  description: Odeme ayi (YYYY-MM-DD)
+                  example: '2024-03-01'
+      responses:
+        '200':
+          description: Odeme kaydedildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AdvancePayment'
+                  message:
+                    type: string
+                    example: Odeme basariyla kaydedildi
+        '400':
+          description: Ay bilgisi zorunludur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/advance-requests/{id}/payments:
+    get:
+      tags:
+        - Advance Requests
+      summary: Odeme gecmisi
+      description: Avans talebinin odeme gecmisini listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Avans talebi ID
+      responses:
+        '200':
+          description: Odeme gecmisi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdvancePayment'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/advance-requests/stats/summary:
+    get:
+      tags:
+        - Advance Requests
+      summary: Avans istatistikleri
+      description: Avans taleplerinin ozet istatistiklerini doner.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Istatistikler
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      totalRequests:
+                        type: integer
+                        description: Toplam talep sayisi
+                      pendingRequests:
+                        type: integer
+                        description: Bekleyen talep sayisi
+                      approvedRequests:
+                        type: integer
+                        description: Onaylanan talep sayisi
+                      rejectedRequests:
+                        type: integer
+                        description: Reddedilen talep sayisi
+                      totalAmount:
+                        type: number
+                        description: Toplam onaylanan tutar
+                      remainingAmount:
+                        type: number
+                        description: Kalan borc tutari
+                      paidAmount:
+                        type: number
+                        description: Odenen tutar
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  schemas:
+    AdvanceRequest:
+      type: object
+      properties:
+        _id:
+          type: string
+        employee:
+          type: object
+          properties:
+            _id:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+            employeeNumber:
+              type: string
+        company:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        amount:
+          type: number
+          description: Talep edilen tutar
+        reason:
+          type: string
+          description: Talep nedeni
+        installments:
+          type: integer
+          description: Taksit sayisi
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+        approvalChain:
+          type: array
+          items:
+            type: object
+            properties:
+              approver:
+                type: object
+              status:
+                type: string
+                enum: [PENDING, APPROVED, REJECTED]
+              actionDate:
+                type: string
+                format: date-time
+              comment:
+                type: string
+        currentApprover:
+          type: object
+          properties:
+            _id:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+            email:
+              type: string
+        paymentSchedule:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+                format: date
+              amount:
+                type: number
+        remainingAmount:
+          type: number
+          description: Kalan borc tutari
+        requestDate:
+          type: string
+          format: date-time
+        approvedAt:
+          type: string
+          format: date-time
+        approvedBy:
+          type: object
+        rejectedAt:
+          type: string
+          format: date-time
+        rejectedBy:
+          type: object
+        rejectionReason:
+          type: string
+        cancelledAt:
+          type: string
+          format: date-time
+        cancelledBy:
+          type: object
+        cancellationReason:
+          type: string
+
+    AdvancePayment:
+      type: object
+      properties:
+        _id:
+          type: string
+        advanceRequest:
+          type: string
+        employee:
+          type: string
+        company:
+          type: string
+        month:
+          type: string
+          format: date
+        amount:
+          type: number
+        paid:
+          type: boolean
+        paidAt:
+          type: string
+          format: date-time
+        processedBy:
+          type: object
+        createdAt:
+          type: string
+          format: date-time

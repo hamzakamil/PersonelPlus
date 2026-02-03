@@ -1,0 +1,156 @@
+paths:
+  /api/company-holidays/{companyId}/{year}:
+    get:
+      tags:
+        - Company Holidays
+      summary: Sirket tatil takvimini getir
+      description: |
+        Sirketin belirli bir yila ait tatil takvimini doner.
+        - Takvim yoksa bos liste doner
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Yil
+          example: 2024
+      responses:
+        '200':
+          description: Tatil takvimi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyHolidayCalendar'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    delete:
+      tags:
+        - Company Holidays
+      summary: Tatil takvimini sil
+      description: Sirketin belirtilen yila ait tatil takvimini siler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Yil
+      responses:
+        '200':
+          description: Takvim silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Tatil Takvimi Silindi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/company-holidays:
+    post:
+      tags:
+        - Company Holidays
+      summary: Tatil takvimi olustur/guncelle
+      description: |
+        Sirket tatil takvimi olusturur veya mevcut takvimi gunceller.
+        - Upsert islemi yapar (varsa gunceller, yoksa olusturur)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - companyId
+                - year
+                - holidays
+              properties:
+                companyId:
+                  type: string
+                  description: Sirket ID
+                year:
+                  type: integer
+                  description: Yil
+                  example: 2024
+                holidays:
+                  type: array
+                  items:
+                    type: string
+                    format: date
+                  description: Tatil tarihleri
+                  example: ['2024-01-01', '2024-04-23', '2024-05-01']
+      responses:
+        '200':
+          description: Takvim kaydedildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Tatil Takvimi Basariyla Kaydedildi
+                  data:
+                    $ref: '#/components/schemas/CompanyHolidayCalendar'
+        '400':
+          description: Sirket ve yil zorunlu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  schemas:
+    CompanyHolidayCalendar:
+      type: object
+      properties:
+        _id:
+          type: string
+        companyId:
+          type: string
+        year:
+          type: integer
+        holidays:
+          type: array
+          items:
+            type: string
+            format: date
+          description: Tatil tarihleri listesi
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+

@@ -1,0 +1,477 @@
+paths:
+  /api/leave-types:
+    get:
+      tags:
+        - Leave Types
+      summary: Sirket izin turlerini listele
+      description: |
+        Sirketin aktif izin turlerini listeler.
+        - WorkingPermit modelinden okur
+        - Varsayilan ve sirekete ozel izin turleri dahil
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: query
+          schema:
+            type: string
+          description: Sirket ID (bayi_admin icin zorunlu)
+      responses:
+        '200':
+          description: Izin turleri listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeaveType'
+        '400':
+          description: Sirket ID gerekli
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Leave Types
+      summary: Yeni izin turu olustur
+      description: |
+        Yeni bir izin turu olusturur.
+        - Bayi Admin: Bayisine ait tum veya secilen sirketlere ekleyebilir
+        - Company Admin: Sadece kendi sirketine ekleyebilir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Izin turu adi
+                  example: Evlilik Izni
+                description:
+                  type: string
+                  description: Izin turu aciklamasi
+                customDays:
+                  type: integer
+                  description: Varsayilan gun sayisi
+                isOtherCategory:
+                  type: boolean
+                  description: Diger kategorisinde mi
+                  default: false
+                parentLeaveType:
+                  type: string
+                  description: Ust izin turu ID (alt kategori icin)
+                companies:
+                  type: array
+                  items:
+                    type: string
+                  description: Uygulanacak sirket ID'leri (bayi_admin)
+                applyToAll:
+                  type: boolean
+                  description: Tum sirketlere uygula (bayi_admin)
+      responses:
+        '201':
+          description: Izin turu olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeaveType'
+                  message:
+                    type: string
+        '400':
+          description: Izin turu zaten mevcut
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/leave-types/{id}:
+    put:
+      tags:
+        - Leave Types
+      summary: Izin turunu guncelle
+      description: |
+        Izin turu bilgilerini gunceller.
+        - Varsayilan izinlerde sadece gun sayisi degistirilebilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Izin turu ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                customDays:
+                  type: integer
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Izin turu guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/LeaveType'
+        '400':
+          description: Varsayilan izin turleri degistirilemez
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Leave Types
+      summary: Izin turunu sil
+      description: |
+        Izin turunu siler.
+        - Varsayilan izinler silinemez
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Izin turu ID
+      responses:
+        '200':
+          description: Izin turu silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Izin turu silindi
+        '400':
+          description: Varsayilan izinler silinemez
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/leave-types/global:
+    get:
+      tags:
+        - Leave Types
+      summary: Global izin turlerini listele
+      description: Sistemdeki tum global izin turlerini listeler (super_admin).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Global izin turleri
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GlobalLeaveType'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Leave Types
+      summary: Global izin turu olustur
+      description: Yeni bir global izin turu olusturur (super_admin).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Izin turu adi
+                description:
+                  type: string
+                code:
+                  type: string
+                  description: Izin turu kodu
+                defaultDays:
+                  type: integer
+                  description: Varsayilan gun sayisi
+                  default: 0
+                isOtherCategory:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Global izin turu olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/GlobalLeaveType'
+        '400':
+          description: Kod veya isim zaten kullanimda
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/leave-types/sub-types:
+    get:
+      tags:
+        - Leave Types
+      summary: Izin alt turlerini listele
+      description: Diger kategorisine ait alt turleri listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: query
+          schema:
+            type: string
+          description: Sirket ID
+        - name: parentLeaveType
+          in: query
+          schema:
+            type: string
+          description: Ust izin turu ID
+      responses:
+        '200':
+          description: Izin alt turleri
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        parentLeaveType:
+                          type: object
+                        company:
+                          type: string
+                        isDefault:
+                          type: boolean
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/leave-types/check/{companyId}:
+    get:
+      tags:
+        - Leave Types
+      summary: Sirket izin turleri kontrolu
+      description: Sirketin izin turlerinin durumunu kontrol eder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      responses:
+        '200':
+          description: Izin turu durumu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      companyExists:
+                        type: boolean
+                      globalLeaveTypesCount:
+                        type: integer
+                      companyLeaveTypesCount:
+                        type: integer
+                      companyId:
+                        type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/leave-types/initialize/{companyId}:
+    post:
+      tags:
+        - Leave Types
+      summary: Sirket izin turlerini baslat
+      description: Sirket icin varsayilan izin turlerini olusturur.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      responses:
+        '200':
+          description: Izin turleri olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sirket izin turleri basariyla olusturuldu
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  schemas:
+    LeaveType:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Izin turu adi
+        description:
+          type: string
+        code:
+          type: string
+          description: Izin turu kodu
+        customDays:
+          type: integer
+          description: Gun sayisi
+        isDefault:
+          type: boolean
+          description: Varsayilan izin turu mu
+        isOtherCategory:
+          type: boolean
+          description: Diger kategorisinde mi
+        isActive:
+          type: boolean
+        company:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    GlobalLeaveType:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        code:
+          type: string
+        defaultDays:
+          type: integer
+        isDefault:
+          type: boolean
+        isOtherCategory:
+          type: boolean
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time

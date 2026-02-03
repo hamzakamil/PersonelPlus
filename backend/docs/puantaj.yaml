@@ -1,0 +1,712 @@
+paths:
+  /api/puantaj/templates:
+    get:
+      tags:
+        - Puantaj
+      summary: Sablonlari listele
+      description: |
+        Tum puantaj sablonlarini listeler.
+        - Sirket bazli ve global sablonlari doner
+        - Varsayilan Luca Puantaj sablonu otomatik olusturulur
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sablon listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PuantajTemplate'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Puantaj
+      summary: Yeni sablon olustur
+      description: Yeni bir puantaj sablonu olusturur.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Sablon adi
+                description:
+                  type: string
+                company:
+                  type: string
+                  description: Sirket ID (opsiyonel)
+                copyFromTemplate:
+                  type: string
+                  description: Kopyalanacak sablon ID
+      responses:
+        '201':
+          description: Sablon olusturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PuantajTemplate'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/puantaj/templates/{id}:
+    get:
+      tags:
+        - Puantaj
+      summary: Sablon detayi
+      description: Sablon ve kodlarini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sablon ID
+      responses:
+        '200':
+          description: Sablon ve kodlari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  template:
+                    $ref: '#/components/schemas/PuantajTemplate'
+                  codes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PuantajCode'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Puantaj
+      summary: Sablon sil
+      description: |
+        Puantaj sablonunu siler.
+        - Global sablonlar silinemez
+        - Varsayilan sablonlar silinemez
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sablon ID
+      responses:
+        '200':
+          description: Sablon silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Global veya varsayilan sablon silinemez
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/puantaj/templates/{templateId}/codes:
+    get:
+      tags:
+        - Puantaj
+      summary: Sablon kodlarini getir
+      description: Sablona ait tum puantaj kodlarini listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sablon ID
+      responses:
+        '200':
+          description: Kod listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PuantajCode'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Puantaj
+      summary: Yeni kod ekle
+      description: Sablona yeni puantaj kodu ekler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sablon ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - name
+              properties:
+                code:
+                  type: string
+                  description: Kod karakteri
+                  example: N
+                name:
+                  type: string
+                  description: Kod adi
+                  example: Normal
+                color:
+                  type: string
+                  description: Arka plan rengi
+                  example: '#FFFFFF'
+                textColor:
+                  type: string
+                  description: Yazi rengi
+                  example: '#000000'
+                autoAssignType:
+                  type: string
+                  enum: [normal, weekend, public_holiday, leave, annual_leave, sick_leave, absent, half_day, day_overtime, night_overtime, half_public, half_weekend, custom]
+                sortOrder:
+                  type: integer
+      responses:
+        '201':
+          description: Kod eklendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PuantajCode'
+        '400':
+          description: Kod zaten mevcut
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/puantaj/codes/{id}:
+    put:
+      tags:
+        - Puantaj
+      summary: Kod guncelle
+      description: Puantaj kodunu gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Kod ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                color:
+                  type: string
+                textColor:
+                  type: string
+                autoAssignType:
+                  type: string
+                sortOrder:
+                  type: integer
+      responses:
+        '200':
+          description: Kod guncellendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PuantajCode'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/puantaj/employee/{employeeId}/{year}/{month}:
+    get:
+      tags:
+        - Puantaj
+      summary: Calisan puantaji getir
+      description: |
+        Calisanin aylik puantaj kaydini getirir.
+        - Kayit yoksa otomatik olusturulur
+        - Resmi tatiller, hafta tatilleri ve izinler otomatik atanir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Calisan ID
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Yil
+          example: 2024
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Ay (1-12)
+          example: 1
+      responses:
+        '200':
+          description: Puantaj kaydi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  puantaj:
+                    $ref: '#/components/schemas/EmployeePuantaj'
+                  codes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PuantajCode'
+                  template:
+                    $ref: '#/components/schemas/PuantajTemplate'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/puantaj/employee/{employeeId}/{year}/{month}/regenerate:
+    post:
+      tags:
+        - Puantaj
+      summary: Puantaji yeniden hesapla
+      description: Calisanin puantajini siler ve yeniden olusturur.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Puantaj yeniden olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  puantaj:
+                    $ref: '#/components/schemas/EmployeePuantaj'
+                  codes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PuantajCode'
+                  template:
+                    $ref: '#/components/schemas/PuantajTemplate'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/puantaj/employee/{employeeId}/{year}/{month}/day/{day}:
+    put:
+      tags:
+        - Puantaj
+      summary: Tek gun guncelle
+      description: |
+        Puantajda tek bir gunu gunceller.
+        - Onaylanmis puantaj degistirilemez
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: day
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Gun (1-31)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  description: Puantaj kodu
+                overtimeHours:
+                  type: number
+                  description: Mesai saati
+                note:
+                  type: string
+                  description: Not
+      responses:
+        '200':
+          description: Gun guncellendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeePuantaj'
+        '400':
+          description: Onaylanmis puantaj degistirilemez
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/puantaj/company/{companyId}/{year}/{month}:
+    get:
+      tags:
+        - Puantaj
+      summary: Sirket puantaj listesi
+      description: Sirketin tum calisanlari icin aylik puantaj listesini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Puantaj listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  puantajList:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        employee:
+                          type: object
+                          properties:
+                            _id:
+                              type: string
+                            firstName:
+                              type: string
+                            lastName:
+                              type: string
+                            employeeNumber:
+                              type: string
+                            personelNumarasi:
+                              type: string
+                        puantaj:
+                          $ref: '#/components/schemas/EmployeePuantaj'
+                  codes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PuantajCode'
+                  template:
+                    $ref: '#/components/schemas/PuantajTemplate'
+                  year:
+                    type: integer
+                  month:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/puantaj/company/{companyId}/{year}/{month}/regenerate:
+    post:
+      tags:
+        - Puantaj
+      summary: Sirket puantajlarini yeniden hesapla
+      description: |
+        Sirketin tum calisanlari icin puantajlari yeniden olusturur.
+        - Manuel degisiklikleri koruma secenegi
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                preserveManualOverrides:
+                  type: boolean
+                  description: Manuel degisiklikleri koru
+                  default: false
+      responses:
+        '200':
+          description: Puantajlar yeniden olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  puantajList:
+                    type: array
+                    items:
+                      type: object
+                  codes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PuantajCode'
+                  template:
+                    $ref: '#/components/schemas/PuantajTemplate'
+                  year:
+                    type: integer
+                  month:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/puantaj/init-default-template:
+    post:
+      tags:
+        - Puantaj
+      summary: Varsayilan sablonu baslat
+      description: Luca Puantaj varsayilan sablonunu olusturur (sadece super_admin).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sablon olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  template:
+                    $ref: '#/components/schemas/PuantajTemplate'
+                  codes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PuantajCode'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  schemas:
+    PuantajTemplate:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Sablon adi
+        description:
+          type: string
+        company:
+          type: string
+          description: Sirket ID (null ise global)
+        isDefault:
+          type: boolean
+        isActive:
+          type: boolean
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    PuantajCode:
+      type: object
+      properties:
+        _id:
+          type: string
+        code:
+          type: string
+          description: Kod karakteri
+        name:
+          type: string
+          description: Kod adi
+        color:
+          type: string
+          description: Arka plan rengi
+        textColor:
+          type: string
+          description: Yazi rengi
+        template:
+          type: string
+          description: Sablon ID
+        autoAssignType:
+          type: string
+          enum: [normal, weekend, public_holiday, leave, annual_leave, sick_leave, absent, half_day, day_overtime, night_overtime, half_public, half_weekend, custom]
+        sortOrder:
+          type: integer
+        isSystem:
+          type: boolean
+
+    EmployeePuantaj:
+      type: object
+      properties:
+        _id:
+          type: string
+        employee:
+          type: string
+        company:
+          type: string
+        template:
+          type: string
+        year:
+          type: integer
+        month:
+          type: integer
+        days:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              code:
+                type: string
+              overtimeHours:
+                type: number
+              note:
+                type: string
+              isManualOverride:
+                type: boolean
+        summary:
+          type: object
+          properties:
+            normalDays:
+              type: number
+            weekendDays:
+              type: number
+            publicHolidays:
+              type: number
+            annualLeaveDays:
+              type: number
+            sickLeaveDays:
+              type: number
+            otherLeaveDays:
+              type: number
+            absentDays:
+              type: number
+            halfDays:
+              type: number
+            dayOvertimeHours:
+              type: number
+            nightOvertimeHours:
+              type: number
+        status:
+          type: string
+          enum: [draft, approved]
+
+

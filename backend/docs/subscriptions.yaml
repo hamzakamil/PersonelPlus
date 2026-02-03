@@ -1,0 +1,656 @@
+paths:
+  /api/subscriptions:
+    get:
+      tags:
+        - Subscriptions
+      summary: Tum abonelikleri listele
+      description: Tum abonelikleri filtrelerle listeler (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, expired, suspended, cancelled]
+          description: Durum filtresi
+        - name: dealerId
+          in: query
+          schema:
+            type: string
+          description: Bayi ID
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Sayfa numarasi
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Sayfa basi kayit
+      responses:
+        '200':
+          description: Abonelik listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Subscription'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      pages:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Subscriptions
+      summary: Yeni abonelik olustur
+      description: Manuel olarak yeni bir abonelik olusturur (sadece super_admin).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - dealerId
+                - packageId
+                - billingType
+              properties:
+                dealerId:
+                  type: string
+                  description: Bayi ID
+                packageId:
+                  type: string
+                  description: Paket ID
+                billingType:
+                  type: string
+                  enum: [monthly, yearly]
+                  description: Odeme tipi
+                notes:
+                  type: string
+                  description: Notlar
+      responses:
+        '201':
+          description: Abonelik olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Gecersiz veri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/subscriptions/my:
+    get:
+      tags:
+        - Subscriptions
+      summary: Kendi aboneligim
+      description: Bayi admin icin kendi abonelik bilgilerini ve kota ozetini doner.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Abonelik bilgisi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      subscription:
+                        $ref: '#/components/schemas/Subscription'
+                      quota:
+                        type: object
+                        description: Kota ozeti
+        '400':
+          description: Bayi bilgisi bulunamadi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/subscriptions/dealer/{dealerId}:
+    get:
+      tags:
+        - Subscriptions
+      summary: Bayi abonelik gecmisi
+      description: Belirtilen bayinin abonelik gecmisini listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dealerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bayi ID
+      responses:
+        '200':
+          description: Abonelik gecmisi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      dealer:
+                        type: object
+                      subscriptions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Subscription'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/subscriptions/{id}:
+    get:
+      tags:
+        - Subscriptions
+      summary: Abonelik detayi
+      description: Belirtilen aboneligin detaylarini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Abonelik ID
+      responses:
+        '200':
+          description: Abonelik detayi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Subscription'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Subscriptions
+      summary: Abonelik guncelle
+      description: Abonelik bilgilerini gunceller (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Abonelik ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [active, expired, suspended, cancelled]
+                autoRenew:
+                  type: boolean
+                notes:
+                  type: string
+                employeeQuota:
+                  type: integer
+      responses:
+        '200':
+          description: Abonelik guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Subscription'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/subscriptions/{id}/renew:
+    post:
+      tags:
+        - Subscriptions
+      summary: Abonelik yenile
+      description: |
+        Mevcut aboneligi yeniler.
+        - Eski abonelik expired olarak isaretlenir
+        - Yeni abonelik olusturulur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Abonelik ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                billingType:
+                  type: string
+                  enum: [monthly, yearly]
+                  description: Yeni odeme tipi (opsiyonel)
+      responses:
+        '200':
+          description: Abonelik yenilendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/subscriptions/{id}/upgrade:
+    post:
+      tags:
+        - Subscriptions
+      summary: Paket yukselt
+      description: |
+        Aboneligi daha yuksek limitli bir pakete yukseltir.
+        - Kalan sure yeni abonelige eklenir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Abonelik ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - newPackageId
+              properties:
+                newPackageId:
+                  type: string
+                  description: Yeni paket ID
+                prorateRefund:
+                  type: boolean
+                  description: Oran hesapli iade yapilsin mi
+      responses:
+        '200':
+          description: Paket yukseltildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      oldSubscription:
+                        $ref: '#/components/schemas/Subscription'
+                      newSubscription:
+                        $ref: '#/components/schemas/Subscription'
+                      remainingDays:
+                        type: integer
+        '400':
+          description: Gecersiz paket secimi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/subscriptions/{id}/cancel:
+    post:
+      tags:
+        - Subscriptions
+      summary: Abonelik iptal
+      description: Aboneligi iptal eder (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Abonelik ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Iptal nedeni
+                refund:
+                  type: boolean
+                  description: Iade yapilsin mi
+      responses:
+        '200':
+          description: Abonelik iptal edildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Abonelik zaten iptal edilmis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/subscriptions/{id}/suspend:
+    post:
+      tags:
+        - Subscriptions
+      summary: Abonelik askiya al
+      description: Aktif aboneligi askiya alir (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Abonelik ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Askiya alma nedeni
+      responses:
+        '200':
+          description: Abonelik askiya alindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Sadece aktif abonelikler askiya alinabilir
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/subscriptions/{id}/activate:
+    post:
+      tags:
+        - Subscriptions
+      summary: Abonelik aktifleştir
+      description: Askidaki aboneligi aktiflestirir (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Abonelik ID
+      responses:
+        '200':
+          description: Abonelik aktiflestirildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Sadece askidaki abonelikler aktiflestirilabilir veya sure dolmus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/subscriptions/stats/overview:
+    get:
+      tags:
+        - Subscriptions
+      summary: Abonelik istatistikleri
+      description: Genel abonelik istatistiklerini doner (sadece super_admin).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Istatistikler
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      active:
+                        type: integer
+                        description: Aktif abonelik sayisi
+                      expired:
+                        type: integer
+                        description: Suresi dolmus abonelik sayisi
+                      suspended:
+                        type: integer
+                        description: Askidaki abonelik sayisi
+                      totalRevenue:
+                        type: number
+                        description: Toplam gelir
+                      expiringThisMonth:
+                        type: integer
+                        description: Bu ay bitecek abonelik sayisi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  schemas:
+    Subscription:
+      type: object
+      properties:
+        _id:
+          type: string
+        dealer:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+            contactEmail:
+              type: string
+        package:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+            code:
+              type: string
+            employeeLimit:
+              type: integer
+            monthlyPrice:
+              type: number
+            yearlyPrice:
+              type: number
+        billingType:
+          type: string
+          enum: [monthly, yearly]
+        status:
+          type: string
+          enum: [active, expired, suspended, cancelled]
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        employeeQuota:
+          type: integer
+        price:
+          type: number
+        isPaid:
+          type: boolean
+        autoRenew:
+          type: boolean
+        notes:
+          type: string
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              action:
+                type: string
+              date:
+                type: string
+                format: date-time
+              note:
+                type: string
+              performedBy:
+                type: object
+        createdBy:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+

@@ -1,0 +1,548 @@
+paths:
+  /api/companies:
+    get:
+      tags:
+        - Companies
+      summary: Sirket listesi
+      description: |
+        Sirketleri listeler.
+        - Super Admin: Tum sirketleri gorur
+        - Bayi Admin: Kendi bayisine bagli sirketleri gorur
+        - Company Admin: Sadece kendi sirketini gorur
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sirket listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Company'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Companies
+      summary: Yeni sirket olustur
+      description: |
+        Yeni bir sirket olusturur.
+        - Otomatik olarak varsayilan workplace ve departmanlar olusturulur
+        - Sirket admin kullanicisi olusturulur
+        - Izin turleri ve varsayilan izinler atanir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - authorizedPersonFullName
+                - authorizedPersonEmail
+                - authorizedPersonPassword
+              properties:
+                name:
+                  type: string
+                  description: Sirket unvani
+                  example: ABC Teknoloji A.S.
+                address:
+                  type: string
+                  description: Sirket adresi
+                dealerId:
+                  type: string
+                  description: Bayi ID (super_admin icin zorunlu)
+                authorizedPersonFullName:
+                  type: string
+                  description: Yetkili kisi adi soyadi
+                authorizedPersonPhone:
+                  type: string
+                  description: Yetkili telefon
+                authorizedPersonEmail:
+                  type: string
+                  format: email
+                  description: Yetkili email (giris icin kullanilacak)
+                authorizedPersonPassword:
+                  type: string
+                  description: Yetkili sifre
+                taxOffice:
+                  type: string
+                  description: Vergi dairesi
+                taxNumber:
+                  type: string
+                  description: Vergi numarasi
+                mersisNo:
+                  type: string
+                  description: MERSIS numarasi
+                foundingDate:
+                  type: string
+                  format: date
+                  description: Kurulus tarihi
+      responses:
+        '201':
+          description: Sirket basariyla olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Company'
+                  message:
+                    type: string
+                    example: Sirket basariyla olusturuldu
+        '400':
+          description: Gecersiz veri veya email kullaniliyor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/companies/{id}:
+    get:
+      tags:
+        - Companies
+      summary: Sirket detayi
+      description: Belirtilen sirketin detaylarini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      responses:
+        '200':
+          description: Sirket detaylari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Company'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Companies
+      summary: Sirket guncelle
+      description: Sirket bilgilerini gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                address:
+                  type: string
+                taxOffice:
+                  type: string
+                taxNumber:
+                  type: string
+                mersisNo:
+                  type: string
+                foundingDate:
+                  type: string
+                  format: date
+                authorizedPersonFullName:
+                  type: string
+                authorizedPersonPhone:
+                  type: string
+                authorizedPersonEmail:
+                  type: string
+                  format: email
+                advanceSettings:
+                  type: object
+                  description: Avans ayarlari
+                leaveApprovalSettings:
+                  type: object
+                  description: Izin onay ayarlari
+                advanceApprovalSettings:
+                  type: object
+                  description: Avans onay ayarlari
+      responses:
+        '200':
+          description: Sirket guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Company'
+                  message:
+                    type: string
+                    example: Sirket guncellendi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Companies
+      summary: Sirket sil
+      description: Sirketi siler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      responses:
+        '200':
+          description: Sirket silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sirket silindi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/companies/{id}/reset-password:
+    put:
+      tags:
+        - Companies
+      summary: Sirket admin sifresini sifirla
+      description: |
+        Sirket yoneticisinin sifresini sifirlar.
+        - Eger kullanici yoksa olusturulur
+        - Sifre degistirme zorunlu hale getirilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - newPassword
+              properties:
+                newPassword:
+                  type: string
+                  minLength: 6
+                  description: Yeni sifre (en az 6 karakter)
+      responses:
+        '200':
+          description: Sifre guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      username:
+                        type: string
+                      mustChangePassword:
+                        type: boolean
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/companies/{id}/payroll-calculation-type:
+    put:
+      tags:
+        - Companies
+      summary: Ucret hesaplama tipini guncelle
+      description: Sirketin ucret hesaplama tipini (NET/BRUT) gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - payrollCalculationType
+              properties:
+                payrollCalculationType:
+                  type: string
+                  enum: [NET, BRUT]
+                  description: Ucret hesaplama tipi
+      responses:
+        '200':
+          description: Ucret hesaplama tipi guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      payrollCalculationType:
+                        type: string
+                        enum: [NET, BRUT]
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/companies/{id}/attendance-template:
+    put:
+      tags:
+        - Companies
+      summary: Devam sablonunu guncelle
+      description: Sirketin aktif devam sablonunu gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateId:
+                  type: string
+                  description: Sablon ID (bos birakilirsa kaldirilir)
+      responses:
+        '200':
+          description: Devam sablonu guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Company'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/companies/bulk:
+    post:
+      tags:
+        - Companies
+      summary: Toplu sirket olustur
+      description: |
+        Excel'den toplu sirket olusturur.
+        - Varsayilan sifre: 123456
+        - Ilk giriste sifre degistirme zorunlu
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Sirket unvani
+                dealerId:
+                  type: string
+                  description: Bayi ID (super_admin icin zorunlu)
+                taxOffice:
+                  type: string
+                taxNumber:
+                  type: string
+                mersisNo:
+                  type: string
+                foundingDate:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Sirket ve kullanici olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      company:
+                        $ref: '#/components/schemas/Company'
+                      credentials:
+                        type: object
+                        properties:
+                          username:
+                            type: string
+                          password:
+                            type: string
+                          note:
+                            type: string
+                  message:
+                    type: string
+        '400':
+          description: Gecersiz veri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  schemas:
+    Company:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Sirket unvani
+        address:
+          type: string
+        dealer:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        taxOffice:
+          type: string
+        taxNumber:
+          type: string
+        mersisNo:
+          type: string
+        foundingDate:
+          type: string
+          format: date
+        contactEmail:
+          type: string
+        authorizedPerson:
+          type: object
+          properties:
+            fullName:
+              type: string
+            phone:
+              type: string
+            email:
+              type: string
+        isActive:
+          type: boolean
+        isActivated:
+          type: boolean
+        payrollCalculationType:
+          type: string
+          enum: [NET, BRUT]
+        advanceSettings:
+          type: object
+        leaveApprovalSettings:
+          type: object
+        advanceApprovalSettings:
+          type: object
+        activeAttendanceTemplate:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

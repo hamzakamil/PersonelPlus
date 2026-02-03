@@ -1,0 +1,395 @@
+paths:
+  /api/support:
+    post:
+      tags:
+        - Support
+      summary: Destek talebi oluştur
+      description: Yeni bir destek talebi oluşturur.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - category
+                - subject
+                - description
+              properties:
+                category:
+                  type: string
+                  enum: [TECHNICAL, BILLING, FEATURE_REQUEST, GENERAL]
+                  description: Talep kategorisi
+                  example: "TECHNICAL"
+                priority:
+                  type: string
+                  enum: [LOW, MEDIUM, HIGH, URGENT]
+                  description: Öncelik seviyesi
+                  default: "MEDIUM"
+                subject:
+                  type: string
+                  description: Talep konusu
+                  example: "Sisteme giriş yapamıyorum"
+                description:
+                  type: string
+                  description: Detaylı açıklama
+                  example: "Şifre sıfırlama maili gelmiyor"
+      responses:
+        '201':
+          description: Talep oluşturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Destek talebi oluşturuldu"
+                  data:
+                    $ref: '#/components/schemas/SupportTicket'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    get:
+      tags:
+        - Support
+      summary: Destek taleplerini listele
+      description: Kullanıcının rolüne göre destek taleplerini listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [OPEN, IN_PROGRESS, RESOLVED, CLOSED]
+          description: Durum filtresi
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Kategori filtresi
+        - name: priority
+          in: query
+          schema:
+            type: string
+          description: Öncelik filtresi
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Sayfa numarası
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Sayfa başına kayıt sayısı
+      responses:
+        '200':
+          description: Talep listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tickets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SupportTicket'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      pages:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/support/stats:
+    get:
+      tags:
+        - Support
+      summary: Destek istatistikleri
+      description: Destek taleplerinin durum bazlı istatistiklerini getirir.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: İstatistikler
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 50
+                  open:
+                    type: integer
+                    example: 10
+                  inProgress:
+                    type: integer
+                    example: 15
+                  resolved:
+                    type: integer
+                    example: 20
+                  closed:
+                    type: integer
+                    example: 5
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/support/{id}:
+    get:
+      tags:
+        - Support
+      summary: Talep detayı
+      description: Destek talebi detayını ve yanıtlarını getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Talep ID
+      responses:
+        '200':
+          description: Talep detayı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ticket:
+                    $ref: '#/components/schemas/SupportTicket'
+                  replies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SupportReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Support
+      summary: Talep güncelle
+      description: Destek talebini günceller (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [OPEN, IN_PROGRESS, RESOLVED, CLOSED]
+                priority:
+                  type: string
+                  enum: [LOW, MEDIUM, HIGH, URGENT]
+                assignedTo:
+                  type: string
+                  description: Atanan kullanıcı ID
+                adminNotes:
+                  type: string
+                  description: Yönetici notları
+      responses:
+        '200':
+          description: Talep güncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Talep güncellendi"
+                  data:
+                    $ref: '#/components/schemas/SupportTicket'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Support
+      summary: Talep sil
+      description: Destek talebini siler (soft delete).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Talep silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Talep silindi"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/support/{id}/reply:
+    post:
+      tags:
+        - Support
+      summary: Yanıt ekle
+      description: Destek talebine yanıt ekler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Talep ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: Yanıt metni
+                  example: "Sorununuzu inceliyoruz"
+      responses:
+        '201':
+          description: Yanıt eklendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Yanıt eklendi"
+                  data:
+                    $ref: '#/components/schemas/SupportReply'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    SupportTicket:
+      type: object
+      properties:
+        _id:
+          type: string
+        submittedBy:
+          type: object
+        submitterRole:
+          type: string
+        company:
+          type: object
+        dealer:
+          type: object
+        category:
+          type: string
+          enum: [TECHNICAL, BILLING, FEATURE_REQUEST, GENERAL]
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, URGENT]
+        subject:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [OPEN, IN_PROGRESS, RESOLVED, CLOSED]
+        assignedTo:
+          type: object
+        adminNotes:
+          type: string
+        resolvedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SupportReply:
+      type: object
+      properties:
+        _id:
+          type: string
+        ticket:
+          type: string
+        repliedBy:
+          type: object
+        replierRole:
+          type: string
+        message:
+          type: string
+        isAdminReply:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time

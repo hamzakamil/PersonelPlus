@@ -1,0 +1,156 @@
+paths:
+  /api/leaves/calculate/{employeeId}:
+    get:
+      tags:
+        - Leaves
+      summary: İzin hakediş hesapla
+      description: Çalışanın yasal izin hakedişini hesaplar (kıdem ve yaşa göre).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Çalışan ID
+      responses:
+        '200':
+          description: Hakediş hesaplaması
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      employee:
+                        type: object
+                        properties:
+                          _id:
+                            type: string
+                          firstName:
+                            type: string
+                          lastName:
+                            type: string
+                          hireDate:
+                            type: string
+                            format: date
+                          birthDate:
+                            type: string
+                            format: date
+                      seniority:
+                        type: object
+                        properties:
+                          years:
+                            type: integer
+                            description: Kıdem yılı
+                          months:
+                            type: integer
+                          days:
+                            type: integer
+                      entitlement:
+                        type: object
+                        properties:
+                          baseDays:
+                            type: integer
+                            description: Temel izin hakkı (gün)
+                          bonusDays:
+                            type: integer
+                            description: Yaşa göre ek izin
+                          totalDays:
+                            type: integer
+                            description: Toplam izin hakkı
+                      policy:
+                        type: object
+                        properties:
+                          allowSplitLeave:
+                            type: boolean
+                          minFirstBlockDays:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/leaves/summary:
+    get:
+      tags:
+        - Leaves
+      summary: İzin özet tablosu
+      description: |
+        Şirket çalışanlarının izin hakediş, kullanım ve kalan izin özetini getirir.
+        **Önemli:** Veriler LeaveLedger'dan çekilir (tek kaynak prensibi).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: query
+          schema:
+            type: string
+          description: Şirket ID (company_admin için opsiyonel)
+      responses:
+        '200':
+          description: İzin özeti
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        employeeId:
+                          type: string
+                          description: Çalışan ID
+                        name:
+                          type: string
+                          description: Çalışan adı soyadı (büyük harf)
+                          example: "AHMET YILMAZ"
+                        hireDate:
+                          type: string
+                          format: date
+                          description: İşe giriş tarihi
+                        accrualDays:
+                          type: number
+                          description: Toplam hakediş (LeaveLedger credit toplamı)
+                          example: 14
+                        usedDays:
+                          type: number
+                          description: Kullanılan izin (LeaveLedger debit toplamı)
+                          example: 5
+                        remainingDays:
+                          type: number
+                          description: Kalan izin (hakediş - kullanılan)
+                          example: 9
+                        nextAccrualDate:
+                          type: string
+                          description: Sonraki hakediş tarihi (DD.MM.YYYY)
+                          example: "15.03.2026"
+                        nextAccrualDays:
+                          type: integer
+                          description: Sonraki hakedişte kazanılacak gün
+                          example: 14
+        '400':
+          description: companyId gerekli
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'

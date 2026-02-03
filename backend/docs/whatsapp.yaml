@@ -1,0 +1,222 @@
+paths:
+  /api/whatsapp/settings/{companyId}:
+    get:
+      tags:
+        - WhatsApp
+      summary: Sirket WhatsApp ayarlari
+      description: Sirketin WhatsApp entegrasyon ayarlarini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      responses:
+        '200':
+          description: WhatsApp ayarlari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/WhatsAppSettings'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/whatsapp/settings:
+    post:
+      tags:
+        - WhatsApp
+      summary: WhatsApp ayarlari kaydet
+      description: |
+        Sirketin WhatsApp entegrasyon ayarlarini kaydeder veya gunceller.
+        - API anahtari sifrelenerek saklanir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - companyId
+                - whatsappBusinessNumber
+              properties:
+                companyId:
+                  type: string
+                  description: Sirket ID
+                whatsappBusinessNumber:
+                  type: string
+                  description: WhatsApp isletme numarasi
+                  example: '+90 532 000 00 00'
+                apiProvider:
+                  type: string
+                  description: API saglayicisi
+                  default: Meta Cloud API
+                apiKey:
+                  type: string
+                  description: API anahtari
+                messageTemplates:
+                  type: object
+                  description: Mesaj sablonlari
+                isActive:
+                  type: boolean
+                  description: Aktif mi
+      responses:
+        '200':
+          description: Ayarlar kaydedildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/WhatsAppSettings'
+        '400':
+          description: Gecersiz telefon formati veya eksik alanlar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/whatsapp/validate:
+    post:
+      tags:
+        - WhatsApp
+      summary: API dogrulama
+      description: WhatsApp API credentials'larini dogrular.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - companyId
+              properties:
+                companyId:
+                  type: string
+                  description: Sirket ID
+      responses:
+        '200':
+          description: Dogrulama sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  lastTestedAt:
+                    type: string
+                    format: date-time
+        '400':
+          description: Sirket secimi zorunlu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/whatsapp/templates/{companyId}:
+    get:
+      tags:
+        - WhatsApp
+      summary: Mesaj sablonlari
+      description: |
+        Sirketin mesaj sablonlarini getirir.
+        - Ayar yoksa varsayilan sablonlar doner
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      responses:
+        '200':
+          description: Mesaj sablonlari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    description: Mesaj sablonlari objesi
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  schemas:
+    WhatsAppSettings:
+      type: object
+      properties:
+        _id:
+          type: string
+        company:
+          type: object
+        whatsappBusinessNumber:
+          type: string
+          description: WhatsApp isletme numarasi
+        apiProvider:
+          type: string
+          description: API saglayicisi
+        messageTemplates:
+          type: object
+          description: Mesaj sablonlari
+        isActive:
+          type: boolean
+        lastTestedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: object
+        updatedBy:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+

@@ -1,0 +1,473 @@
+paths:
+  /api/payments:
+    get:
+      tags:
+        - Payments
+      summary: Tum odemeleri listele
+      description: Tum odemeleri filtrelerle listeler (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, completed, failed, refunded]
+          description: Durum filtresi
+        - name: dealerId
+          in: query
+          schema:
+            type: string
+          description: Bayi ID
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Odeme listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+                  pagination:
+                    type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/payments/my:
+    get:
+      tags:
+        - Payments
+      summary: Kendi odemelerim
+      description: Bayi admin icin kendi odeme gecmisini listeler.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Odeme gecmisi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+        '400':
+          description: Bayi bilgisi bulunamadi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/payments/{id}:
+    get:
+      tags:
+        - Payments
+      summary: Odeme detayi
+      description: Belirtilen odemenin detaylarini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Odeme ID
+      responses:
+        '200':
+          description: Odeme detayi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Payment'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/payments/create-checkout:
+    post:
+      tags:
+        - Payments
+      summary: Odeme formu olustur
+      description: |
+        iyzico checkout formu olusturur (bayi_admin).
+        - Secilen paket ve odeme tipine gore fiyat hesaplanir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - packageId
+                - billingType
+              properties:
+                packageId:
+                  type: string
+                  description: Paket ID
+                billingType:
+                  type: string
+                  enum: [monthly, yearly]
+                  description: Odeme tipi
+                callbackUrl:
+                  type: string
+                  description: Odeme sonrasi donulecek URL
+      responses:
+        '200':
+          description: Checkout formu olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      checkoutFormContent:
+                        type: string
+                        description: iyzico form HTML
+                      token:
+                        type: string
+                      paymentId:
+                        type: string
+                      price:
+                        type: number
+        '400':
+          description: Gecersiz veri veya paket satista degil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/payments/callback:
+    post:
+      tags:
+        - Payments
+      summary: iyzico callback
+      description: |
+        iyzico odeme sonucu callback endpoint'i.
+        - Odeme basariliysa abonelik aktiflestirilir
+        - Frontend'e yonlendirilir
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        '302':
+          description: Odeme sonucu sayfasina yonlendirme
+
+  /api/payments/verify/{token}:
+    get:
+      tags:
+        - Payments
+      summary: Odeme dogrulama
+      description: Odeme token'i ile odeme durumunu dogrular.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: iyzico token
+      responses:
+        '200':
+          description: Odeme durumu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                      amount:
+                        type: number
+                      billingType:
+                        type: string
+                      dealer:
+                        type: object
+                      package:
+                        type: object
+                      subscription:
+                        type: object
+                      paidAt:
+                        type: string
+                        format: date-time
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/payments/{id}/refund:
+    post:
+      tags:
+        - Payments
+      summary: Iade islemi
+      description: Odeme icin iade islemi baslatir (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Odeme ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: Iade nedeni
+      responses:
+        '200':
+          description: Iade islemi baslatildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Iade nedeni zorunlu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/payments/manual:
+    post:
+      tags:
+        - Payments
+      summary: Manuel odeme kaydi
+      description: Manuel odeme ve abonelik kaydı olusturur (sadece super_admin).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - dealerId
+                - packageId
+                - billingType
+              properties:
+                dealerId:
+                  type: string
+                  description: Bayi ID
+                packageId:
+                  type: string
+                  description: Paket ID
+                billingType:
+                  type: string
+                  enum: [monthly, yearly]
+                amount:
+                  type: number
+                  description: Tutar (opsiyonel, bos ise paket fiyati)
+                notes:
+                  type: string
+                paymentMethod:
+                  type: string
+                  description: Odeme yontemi
+                  default: manual
+      responses:
+        '201':
+          description: Manuel odeme olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+        '400':
+          description: Eksik alanlar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/payments/stats/revenue:
+    get:
+      tags:
+        - Payments
+      summary: Gelir istatistikleri
+      description: Odeme gelir istatistiklerini doner (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Baslangic tarihi
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Bitis tarihi
+      responses:
+        '200':
+          description: Gelir istatistikleri
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: object
+                        properties:
+                          revenue:
+                            type: number
+                          count:
+                            type: integer
+                      monthly:
+                        type: object
+                        properties:
+                          revenue:
+                            type: number
+                          count:
+                            type: integer
+                      yearly:
+                        type: object
+                        properties:
+                          revenue:
+                            type: number
+                          count:
+                            type: integer
+                      byMonth:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            year:
+                              type: integer
+                            month:
+                              type: integer
+                            revenue:
+                              type: number
+                            count:
+                              type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  schemas:
+    Payment:
+      type: object
+      properties:
+        _id:
+          type: string
+        dealer:
+          type: object
+        package:
+          type: object
+        subscription:
+          type: object
+        amount:
+          type: number
+        billingType:
+          type: string
+          enum: [monthly, yearly]
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        paymentMethod:
+          type: string
+        iyzicoToken:
+          type: string
+        iyzicoPaymentId:
+          type: string
+        paidAt:
+          type: string
+          format: date-time
+        refundedAt:
+          type: string
+          format: date-time
+        refundReason:
+          type: string
+        createdBy:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+

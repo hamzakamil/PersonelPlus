@@ -1,0 +1,165 @@
+paths:
+  /api/requests/pending:
+    get:
+      tags:
+        - Requests
+      summary: Bekleyen talepler
+      description: Şirketin bekleyen izin ve işe giriş/çıkış taleplerini listeler.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bekleyen talepler listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: Talep ID
+                        type:
+                          type: string
+                          enum: [leave_request, hire_request, termination_request]
+                          description: Talep tipi
+                        title:
+                          type: string
+                          description: Talep başlığı
+                          example: "Ahmet Yılmaz - İzin Talebi"
+                        subtitle:
+                          type: string
+                          description: Alt başlık (tarih bilgisi)
+                          example: "15.01.2026 - 20.01.2026"
+                        employeeName:
+                          type: string
+                          description: Çalışan adı
+                        date:
+                          type: string
+                          format: date-time
+                          description: Talep tarihi
+                        data:
+                          type: object
+                          description: Ham talep verisi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/requests/{id}/approve:
+    post:
+      tags:
+        - Requests
+      summary: Talep onayla
+      description: İzin veya işe giriş/çıkış talebini onaylar.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Talep ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+              properties:
+                type:
+                  type: string
+                  enum: [leave_request, hire_request, termination_request]
+                  description: Talep tipi
+                  example: "leave_request"
+      responses:
+        '200':
+          description: Talep onaylandı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "İzin talebi onaylandı"
+        '400':
+          description: Geçersiz talep tipi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/requests/{id}/reject:
+    post:
+      tags:
+        - Requests
+      summary: Talep reddet
+      description: İzin veya işe giriş/çıkış talebini reddeder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Talep ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+              properties:
+                type:
+                  type: string
+                  enum: [leave_request, hire_request, termination_request]
+                  description: Talep tipi
+                reason:
+                  type: string
+                  description: Red nedeni
+                  example: "Bu tarihte başka izinli personel var"
+      responses:
+        '200':
+          description: Talep reddedildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "İzin talebi reddedildi"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'

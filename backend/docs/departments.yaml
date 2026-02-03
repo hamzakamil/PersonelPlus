@@ -1,0 +1,243 @@
+paths:
+  /api/departments:
+    get:
+      tags:
+        - Departments
+      summary: Departman listesi
+      description: Şirkete ait departmanları listeler. Filtreleme ve sayfalama desteklenir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Şirket ID'si
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Sayfa numarası
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Sayfa başına kayıt sayısı
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Departman adında arama
+        - name: isActive
+          in: query
+          schema:
+            type: boolean
+          description: Aktiflik durumuna göre filtrele
+      responses:
+        '200':
+          description: Departman listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Department'
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      totalPages:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Departments
+      summary: Yeni departman oluştur
+      description: Şirkete yeni bir departman ekler.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentCreate'
+      responses:
+        '201':
+          description: Departman başarıyla oluşturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Department'
+                  message:
+                    type: string
+                    example: Departman başarıyla oluşturuldu
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          description: Validation hatası
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/departments/{id}:
+    get:
+      tags:
+        - Departments
+      summary: Departman detayı
+      description: Belirtilen ID'ye sahip departmanın detaylarını döner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Departman ID'si (MongoDB ObjectId)
+      responses:
+        '200':
+          description: Departman detayları
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Department'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          description: Geçersiz ID formatı
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Departments
+      summary: Departman güncelle
+      description: Mevcut bir departmanı günceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Departman ID'si
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Departman adı
+                description:
+                  type: string
+                  description: Departman açıklaması
+                manager:
+                  type: string
+                  description: Yönetici ID'si
+                isActive:
+                  type: boolean
+                  description: Aktiflik durumu
+      responses:
+        '200':
+          description: Departman başarıyla güncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Department'
+                  message:
+                    type: string
+                    example: Departman başarıyla güncellendi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags:
+        - Departments
+      summary: Departman sil
+      description: |
+        Departmanı siler.
+        **Not:** Varsayılan departmanlar (isDefault=true) silinemez.
+        **Not:** Çalışan atanmış departmanlar silinemez.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Departman ID'si
+      responses:
+        '200':
+          description: Departman başarıyla silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Departman başarıyla silindi
+        '400':
+          description: Departman silinemez (varsayılan veya çalışan atanmış)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'

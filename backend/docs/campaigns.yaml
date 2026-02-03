@@ -1,0 +1,566 @@
+paths:
+  /api/campaigns:
+    get:
+      tags:
+        - Campaigns
+      summary: Tum kampanyalari listele
+      description: Tum kampanyalari filtrelerle listeler (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, expired, upcoming]
+          description: Durum filtresi
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Kampanya listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Campaign'
+                  pagination:
+                    type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Campaigns
+      summary: Yeni kampanya olustur
+      description: Yeni bir kampanya olusturur (sadece super_admin).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+                - startDate
+                - endDate
+              properties:
+                name:
+                  type: string
+                  description: Kampanya adi
+                description:
+                  type: string
+                code:
+                  type: string
+                  description: Kampanya kodu (bos ise otomatik olusturulur)
+                type:
+                  type: string
+                  enum: [percentage, fixed, trial]
+                  description: Kampanya tipi
+                discountPercent:
+                  type: number
+                  description: Indirim yuzdesi (percentage tipi icin)
+                discountAmount:
+                  type: number
+                  description: Indirim tutari (fixed tipi icin)
+                trialDays:
+                  type: integer
+                  description: Deneme gun sayisi (trial tipi icin)
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                maxUses:
+                  type: integer
+                  description: Maksimum kullanim sayisi
+                maxUsesPerDealer:
+                  type: integer
+                  default: 1
+                  description: Bayi basina maksimum kullanim
+                applicablePackages:
+                  type: array
+                  items:
+                    type: string
+                  description: Gecerli paket ID'leri
+                applicableBillingTypes:
+                  type: array
+                  items:
+                    type: string
+                    enum: [monthly, yearly]
+                minBillingMonths:
+                  type: integer
+                  default: 1
+                minOrderAmount:
+                  type: number
+                  default: 0
+      responses:
+        '201':
+          description: Kampanya olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Campaign'
+        '400':
+          description: Eksik alanlar veya kod zaten kullanilmakta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/campaigns/active:
+    get:
+      tags:
+        - Campaigns
+      summary: Aktif kampanyalar
+      description: Su an aktif olan kampanyalari listeler.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Aktif kampanya listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Campaign'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/campaigns/validate:
+    post:
+      tags:
+        - Campaigns
+      summary: Kampanya kodu dogrula
+      description: Kampanya kodunu dogrular ve indirim hesaplar (bayi_admin).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - packageId
+                - billingType
+                - amount
+              properties:
+                code:
+                  type: string
+                  description: Kampanya kodu
+                packageId:
+                  type: string
+                  description: Paket ID
+                billingType:
+                  type: string
+                  enum: [monthly, yearly]
+                amount:
+                  type: number
+                  description: Siparis tutari
+      responses:
+        '200':
+          description: Dogrulama sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      valid:
+                        type: boolean
+                      campaign:
+                        $ref: '#/components/schemas/Campaign'
+                      discountAmount:
+                        type: number
+                      finalAmount:
+                        type: number
+                      message:
+                        type: string
+        '400':
+          description: Eksik alanlar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/campaigns/generate-code:
+    post:
+      tags:
+        - Campaigns
+      summary: Rastgele kod olustur
+      description: Benzersiz bir kampanya kodu olusturur.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Kod olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/campaigns/{id}:
+    get:
+      tags:
+        - Campaigns
+      summary: Kampanya detayi
+      description: Kampanya detaylarini ve kullanim gecmisini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Kampanya ID
+      responses:
+        '200':
+          description: Kampanya detayi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Campaign'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Campaigns
+      summary: Kampanya guncelle
+      description: Mevcut kampanyayi gunceller (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                type:
+                  type: string
+                  enum: [percentage, fixed, trial]
+                discountPercent:
+                  type: number
+                discountAmount:
+                  type: number
+                trialDays:
+                  type: integer
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                maxUses:
+                  type: integer
+                maxUsesPerDealer:
+                  type: integer
+                applicablePackages:
+                  type: array
+                  items:
+                    type: string
+                applicableBillingTypes:
+                  type: array
+                  items:
+                    type: string
+                minBillingMonths:
+                  type: integer
+                minOrderAmount:
+                  type: number
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Kampanya guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Campaign'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Campaigns
+      summary: Kampanya sil
+      description: |
+        Kampanyayi siler (sadece super_admin).
+        - Kullanilmis kampanyalar silinemez, deaktif edilebilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Kampanya silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Kullanilmis kampanya silinemez
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/campaigns/{id}/stats:
+    get:
+      tags:
+        - Campaigns
+      summary: Kampanya istatistikleri
+      description: Kampanya kullanim istatistiklerini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Istatistikler
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      totalUses:
+                        type: integer
+                      totalDiscount:
+                        type: number
+                      usageByDealer:
+                        type: array
+                        items:
+                          type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/campaigns/{id}/toggle:
+    post:
+      tags:
+        - Campaigns
+      summary: Kampanya aktif/pasif toggle
+      description: Kampanyanin aktif durumunu degistirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Durum degistirildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      isActive:
+                        type: boolean
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    Campaign:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Kampanya adi
+        description:
+          type: string
+        code:
+          type: string
+          description: Kampanya kodu (unique)
+        type:
+          type: string
+          enum: [percentage, fixed, trial]
+          description: Kampanya tipi
+        discountPercent:
+          type: number
+          description: Indirim yuzdesi
+        discountAmount:
+          type: number
+          description: Indirim tutari
+        trialDays:
+          type: integer
+          description: Deneme gun sayisi
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        maxUses:
+          type: integer
+          description: Maksimum kullanim sayisi
+        maxUsesPerDealer:
+          type: integer
+          description: Bayi basina maksimum kullanim
+        usedCount:
+          type: integer
+          description: Kullanilma sayisi
+        applicablePackages:
+          type: array
+          items:
+            type: object
+          description: Gecerli paketler
+        applicableBillingTypes:
+          type: array
+          items:
+            type: string
+        minBillingMonths:
+          type: integer
+        minOrderAmount:
+          type: number
+        isActive:
+          type: boolean
+        createdBy:
+          type: object
+        usageHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              dealer:
+                type: object
+              usedAt:
+                type: string
+                format: date-time
+              discountApplied:
+                type: number
+        createdAt:
+          type: string
+          format: date-time
+
+

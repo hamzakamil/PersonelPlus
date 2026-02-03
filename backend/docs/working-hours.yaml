@@ -1,0 +1,306 @@
+paths:
+  /api/working-hours:
+    get:
+      tags:
+        - Working Hours
+      summary: Calisma saatlerini listele
+      description: |
+        Tanimli calisma saatlerini listeler.
+        - Super admin tum kayitlari gorur
+        - Bayi admin kendi sirketlerinin kayitlarini gorur
+        - Sirket admin kendi sirket kayitlarini gorur
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Calisma saatleri listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkingHours'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Working Hours
+      summary: Yeni calisma saati tanimla
+      description: Yeni bir calisma saati sablon olusturur.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Sablon adi
+                  example: Standart Mesai
+                company:
+                  type: string
+                  description: Sirket ID (super_admin/bayi_admin icin)
+                monday:
+                  $ref: '#/components/schemas/DaySchedule'
+                tuesday:
+                  $ref: '#/components/schemas/DaySchedule'
+                wednesday:
+                  $ref: '#/components/schemas/DaySchedule'
+                thursday:
+                  $ref: '#/components/schemas/DaySchedule'
+                friday:
+                  $ref: '#/components/schemas/DaySchedule'
+                saturday:
+                  $ref: '#/components/schemas/DaySchedule'
+                sunday:
+                  $ref: '#/components/schemas/DaySchedule'
+      responses:
+        '201':
+          description: Calisma saati olusturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkingHours'
+        '400':
+          description: Gecersiz veri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/working-hours/company/{companyId}:
+    get:
+      tags:
+        - Working Hours
+      summary: Sirket calisma saatleri
+      description: Belirtilen sirketin calisma saatlerini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      responses:
+        '200':
+          description: Sirket calisma saatleri
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkingHours'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/working-hours/{id}:
+    get:
+      tags:
+        - Working Hours
+      summary: Calisma saati detayi
+      description: Belirtilen calisma saati kaydinin detaylarini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Calisma saati ID
+      responses:
+        '200':
+          description: Calisma saati detayi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkingHours'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Working Hours
+      summary: Calisma saatini guncelle
+      description: Mevcut calisma saati kaydini gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Calisma saati ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                monday:
+                  $ref: '#/components/schemas/DaySchedule'
+                tuesday:
+                  $ref: '#/components/schemas/DaySchedule'
+                wednesday:
+                  $ref: '#/components/schemas/DaySchedule'
+                thursday:
+                  $ref: '#/components/schemas/DaySchedule'
+                friday:
+                  $ref: '#/components/schemas/DaySchedule'
+                saturday:
+                  $ref: '#/components/schemas/DaySchedule'
+                sunday:
+                  $ref: '#/components/schemas/DaySchedule'
+      responses:
+        '200':
+          description: Calisma saati guncellendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkingHours'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Working Hours
+      summary: Calisma saatini sil
+      description: Calisma saati kaydini siler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Calisma saati ID
+      responses:
+        '200':
+          description: Calisma saati silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Calisma saatleri silindi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    WorkingHours:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Sablon adi
+        company:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        monday:
+          $ref: '#/components/schemas/DaySchedule'
+        tuesday:
+          $ref: '#/components/schemas/DaySchedule'
+        wednesday:
+          $ref: '#/components/schemas/DaySchedule'
+        thursday:
+          $ref: '#/components/schemas/DaySchedule'
+        friday:
+          $ref: '#/components/schemas/DaySchedule'
+        saturday:
+          $ref: '#/components/schemas/DaySchedule'
+        sunday:
+          $ref: '#/components/schemas/DaySchedule'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DaySchedule:
+      type: object
+      properties:
+        start:
+          type: string
+          description: Baslangic saati (HH:mm)
+          example: '09:00'
+        end:
+          type: string
+          description: Bitis saati (HH:mm)
+          example: '18:00'
+        isWorking:
+          type: boolean
+          description: Calisma gunu mu
+          default: true
+        lunchBreak:
+          type: object
+          properties:
+            start:
+              type: string
+              example: '12:00'
+            end:
+              type: string
+              example: '13:00'
+        breaks:
+          type: object
+          properties:
+            morningBreak:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                start:
+                  type: string
+                end:
+                  type: string
+            afternoonBreak:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                start:
+                  type: string
+                end:
+                  type: string
+

@@ -1,0 +1,332 @@
+paths:
+  /api/leave-requests:
+    get:
+      tags:
+        - Leave Requests
+      summary: İzin talepleri listesi
+      description: |
+        İzin taleplerini listeler.
+        - Çalışan kendi taleplerini görür
+        - Yöneticiler departman/şirket taleplerini görür
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company
+          in: query
+          schema:
+            type: string
+          description: Şirket ID'si
+        - name: employee
+          in: query
+          schema:
+            type: string
+          description: Çalışan ID'si
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+          description: Durum filtresi
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Başlangıç tarihi (from)
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Bitiş tarihi (to)
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: İzin talepleri listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeaveRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Leave Requests
+      summary: Yeni izin talebi oluştur
+      description: |
+        Yeni bir izin talebi oluşturur.
+        - Otomatik olarak onay zinciri oluşturulur
+        - İzin bakiyesi kontrol edilir
+        - Hafta sonu ve tatil günleri otomatik hesaplanır
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - leaveType
+                - startDate
+                - endDate
+              properties:
+                leaveType:
+                  type: string
+                  description: İzin tipi ID'si
+                startDate:
+                  type: string
+                  format: date
+                  description: İzin başlangıç tarihi
+                  example: '2024-03-15'
+                endDate:
+                  type: string
+                  format: date
+                  description: İzin bitiş tarihi
+                  example: '2024-03-20'
+                reason:
+                  type: string
+                  description: İzin nedeni
+                  example: Ailevi nedenler
+                isHalfDay:
+                  type: boolean
+                  description: Yarım gün izin mi?
+                  default: false
+                isHourly:
+                  type: boolean
+                  description: Saatlik izin mi?
+                  default: false
+                hours:
+                  type: number
+                  description: Saatlik izin ise saat sayısı
+                attachments:
+                  type: array
+                  items:
+                    type: string
+                  description: Ek dosya yolları
+      responses:
+        '201':
+          description: İzin talebi başarıyla oluşturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/LeaveRequest'
+                  message:
+                    type: string
+                    example: İzin talebi başarıyla oluşturuldu
+        '400':
+          description: Yetersiz izin bakiyesi veya çakışan izin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/leave-requests/{id}:
+    get:
+      tags:
+        - Leave Requests
+      summary: İzin talebi detayı
+      description: Belirtilen izin talebinin detaylarını döner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: İzin talebi ID'si
+      responses:
+        '200':
+          description: İzin talebi detayları
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/LeaveRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/leave-requests/{id}/approve:
+    post:
+      tags:
+        - Leave Requests
+      summary: İzin talebini onayla
+      description: |
+        İzin talebini onaylar.
+        - Sadece onay zincirindeki yetkili kişiler onaylayabilir
+        - Tüm onaylayıcılar onayladığında talep otomatik onaylanır
+        - İzin bakiyesinden düşülür
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: İzin talebi ID'si
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                  description: Onay yorumu
+      responses:
+        '200':
+          description: İzin talebi onaylandı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/LeaveRequest'
+                  message:
+                    type: string
+                    example: İzin talebi onaylandı
+        '400':
+          description: Bu talep zaten işlenmiş
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/leave-requests/{id}/reject:
+    post:
+      tags:
+        - Leave Requests
+      summary: İzin talebini reddet
+      description: İzin talebini reddeder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: İzin talebi ID'si
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: Ret nedeni
+                  example: Yoğun iş döneminde izin verilemiyor
+      responses:
+        '200':
+          description: İzin talebi reddedildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/LeaveRequest'
+                  message:
+                    type: string
+                    example: İzin talebi reddedildi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/leave-requests/{id}/cancel:
+    post:
+      tags:
+        - Leave Requests
+      summary: İzin talebini iptal et
+      description: |
+        İzin talebini iptal eder.
+        - Sadece talep sahibi iptal edebilir
+        - Sadece PENDING durumundaki talepler iptal edilebilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: İzin talebi ID'si
+      responses:
+        '200':
+          description: İzin talebi iptal edildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: İzin talebi iptal edildi
+        '400':
+          description: Bu talep iptal edilemez
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'

@@ -1,0 +1,568 @@
+paths:
+  /api/commissions:
+    get:
+      tags:
+        - Commissions
+      summary: Tum komisyonlari listele
+      description: Tum komisyonlari filtrelerle listeler (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, paid, cancelled]
+          description: Durum filtresi
+        - name: dealerId
+          in: query
+          schema:
+            type: string
+          description: Bayi ID
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Komisyon listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Commission'
+                  pagination:
+                    type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/commissions/my:
+    get:
+      tags:
+        - Commissions
+      summary: Kendi komisyonlarim
+      description: Bayi admin icin kendi komisyon listesini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, paid, cancelled]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Komisyon listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Commission'
+                  pagination:
+                    type: object
+        '400':
+          description: Bayi bilgisi bulunamadi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/commissions/stats:
+    get:
+      tags:
+        - Commissions
+      summary: Komisyon istatistikleri
+      description: Bayi admin icin komisyon istatistiklerini getirir.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Istatistikler
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      totalEarned:
+                        type: number
+                        description: Toplam kazanilan
+                      pendingAmount:
+                        type: number
+                        description: Bekleyen tutar
+                      paidAmount:
+                        type: number
+                        description: Odenmis tutar
+        '400':
+          description: Bayi bilgisi bulunamadi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/commissions/summary:
+    get:
+      tags:
+        - Commissions
+      summary: Komisyon ozeti
+      description: Tum bayilerin komisyon ozetini getirir (sadece super_admin).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Komisyon ozeti
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      dealers:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            dealerId:
+                              type: string
+                            dealerName:
+                              type: string
+                            pendingCommission:
+                              type: number
+                            paidCommission:
+                              type: number
+                            totalCommissionEarned:
+                              type: number
+                      totals:
+                        type: object
+                        properties:
+                          pending:
+                            type: number
+                          paid:
+                            type: number
+                          earned:
+                            type: number
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/commissions/{id}:
+    get:
+      tags:
+        - Commissions
+      summary: Komisyon detayi
+      description: Tek komisyon detayini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Komisyon ID
+      responses:
+        '200':
+          description: Komisyon detayi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Commission'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/commissions/{id}/approve:
+    post:
+      tags:
+        - Commissions
+      summary: Komisyon onayla
+      description: Bekleyen komisyonu onaylar (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Komisyon ID
+      responses:
+        '200':
+          description: Komisyon onaylandi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Commission'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/commissions/{id}/pay:
+    post:
+      tags:
+        - Commissions
+      summary: Komisyon ode
+      description: Onaylanmis komisyonu oder (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Komisyon ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - paymentReference
+              properties:
+                paymentMethod:
+                  type: string
+                  description: Odeme yontemi
+                paymentReference:
+                  type: string
+                  description: Odeme referansi (dekont no)
+                notes:
+                  type: string
+                  description: Notlar
+      responses:
+        '200':
+          description: Komisyon odendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Commission'
+        '400':
+          description: Odeme referansi zorunlu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/commissions/bulk-pay:
+    post:
+      tags:
+        - Commissions
+      summary: Toplu komisyon ode
+      description: Birden fazla komisyonu toplu olarak oder (sadece super_admin).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - commissionIds
+                - paymentReference
+              properties:
+                commissionIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Odenecek komisyon ID'leri
+                paymentMethod:
+                  type: string
+                paymentReference:
+                  type: string
+                  description: Odeme referansi (dekont no)
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Toplu odeme sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      success:
+                        type: array
+                        items:
+                          type: string
+                      failed:
+                        type: array
+                        items:
+                          type: object
+        '400':
+          description: Komisyon ID listesi veya odeme referansi zorunlu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/commissions/{id}/cancel:
+    post:
+      tags:
+        - Commissions
+      summary: Komisyon iptal
+      description: Komisyonu iptal eder (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Komisyon ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: Iptal nedeni
+      responses:
+        '200':
+          description: Komisyon iptal edildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Commission'
+        '400':
+          description: Iptal nedeni zorunlu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/commissions/dealer/{dealerId}/rate:
+    put:
+      tags:
+        - Commissions
+      summary: Bayi komisyon orani guncelle
+      description: Bayinin komisyon oranini gunceller (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dealerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bayi ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rate
+              properties:
+                rate:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+                  description: Komisyon orani (%)
+      responses:
+        '200':
+          description: Oran guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      dealerId:
+                        type: string
+                      name:
+                        type: string
+                      commissionRate:
+                        type: number
+        '400':
+          description: Gecersiz oran degeri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    Commission:
+      type: object
+      properties:
+        _id:
+          type: string
+        dealer:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+            contactEmail:
+              type: string
+            commissionRate:
+              type: number
+        payment:
+          type: object
+          properties:
+            _id:
+              type: string
+            amount:
+              type: number
+            billingType:
+              type: string
+            paidAt:
+              type: string
+              format: date-time
+        subscription:
+          type: object
+        amount:
+          type: number
+          description: Komisyon tutari
+        rate:
+          type: number
+          description: Komisyon orani (%)
+        status:
+          type: string
+          enum: [pending, approved, paid, cancelled]
+        paymentMethod:
+          type: string
+        paymentReference:
+          type: string
+        approvedBy:
+          type: object
+        approvedAt:
+          type: string
+          format: date-time
+        paidBy:
+          type: object
+        paidAt:
+          type: string
+          format: date-time
+        cancelledBy:
+          type: object
+        cancelledAt:
+          type: string
+          format: date-time
+        cancelReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+

@@ -1,0 +1,259 @@
+paths:
+  /api/admin/health-check:
+    get:
+      tags:
+        - Admin
+      summary: Veritabani tutarlilik kontrolu
+      description: |
+        Veritabanindaki tutarsizliklari tespit eder (sadece super_admin).
+        Kontrol edilen sorunlar:
+        - Orphan calisanlar (gecersiz sirket referansi)
+        - Orphan sirketler (gecersiz bayi referansi)
+        - Gorunmeyen calisanlar (query'lerde cikmayan)
+        - ObjectId tip uyumsuzluklari
+        - Duplicate email adresleri
+        - Pasif sirketlerdeki aktif calisanlar
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Tutarlilik raporu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  timestamp:
+                    type: string
+                    format: date-time
+                  summary:
+                    type: object
+                    properties:
+                      totalIssues:
+                        type: integer
+                      criticalCount:
+                        type: integer
+                      highCount:
+                        type: integer
+                      mediumCount:
+                        type: integer
+                      lowCount:
+                        type: integer
+                      fixableIssues:
+                        type: array
+                        items:
+                          type: string
+                  issues:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum: [ORPHAN_EMPLOYEES, ORPHAN_COMPANIES, INVISIBLE_EMPLOYEES, TYPE_MISMATCH, DUPLICATE_EMAILS, INACTIVE_COMPANIES_WITH_ACTIVE_EMPLOYEES]
+                        severity:
+                          type: string
+                          enum: [CRITICAL, HIGH, MEDIUM, LOW]
+                        count:
+                          type: integer
+                        message:
+                          type: string
+                        items:
+                          type: array
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/admin/health-check/fix:
+    post:
+      tags:
+        - Admin
+      summary: Tutarsizlik duzelt
+      description: |
+        Belirli bir tutarsizlik turunu duzeltir (sadece super_admin).
+        Desteklenen duzeltmeler:
+        - INVISIBLE_EMPLOYEES: Documenti yeniden olusturur
+        - TYPE_MISMATCH: ObjectId tipini duzeltir
+        - ORPHAN_EMPLOYEES: Calisan kayitlarini siler (action=delete ile)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - issueType
+                - employeeIds
+              properties:
+                issueType:
+                  type: string
+                  enum: [INVISIBLE_EMPLOYEES, TYPE_MISMATCH, ORPHAN_EMPLOYEES]
+                  description: Duzeltilecek sorun turu
+                employeeIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Duzeltilecek calisan ID'leri
+                action:
+                  type: string
+                  enum: [delete]
+                  description: Islem tipi (ORPHAN_EMPLOYEES icin)
+      responses:
+        '200':
+          description: Duzeltme sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  fixed:
+                    type: integer
+                    description: Basarili duzeltme sayisi
+                  failed:
+                    type: integer
+                    description: Basarisiz duzeltme sayisi
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        employeeId:
+                          type: string
+                        error:
+                          type: string
+        '400':
+          description: Desteklenmeyen sorun turu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/admin/update-employee-email:
+    post:
+      tags:
+        - Admin
+      summary: Calisan email guncelle
+      description: |
+        Duplicate email sorununu cozmek icin calisan emailini gunceller.
+        - Yeni email baska calisan tarafindan kullanilamaz
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employeeId
+                - newEmail
+              properties:
+                employeeId:
+                  type: string
+                  description: Calisan ID
+                newEmail:
+                  type: string
+                  format: email
+                  description: Yeni email adresi
+      responses:
+        '200':
+          description: Email guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  oldEmail:
+                    type: string
+                  newEmail:
+                    type: string
+        '400':
+          description: Gecersiz email veya email zaten kullaniliyor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/admin/notify-company:
+    post:
+      tags:
+        - Admin
+      summary: Sirkete sistem bildirimi gonder
+      description: |
+        Belirtilen sirkete sistem bildirimi mesaji gonderir.
+        - Etkilenen calisanlarin listesi eklenebilir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - companyId
+                - subject
+                - message
+              properties:
+                companyId:
+                  type: string
+                  description: Sirket ID
+                subject:
+                  type: string
+                  description: Mesaj konusu
+                message:
+                  type: string
+                  description: Mesaj icerigi
+                employeeIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Etkilenen calisan ID'leri (opsiyonel)
+      responses:
+        '200':
+          description: Bildirim gonderildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  messageId:
+                    type: string
+        '400':
+          description: Eksik alanlar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+

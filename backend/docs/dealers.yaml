@@ -1,0 +1,540 @@
+paths:
+  /api/dealers:
+    get:
+      tags:
+        - Dealers
+      summary: Bayi listesi
+      description: Tum bayileri listeler (sadece super_admin).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bayi listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Dealer'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Dealers
+      summary: Yeni bayi olustur
+      description: |
+        Yeni bir bayi olusturur (sadece super_admin).
+        - Otomatik olarak bayi_admin kullanicisi olusturulur
+        - Bayinin kendi sirketi (selfCompany) olusturulur
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  description: Bayi adi
+                  example: ABC Yazilim Bayisi
+                contactEmail:
+                  type: string
+                  format: email
+                  description: Iletisim email
+                contactPhone:
+                  type: string
+                  description: Iletisim telefon
+                address:
+                  type: string
+                  description: Adres
+                maxCompanies:
+                  type: integer
+                  description: Maksimum sirket sayisi (null = sinirsiz)
+                email:
+                  type: string
+                  format: email
+                  description: Bayi admin email (giris icin)
+                password:
+                  type: string
+                  description: Bayi admin sifresi
+      responses:
+        '201':
+          description: Bayi olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Dealer'
+                  message:
+                    type: string
+                    example: Bayi olusturuldu
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/dealers/{id}:
+    get:
+      tags:
+        - Dealers
+      summary: Bayi detayi
+      description: Belirtilen bayinin detaylarini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bayi ID
+      responses:
+        '200':
+          description: Bayi detaylari
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Dealer'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Dealers
+      summary: Bayi guncelle
+      description: Bayi bilgilerini gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bayi ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                contactEmail:
+                  type: string
+                  format: email
+                contactPhone:
+                  type: string
+                address:
+                  type: string
+                maxCompanies:
+                  type: integer
+                  description: Maksimum sirket sayisi (null = sinirsiz)
+                ikDisplayName:
+                  type: string
+                  description: IK gorunum adi
+      responses:
+        '200':
+          description: Bayi guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Dealer'
+                  message:
+                    type: string
+                    example: Bayi guncellendi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Dealers
+      summary: Bayi sil
+      description: Bayiyi siler (sadece super_admin).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bayi ID
+      responses:
+        '200':
+          description: Bayi silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Bayi silindi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/dealers/my/quota:
+    get:
+      tags:
+        - Dealers
+      summary: Kendi kota durumum
+      description: Bayi admin icin kendi kota durumunu doner.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Kota durumu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/QuotaSummary'
+        '400':
+          description: Bayi bilgisi bulunamadi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/dealers/{id}/quota:
+    get:
+      tags:
+        - Dealers
+      summary: Bayi kota durumu
+      description: Belirtilen bayinin kota durumunu doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bayi ID
+      responses:
+        '200':
+          description: Kota durumu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/QuotaSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/dealers/{id}/quota/sync:
+    post:
+      tags:
+        - Dealers
+      summary: Kota senkronizasyonu
+      description: Bayi ve sirket kotalarini gercek verilerle senkronize eder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bayi ID
+      responses:
+        '200':
+          description: Kota senkronize edildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      usedQuota:
+                        type: integer
+                  message:
+                    type: string
+                    example: Kota senkronizasyonu tamamlandi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/dealers/{id}/quota/check:
+    post:
+      tags:
+        - Dealers
+      summary: Kota kontrolu
+      description: Ise giris oncesi kota durumunu kontrol eder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bayi ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                companyId:
+                  type: string
+                  description: Sirket ID (opsiyonel)
+      responses:
+        '200':
+          description: Kota durumu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      canHire:
+                        type: boolean
+                      availableQuota:
+                        type: integer
+                      message:
+                        type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/dealers/{id}/companies/quotas:
+    get:
+      tags:
+        - Dealers
+      summary: Sirket kota durumlari
+      description: Bayiye ait tum sirketlerin kota durumlarini listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bayi ID
+      responses:
+        '200':
+          description: Sirket kota listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        name:
+                          type: string
+                        allocated:
+                          type: integer
+                        used:
+                          type: integer
+                        isUnlimited:
+                          type: boolean
+                        percentage:
+                          type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/dealers/{id}/companies/{companyId}/quota:
+    post:
+      tags:
+        - Dealers
+      summary: Sirkete kota ata
+      description: Belirtilen sirkete kota atar.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bayi ID
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sirket ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quota:
+                  type: integer
+                  minimum: 0
+                  description: Atanacak kota
+                isUnlimited:
+                  type: boolean
+                  description: Sinirsiz kota mi
+      responses:
+        '200':
+          description: Kota atandi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Kota basariyla atandi
+        '400':
+          description: Gecersiz kota degeri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  schemas:
+    Dealer:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Bayi adi
+        contactEmail:
+          type: string
+          format: email
+        contactPhone:
+          type: string
+        address:
+          type: string
+        maxCompanies:
+          type: integer
+          description: Maksimum sirket sayisi (null = sinirsiz)
+        ikDisplayName:
+          type: string
+          description: IK gorunum adi
+        selfCompany:
+          type: string
+          description: Bayinin kendi sirket ID'si
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    QuotaSummary:
+      type: object
+      properties:
+        dealerId:
+          type: string
+        dealerName:
+          type: string
+        totalQuota:
+          type: integer
+          description: Toplam kota
+        usedQuota:
+          type: integer
+          description: Kullanilan kota
+        availableQuota:
+          type: integer
+          description: Kullanilabilir kota
+        isUnlimited:
+          type: boolean
+          description: Sinirsiz mi
+        percentage:
+          type: integer
+          description: Kullanim yuzdesi
+        companyCount:
+          type: integer
+          description: Sirket sayisi

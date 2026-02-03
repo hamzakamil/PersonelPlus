@@ -1,0 +1,201 @@
+paths:
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Kullanıcı girişi
+      description: Email ve şifre ile sisteme giriş yapar. Başarılı girişte JWT token döner.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Giriş başarılı
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Email veya şifre hatalı
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Eksik veya hatalı parametreler
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Mevcut kullanıcı bilgileri
+      description: JWT token ile kimlik doğrulaması yapılmış kullanıcının bilgilerini döner.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Kullanıcı bilgileri
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      role:
+                        type: string
+                      company:
+                        type: object
+                      dealer:
+                        type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/auth/change-password:
+    post:
+      tags:
+        - Auth
+      summary: Şifre değiştir
+      description: |
+        Kullanıcının şifresini değiştirir.
+        - Normal kullanıcılar için mevcut şifre gereklidir
+        - İlk giriş yapan kullanıcılar (mustChangePassword=true) mevcut şifre olmadan değiştirebilir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                  description: Mevcut şifre (ilk giriş değilse zorunlu)
+                newPassword:
+                  type: string
+                  minLength: 6
+                  description: Yeni şifre (minimum 6 karakter)
+      responses:
+        '200':
+          description: Şifre başarıyla değiştirildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Şifre başarıyla belirlendi
+        '400':
+          description: Validation hatası
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Mevcut şifre hatalı veya token geçersiz
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/activate-account:
+    post:
+      tags:
+        - Auth
+      summary: Hesap aktivasyonu
+      description: Aktivasyon token'ı ile hesabı aktive eder ve şifre belirler.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - password
+              properties:
+                token:
+                  type: string
+                  description: Email ile gönderilen aktivasyon token'ı
+                password:
+                  type: string
+                  minLength: 6
+                  description: Yeni şifre (minimum 6 karakter)
+      responses:
+        '200':
+          description: Hesap başarıyla aktive edildi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Geçersiz veya süresi dolmuş token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/verify-activation-token/{token}:
+    get:
+      tags:
+        - Auth
+      summary: Aktivasyon token doğrulama
+      description: Aktivasyon token'ının geçerli olup olmadığını kontrol eder.
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Doğrulanacak aktivasyon token'ı
+      responses:
+        '200':
+          description: Token geçerli
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      valid:
+                        type: boolean
+                        example: true
+                      email:
+                        type: string
+                        example: user@example.com
+        '400':
+          description: Geçersiz veya süresi dolmuş token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

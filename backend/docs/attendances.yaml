@@ -1,0 +1,616 @@
+paths:
+  /api/attendances:
+    get:
+      tags:
+        - Attendances
+      summary: Puantaj kayitlarini listele
+      description: |
+        Puantaj kayitlarini filtrelerle listeler.
+        - Tarih araligi veya ay/yil ile filtreleme
+        - Calisan ve sirket bazli filtreleme
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employee
+          in: query
+          schema:
+            type: string
+          description: Calisan ID
+        - name: company
+          in: query
+          schema:
+            type: string
+          description: Sirket ID
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Baslangic tarihi
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Bitis tarihi
+        - name: month
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          description: Ay (1-12)
+        - name: year
+          in: query
+          schema:
+            type: integer
+          description: Yil
+      responses:
+        '200':
+          description: Puantaj kayitlari
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attendance'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Attendances
+      summary: Puantaj kaydi olustur veya guncelle
+      description: Tek bir puantaj kaydi olusturur veya gunceller.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employee
+                - date
+                - code
+              properties:
+                employee:
+                  type: string
+                  description: Calisan ID
+                date:
+                  type: string
+                  format: date
+                  description: Tarih
+                code:
+                  type: string
+                  description: Puantaj kodu (N, G, E, S, R, H, T, vb.)
+                  example: N
+                description:
+                  type: string
+                  description: Kod aciklamasi
+                startTime:
+                  type: string
+                  description: Giris saati (HH:mm)
+                  example: '08:00'
+                endTime:
+                  type: string
+                  description: Cikis saati (HH:mm)
+                  example: '17:00'
+                workingHours:
+                  type: number
+                  description: Calisma saati
+                  default: 0
+                overtime:
+                  type: number
+                  description: Fazla mesai saati
+                  default: 0
+                notes:
+                  type: string
+                  description: Notlar
+      responses:
+        '200':
+          description: Puantaj kaydi guncellendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attendance'
+        '201':
+          description: Puantaj kaydi olusturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attendance'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Calisan bulunamadi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/attendances/bulk:
+    post:
+      tags:
+        - Attendances
+      summary: Toplu puantaj kaydi
+      description: Birden fazla puantaj kaydini tek seferde olusturur/gunceller.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - attendances
+              properties:
+                attendances:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - employee
+                      - date
+                      - code
+                    properties:
+                      employee:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      code:
+                        type: string
+                      description:
+                        type: string
+                      startTime:
+                        type: string
+                      endTime:
+                        type: string
+                      workingHours:
+                        type: number
+                      overtime:
+                        type: number
+                      notes:
+                        type: string
+      responses:
+        '200':
+          description: Toplu islem sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 10 puantaj kaydi islendi
+                  success:
+                    type: integer
+                    description: Basarili kayit sayisi
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        employee:
+                          type: string
+                        date:
+                          type: string
+                        error:
+                          type: string
+        '400':
+          description: Gecersiz veri formati
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/attendances/calendar:
+    get:
+      tags:
+        - Attendances
+      summary: Puantaj takvimi
+      description: Aylik puantaj takvimini calisan bazli gruplanmis olarak doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employee
+          in: query
+          schema:
+            type: string
+          description: Calisan ID (opsiyonel)
+        - name: company
+          in: query
+          schema:
+            type: string
+          description: Sirket ID
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          description: Ay (1-12)
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Yil
+      responses:
+        '200':
+          description: Puantaj takvimi
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    employee:
+                      type: object
+                    dates:
+                      type: object
+                      additionalProperties:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                          description:
+                            type: string
+                          startTime:
+                            type: string
+                          endTime:
+                            type: string
+                          workingHours:
+                            type: number
+                          overtime:
+                            type: number
+                          notes:
+                            type: string
+        '400':
+          description: Ay ve yil gerekli
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/attendances/full-calendar:
+    get:
+      tags:
+        - Attendances
+      summary: Tam puantaj takvimi
+      description: Izinler ve calisma programi ile birlestirilmis tam puantaj takvimi.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employee
+          in: query
+          schema:
+            type: string
+          description: Calisan ID (opsiyonel)
+        - name: company
+          in: query
+          schema:
+            type: string
+          description: Sirket ID
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Ay
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Yil
+      responses:
+        '200':
+          description: Tam puantaj takvimi
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Ay ve yil gerekli
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/attendances/export-excel:
+    get:
+      tags:
+        - Attendances
+      summary: Excel export
+      description: Puantaj tablosunu Excel dosyasi olarak indirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Ay
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Yil
+        - name: company
+          in: query
+          schema:
+            type: string
+          description: Sirket ID (bayi_admin/super_admin icin)
+      responses:
+        '200':
+          description: Excel dosyasi
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Ay ve yil gerekli
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Sirket bulunamadi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/attendances/generate:
+    post:
+      tags:
+        - Attendances
+      summary: Aylik puantaj olustur
+      description: |
+        Aylik varsayilan puantaj kayitlarini olusturur.
+        - WorkingHours'a gore varsayilan kodlar atanir
+        - Hafta sonu ve tatil gunleri otomatik isaretlenir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - month
+                - year
+              properties:
+                month:
+                  type: integer
+                  minimum: 1
+                  maximum: 12
+                  description: Ay
+                year:
+                  type: integer
+                  description: Yil
+                company:
+                  type: string
+                  description: Sirket ID (bayi_admin/super_admin icin)
+      responses:
+        '200':
+          description: Puantaj kayitlari olusturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  created:
+                    type: integer
+                  updated:
+                    type: integer
+        '400':
+          description: Ay ve yil gerekli
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/attendances/{id}:
+    get:
+      tags:
+        - Attendances
+      summary: Puantaj kaydi detayi
+      description: Tek bir puantaj kaydinin detaylarini doner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Puantaj kaydi ID
+      responses:
+        '200':
+          description: Puantaj kaydi detayi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attendance'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Attendances
+      summary: Puantaj kaydi guncelle
+      description: Mevcut bir puantaj kaydini gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Puantaj kaydi ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                description:
+                  type: string
+                startTime:
+                  type: string
+                endTime:
+                  type: string
+                workingHours:
+                  type: number
+                overtime:
+                  type: number
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Puantaj kaydi guncellendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attendance'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Attendances
+      summary: Puantaj kaydi sil
+      description: Puantaj kaydini siler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Puantaj kaydi ID
+      responses:
+        '200':
+          description: Puantaj kaydi silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Puantaj kaydi silindi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    Attendance:
+      type: object
+      properties:
+        _id:
+          type: string
+        employee:
+          type: object
+          properties:
+            _id:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+            email:
+              type: string
+            employeeNumber:
+              type: string
+        company:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        date:
+          type: string
+          format: date
+        code:
+          type: string
+          description: |
+            Puantaj kodlari:
+            - N: Normal calisma
+            - G: Gece vardiyasi
+            - E: Eksik calisma
+            - FM: Fazla mesai
+            - S: Yillik izin
+            - R: Raporlu
+            - U: Ucretsiz izin
+            - D: Dogum izni
+            - M: Mazeret izni
+            - Y: Yol izni
+            - H: Hafta sonu
+            - T: Tatil gunu
+        description:
+          type: string
+        startTime:
+          type: string
+          description: Giris saati
+        endTime:
+          type: string
+          description: Cikis saati
+        workingHours:
+          type: number
+          description: Calisma saati
+        overtime:
+          type: number
+          description: Fazla mesai saati
+        notes:
+          type: string
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

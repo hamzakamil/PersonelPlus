@@ -1,0 +1,544 @@
+paths:
+  /api/employees/{employeeId}/payments:
+    get:
+      tags:
+        - Employee Payments
+      summary: Çalışan ödemelerini listele
+      description: Çalışana atanmış ödeme türlerini ve tutarlarını listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Çalışan ID
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, PAID]
+          description: Durum filtresi
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ['true', 'false']
+          description: Aktif durumu filtresi
+      responses:
+        '200':
+          description: Ödeme listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmployeePayment'
+                  summary:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        description: Toplam ödeme sayısı
+                      active:
+                        type: integer
+                        description: Aktif ödeme sayısı
+                      monthlyTotal:
+                        type: number
+                        description: Aylık toplam tutar
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    post:
+      tags:
+        - Employee Payments
+      summary: Çalışana ödeme ata
+      description: Çalışana yeni bir ödeme türü ataması yapar.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - companyPaymentTypeId
+              properties:
+                companyPaymentTypeId:
+                  type: string
+                  description: Şirket ödeme türü ID
+                amount:
+                  type: number
+                  description: Özel tutar (varsayılan kullanılacaksa boş bırakın)
+                startDate:
+                  type: string
+                  format: date
+                  description: Başlangıç tarihi
+                endDate:
+                  type: string
+                  format: date
+                  description: Bitiş tarihi (opsiyonel)
+                paymentDate:
+                  type: string
+                  format: date
+                  description: Ödeme tarihi (tek seferlik için)
+                notes:
+                  type: string
+                  description: Notlar
+      responses:
+        '201':
+          description: Ödeme ataması oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeePayment'
+        '400':
+          description: Zaten aktif atama var veya validation hatası
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/employees/{employeeId}/payments/{id}:
+    put:
+      tags:
+        - Employee Payments
+      summary: Ödeme atamasını güncelle
+      description: Mevcut ödeme atamasını günceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Ödeme atama ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                notes:
+                  type: string
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeePayment'
+        '400':
+          description: Ödenmiş kayıtların tutarı değiştirilemez
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Employee Payments
+      summary: Ödeme atamasını sonlandır
+      description: Ödeme atamasını sonlandırır (bitiş tarihi set eder, silmez).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sonlandırıldı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Ödeme ataması sonlandırıldı"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/employees/{employeeId}/payments/{id}/approve:
+    post:
+      tags:
+        - Employee Payments
+      summary: Ödemeyi onayla
+      description: Bekleyen tek seferlik ödemeyi onaylar.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                  description: Onay yorumu
+      responses:
+        '200':
+          description: Onaylandı
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeePayment'
+        '400':
+          description: Ödeme zaten işlem görmüş
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/employees/{employeeId}/payments/{id}/reject:
+    post:
+      tags:
+        - Employee Payments
+      summary: Ödemeyi reddet
+      description: Bekleyen tek seferlik ödemeyi reddeder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: Red nedeni
+      responses:
+        '200':
+          description: Reddedildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Ödeme reddedildi"
+        '400':
+          description: Red nedeni zorunlu veya ödeme zaten işlem görmüş
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/employees/{employeeId}/payments/{id}/mark-paid:
+    post:
+      tags:
+        - Employee Payments
+      summary: Ödendi olarak işaretle
+      description: Onaylanmış tek seferlik ödemeyi ödendi olarak işaretler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: İşaretlendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Ödeme ödendi olarak işaretlendi"
+        '400':
+          description: Sadece onaylanmış ödemeler işaretlenebilir
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/employee-payments/bulk-assign:
+    post:
+      tags:
+        - Employee Payments
+      summary: Toplu ödeme atama
+      description: Birden fazla çalışana aynı ödeme türünü toplu olarak atar.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employeeIds
+                - companyPaymentTypeId
+              properties:
+                employeeIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Çalışan ID listesi
+                companyPaymentTypeId:
+                  type: string
+                  description: Şirket ödeme türü ID
+                amount:
+                  type: number
+                  description: Özel tutar
+                startDate:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: Toplu atama sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "5 başarılı, 1 başarısız"
+                  results:
+                    type: object
+                    properties:
+                      success:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EmployeePayment'
+                      failed:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            employeeId:
+                              type: string
+                            reason:
+                              type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/employee-payments/company/{companyId}/summary:
+    get:
+      tags:
+        - Employee Payments
+      summary: Şirket ödeme özeti
+      description: Şirketin tüm aktif ödemelerinin özetini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Şirket ID
+      responses:
+        '200':
+          description: Ödeme özeti
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalActivePayments:
+                    type: integer
+                    description: Toplam aktif ödeme sayısı
+                  monthlyTotal:
+                    type: number
+                    description: Aylık toplam tutar
+                  byType:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          description: Ödeme türü adı
+                        count:
+                          type: integer
+                          description: Atama sayısı
+                        total:
+                          type: number
+                          description: Toplam tutar
+                        frequency:
+                          type: string
+                          enum: [MONTHLY, ONE_TIME]
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    EmployeePayment:
+      type: object
+      properties:
+        _id:
+          type: string
+        employee:
+          type: string
+        company:
+          type: string
+        companyPaymentType:
+          type: object
+          properties:
+            _id:
+              type: string
+            paymentType:
+              type: object
+              properties:
+                name:
+                  type: string
+                code:
+                  type: string
+                paymentFrequency:
+                  type: string
+                  enum: [MONTHLY, ONE_TIME]
+            defaultAmount:
+              type: number
+        amount:
+          type: number
+          description: Özel tutar (null ise varsayılan kullanılır)
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        paymentDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, PAID]
+        isActive:
+          type: boolean
+        isPaid:
+          type: boolean
+        paidDate:
+          type: string
+          format: date
+        notes:
+          type: string
+        approvalChain:
+          type: array
+          items:
+            type: object
+            properties:
+              approver:
+                type: string
+              status:
+                type: string
+              actionDate:
+                type: string
+                format: date-time
+              comment:
+                type: string
+        createdBy:
+          type: object
+        approvedBy:
+          type: object
+        approvedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

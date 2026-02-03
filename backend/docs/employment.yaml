@@ -1,0 +1,583 @@
+paths:
+  /api/employment/check-tckn:
+    get:
+      tags:
+        - Employment
+      summary: TC Kimlik No kontrolü
+      description: Şirkette bu TC Kimlik No ile mevcut çalışan veya bekleyen talep var mı kontrol eder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tckn
+          in: query
+          required: true
+          schema:
+            type: string
+          description: TC Kimlik No (11 haneli)
+          example: "12345678901"
+        - name: companyId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Şirket ID
+      responses:
+        '200':
+          description: Kontrol sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exists:
+                    type: boolean
+                    description: Kayıt var mı
+                  type:
+                    type: string
+                    enum: [employee, pending_request]
+                    description: Kayıt tipi
+                  message:
+                    type: string
+                    description: Açıklama mesajı
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/employment/validate-hire-date:
+    post:
+      tags:
+        - Employment
+      summary: İşe giriş tarihi validasyonu
+      description: |
+        İşe giriş tarihini kontrol eder ve uyarıları döner.
+        SGK bildirge gönderim tarihleri ve istisna sektör kontrolü yapılır.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hireDate
+                - companyId
+              properties:
+                hireDate:
+                  type: string
+                  format: date
+                  description: İşe giriş tarihi
+                companyId:
+                  type: string
+                  description: Şirket ID
+      responses:
+        '200':
+          description: Validasyon sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  warnings:
+                    type: array
+                    items:
+                      type: string
+                    description: Uyarı mesajları listesi
+                  isExceptionSector:
+                    type: boolean
+                    description: İstisna sektör mü (İnşaat/Balıkçılık)
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/employment/validate-termination-date:
+    post:
+      tags:
+        - Employment
+      summary: İşten çıkış tarihi validasyonu
+      description: İşten çıkış tarihini kontrol eder ve uyarıları döner.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - terminationDate
+              properties:
+                terminationDate:
+                  type: string
+                  format: date
+                  description: İşten çıkış tarihi
+      responses:
+        '200':
+          description: Validasyon sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  warnings:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/employment/start:
+    post:
+      tags:
+        - Employment
+      summary: İşe giriş işlemi başlat
+      description: |
+        Yeni çalışan için işe giriş süreci başlatır.
+        EmploymentPreRecord oluşturulur ve onay sürecine girer.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - companyId
+                - fullName
+                - tckn
+                - sgkJobCode
+                - phone
+                - startDate
+              properties:
+                companyId:
+                  type: string
+                  description: Şirket ID
+                fullName:
+                  type: string
+                  description: Adı Soyadı
+                  example: "AHMET YILMAZ"
+                tckn:
+                  type: string
+                  description: TC Kimlik No (11 haneli)
+                  example: "12345678901"
+                sgkJobCode:
+                  type: string
+                  description: SGK Meslek Kodu
+                  example: "2422.01"
+                jobName:
+                  type: string
+                  description: Görev adı
+                email:
+                  type: string
+                  format: email
+                  description: E-posta (opsiyonel)
+                phone:
+                  type: string
+                  description: Telefon (11 haneli, 0 ile başlamalı)
+                  example: "05321234567"
+                salaryAmount:
+                  type: number
+                  description: Ücret (boşsa asgari ücret)
+                employmentType:
+                  type: string
+                  enum: [BELİRSİZ_SÜRELİ, BELİRLİ_SÜRELİ, KISMİ_SÜRELİ]
+                  default: BELİRSİZ_SÜRELİ
+                  description: Sözleşme tipi
+                startDate:
+                  type: string
+                  format: date
+                  description: İşe giriş tarihi
+      responses:
+        '201':
+          description: İşe giriş talebi oluşturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/EmploymentPreRecord'
+                  warnings:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Validation hatası (TC, telefon formatı, kota aşımı vb.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/employment/terminate:
+    post:
+      tags:
+        - Employment
+      summary: İşten çıkış işlemi başlat
+      description: Mevcut çalışan için işten çıkış süreci başlatır.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employeeId
+                - terminationDate
+                - terminationReason
+              properties:
+                employeeId:
+                  type: string
+                  description: Çalışan ID
+                terminationDate:
+                  type: string
+                  format: date
+                  description: İşten çıkış tarihi
+                terminationReason:
+                  type: string
+                  enum: [ISTIFA, ISVERENCE_FESİH, KARSILIKLI_ANLAŞMA, EMEKLILIK, ÖLÜM, ASKERE_GIDIŞ, DİĞER]
+                  description: Çıkış nedeni
+                terminationCode:
+                  type: string
+                  description: SGK çıkış kodu
+                notes:
+                  type: string
+                  description: Ek notlar
+      responses:
+        '201':
+          description: İşten çıkış talebi oluşturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/EmploymentPreRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/employment/pre-records:
+    get:
+      tags:
+        - Employment
+      summary: Bekleyen işe giriş/çıkış kayıtları
+      description: Onay bekleyen işe giriş ve çıkış kayıtlarını listeler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: query
+          schema:
+            type: string
+          description: Şirket ID
+        - name: processType
+          in: query
+          schema:
+            type: string
+            enum: [hire, termination]
+          description: İşlem tipi filtresi
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, PENDING_COMPANY_APPROVAL, PENDING_DEALER_APPROVAL, APPROVED, REJECTED, COMPLETED]
+          description: Durum filtresi
+      responses:
+        '200':
+          description: Kayıt listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmploymentPreRecord'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/employment/pre-records/{id}/approve:
+    post:
+      tags:
+        - Employment
+      summary: İşlem kaydını onayla
+      description: Bekleyen işe giriş/çıkış kaydını onaylar.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: PreRecord ID
+      responses:
+        '200':
+          description: Onaylandı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/EmploymentPreRecord'
+        '400':
+          description: Zaten işlem görmüş
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/employment/pre-records/{id}/reject:
+    post:
+      tags:
+        - Employment
+      summary: İşlem kaydını reddet
+      description: Bekleyen işe giriş/çıkış kaydını reddeder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Red nedeni
+      responses:
+        '200':
+          description: Reddedildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/employment/generate-contract:
+    post:
+      tags:
+        - Employment
+      summary: İş sözleşmesi oluştur
+      description: Çalışan için iş sözleşmesi PDF'i oluşturur.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employeeId
+              properties:
+                employeeId:
+                  type: string
+                  description: Çalışan ID
+      responses:
+        '200':
+          description: Sözleşme oluşturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      contractUrl:
+                        type: string
+                        description: Sözleşme dosya yolu
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/employment/calculate-severance:
+    post:
+      tags:
+        - Employment
+      summary: Kıdem/ihbar tazminatı hesapla
+      description: Çalışan için kıdem ve ihbar tazminatı hesaplaması yapar.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employeeId
+                - terminationDate
+              properties:
+                employeeId:
+                  type: string
+                terminationDate:
+                  type: string
+                  format: date
+                terminationReason:
+                  type: string
+      responses:
+        '200':
+          description: Hesaplama sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      severancePay:
+                        type: number
+                        description: Kıdem tazminatı
+                      noticePay:
+                        type: number
+                        description: İhbar tazminatı
+                      totalDays:
+                        type: integer
+                        description: Çalışılan gün sayısı
+                      eligibleForSeverance:
+                        type: boolean
+                        description: Kıdem tazminatına hak kazandı mı
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    EmploymentPreRecord:
+      type: object
+      properties:
+        _id:
+          type: string
+        processType:
+          type: string
+          enum: [hire, termination]
+          description: İşlem tipi
+        status:
+          type: string
+          enum: [PENDING, PENDING_COMPANY_APPROVAL, PENDING_DEALER_APPROVAL, APPROVED, REJECTED, COMPLETED]
+        companyId:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        employeeId:
+          type: object
+          description: Çalışan (işten çıkış için)
+        candidateFullName:
+          type: string
+          description: Aday adı soyadı (işe giriş için)
+        tcKimlikNo:
+          type: string
+        sgkJobCode:
+          type: string
+        hireDate:
+          type: string
+          format: date
+        terminationDate:
+          type: string
+          format: date
+        terminationReason:
+          type: string
+        salaryAmount:
+          type: number
+        salaryType:
+          type: string
+          enum: [NET, BRUT]
+        employmentType:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        rejectionReason:
+          type: string
+        approvedBy:
+          type: object
+        approvedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

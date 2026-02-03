@@ -1,0 +1,287 @@
+paths:
+  /api/check-ins/check-location:
+    post:
+      tags:
+        - Check-ins
+      summary: Lokasyon kontrolu
+      description: |
+        Calisanin mevcut konumunun sirket lokasyonuna yakinligini kontrol eder.
+        - Haversine formulu ile mesafe hesaplanir
+        - Izin verilen yaricap dahilinde mi kontrol edilir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - latitude
+                - longitude
+              properties:
+                latitude:
+                  type: number
+                  description: Enlem
+                  example: 41.0082
+                longitude:
+                  type: number
+                  description: Boylam
+                  example: 28.9784
+      responses:
+        '200':
+          description: Lokasyon kontrolu sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isWithinRadius:
+                    type: boolean
+                    description: Izin verilen yaricapta mi
+                  distance:
+                    type: integer
+                    description: Sirket konumuna uzaklik (metre)
+                  radius:
+                    type: integer
+                    description: Izin verilen yaricap (metre)
+                  message:
+                    type: string
+        '400':
+          description: Lokasyon bilgisi eksik veya sistem aktif degil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/check-ins/check-in:
+    post:
+      tags:
+        - Check-ins
+      summary: Giris yap
+      description: |
+        Calisanin is yerine giris kaydini olusturur.
+        - Lokasyon zorunlu ise konum kontrolu yapilir
+        - Ayni gun icin tekrar giris yapilamaz
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                latitude:
+                  type: number
+                  description: Enlem (lokasyon zorunlu ise gerekli)
+                longitude:
+                  type: number
+                  description: Boylam (lokasyon zorunlu ise gerekli)
+                address:
+                  type: string
+                  description: Adres bilgisi (opsiyonel)
+      responses:
+        '200':
+          description: Giris basarili
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Giris basarili
+                  checkIn:
+                    $ref: '#/components/schemas/CheckIn'
+        '400':
+          description: Zaten giris yapilmis veya lokasyon hatasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/check-ins/check-out:
+    post:
+      tags:
+        - Check-ins
+      summary: Cikis yap
+      description: |
+        Calisanin is yerinden cikis kaydini olusturur.
+        - Oncesinde giris yapilmis olmali
+        - Lokasyon zorunlu ise konum kontrolu yapilir
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+                address:
+                  type: string
+      responses:
+        '200':
+          description: Cikis basarili
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Cikis basarili
+                  checkIn:
+                    $ref: '#/components/schemas/CheckIn'
+        '400':
+          description: Giris yapilmamis veya zaten cikis yapilmis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/check-ins/today:
+    get:
+      tags:
+        - Check-ins
+      summary: Bugunun giris/cikis durumu
+      description: Calisanin bugunki giris/cikis kaydini ve sirket ayarlarini doner.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bugunun durumu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkIn:
+                    $ref: '#/components/schemas/CheckIn'
+                  settings:
+                    type: object
+                    description: Sirket check-in ayarlari
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/check-ins:
+    get:
+      tags:
+        - Check-ins
+      summary: Giris/cikis kayitlarini listele
+      description: |
+        Giris/cikis kayitlarini filtrelerle listeler.
+        - Calisanlar sadece kendi kayitlarini gorur
+        - Yoneticiler sirket calisanlarini gorebilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employee
+          in: query
+          schema:
+            type: string
+          description: Calisan ID (yoneticiler icin)
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Baslangic tarihi
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Bitis tarihi
+      responses:
+        '200':
+          description: Check-in kayitlari
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CheckIn'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  schemas:
+    CheckIn:
+      type: object
+      properties:
+        _id:
+          type: string
+        employee:
+          type: object
+          properties:
+            _id:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+            employeeNumber:
+              type: string
+        company:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+        date:
+          type: string
+          format: date
+        checkInTime:
+          type: string
+          format: date-time
+          description: Giris zamani
+        checkOutTime:
+          type: string
+          format: date-time
+          description: Cikis zamani
+        checkInLocation:
+          type: object
+          properties:
+            latitude:
+              type: number
+            longitude:
+              type: number
+            address:
+              type: string
+        checkOutLocation:
+          type: object
+          properties:
+            latitude:
+              type: number
+            longitude:
+              type: number
+            address:
+              type: string
+        status:
+          type: string
+          enum: [checked_in, checked_out]
+        isAuto:
+          type: boolean
+          description: Otomatik check-in mi
+

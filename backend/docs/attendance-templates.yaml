@@ -1,0 +1,386 @@
+paths:
+  /api/attendance-templates:
+    get:
+      tags:
+        - Attendance Templates
+      summary: Sablonlari listele
+      description: |
+        Devam/devamsizlik sablonlarini listeler.
+        - Super admin varsayilan sablonlari gorur
+        - Sirket kullanicilari varsayilan + kendi sirket sablonlarini gorur
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sablon listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AttendanceTemplate'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Attendance Templates
+      summary: Yeni sablon olustur
+      description: Yeni devam/devamsizlik sablonu olusturur.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Sablon adi
+                description:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Kod karakteri
+                      description:
+                        type: string
+                      color:
+                        type: string
+                        default: '#6B7280'
+                      isWorkingDay:
+                        type: boolean
+                        default: true
+                      order:
+                        type: integer
+      responses:
+        '201':
+          description: Sablon olusturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceTemplateWithItems'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/attendance-templates/{id}:
+    get:
+      tags:
+        - Attendance Templates
+      summary: Sablon detayi
+      description: Sablon ve ogelerini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sablon ID
+      responses:
+        '200':
+          description: Sablon detayi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceTemplateWithItems'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Attendance Templates
+      summary: Sablon guncelle
+      description: |
+        Sablonu gunceller.
+        - Varsayilan sablonlari sadece super_admin duzenleyebilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      description:
+                        type: string
+                      color:
+                        type: string
+                      isWorkingDay:
+                        type: boolean
+                      order:
+                        type: integer
+      responses:
+        '200':
+          description: Sablon guncellendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceTemplateWithItems'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Attendance Templates
+      summary: Sablon sil
+      description: |
+        Sablonu siler.
+        - Varsayilan sablonlari sadece super_admin silebilir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sablon silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/attendance-templates/{id}/items:
+    post:
+      tags:
+        - Attendance Templates
+      summary: Sablona oge ekle
+      description: Sablona yeni devam/devamsizlik ogesi ekler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sablon ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - description
+              properties:
+                code:
+                  type: string
+                  description: Kod karakteri
+                description:
+                  type: string
+                color:
+                  type: string
+                  default: '#6B7280'
+                isWorkingDay:
+                  type: boolean
+                  default: true
+                order:
+                  type: integer
+      responses:
+        '201':
+          description: Oge eklendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceTemplateItem'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/attendance-templates/{id}/items/{itemId}:
+    put:
+      tags:
+        - Attendance Templates
+      summary: Oge guncelle
+      description: Sablon ogesini gunceller.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sablon ID
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Oge ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                description:
+                  type: string
+                color:
+                  type: string
+                isWorkingDay:
+                  type: boolean
+                order:
+                  type: integer
+      responses:
+        '200':
+          description: Oge guncellendi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceTemplateItem'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Attendance Templates
+      summary: Oge sil
+      description: Sablon ogesini siler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Sablon ID
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Oge ID
+      responses:
+        '200':
+          description: Oge silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    AttendanceTemplate:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+          description: Sablon adi
+        description:
+          type: string
+        company:
+          type: string
+          description: Sirket ID (null ise varsayilan)
+        isDefault:
+          type: boolean
+        createdBy:
+          type: string
+          enum: [super_admin, company]
+        createdAt:
+          type: string
+          format: date-time
+
+    AttendanceTemplateItem:
+      type: object
+      properties:
+        _id:
+          type: string
+        template:
+          type: string
+        code:
+          type: string
+          description: Kod karakteri
+        description:
+          type: string
+        color:
+          type: string
+          description: Renk kodu
+        isWorkingDay:
+          type: boolean
+          description: Calisma gunu mu
+        order:
+          type: integer
+
+    AttendanceTemplateWithItems:
+      allOf:
+        - $ref: '#/components/schemas/AttendanceTemplate'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AttendanceTemplateItem'
+
+

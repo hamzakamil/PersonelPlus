@@ -1,0 +1,409 @@
+paths:
+  /api/leave-ledger/me/{year}:
+    get:
+      tags:
+        - Leave Ledger
+      summary: Kendi izin cetveli
+      description: |
+        Giris yapan calisanin yillik izin cetvelini getirir.
+        - Hak edilen gunler otomatik hesaplanir
+        - Bakiyeler yeniden hesaplanir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Yil
+          example: 2024
+      responses:
+        '200':
+          description: Izin cetveli
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeaveLedgerEntry'
+                  totals:
+                    type: object
+                    properties:
+                      totalCredit:
+                        type: number
+                      totalDebit:
+                        type: number
+                      balance:
+                        type: number
+                  employee:
+                    type: object
+                    properties:
+                      _id:
+                        type: string
+                      firstName:
+                        type: string
+                      lastName:
+                        type: string
+                      hireDate:
+                        type: string
+                        format: date
+                      seniority:
+                        type: integer
+                  nextEntitlement:
+                    type: object
+                    properties:
+                      date:
+                        type: string
+                        format: date
+                        description: Sonraki hak edis tarihi
+                      days:
+                        type: integer
+                        description: Hak edilecek gun sayisi
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/leave-ledger/employee/{employeeId}/{year}:
+    get:
+      tags:
+        - Leave Ledger
+      summary: Calisan izin cetveli
+      description: Belirtilen calisanin yillik izin cetvelini getirir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Calisan ID
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Yil
+      responses:
+        '200':
+          description: Izin cetveli
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeaveLedgerEntry'
+                  totals:
+                    type: object
+                  employee:
+                    type: object
+                  nextEntitlement:
+                    type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/leave-ledger/carryover:
+    post:
+      tags:
+        - Leave Ledger
+      summary: Devir girisi
+      description: |
+        Onceki yildan devir izin gun sayisi girilir.
+        - Ayni yil icin mevcut devir varsa gunceller
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employeeId
+                - year
+                - days
+              properties:
+                employeeId:
+                  type: string
+                  description: Calisan ID
+                year:
+                  type: integer
+                  description: Yil
+                days:
+                  type: number
+                  description: Devir gun sayisi
+                note:
+                  type: string
+                  description: Not
+      responses:
+        '200':
+          description: Devir kaydedildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/leave-ledger/adjustment:
+    post:
+      tags:
+        - Leave Ledger
+      summary: Duzeltme girisi
+      description: Manuel izin duzeltme girisi yapar (ekleme veya cikarma).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employeeId
+                - year
+                - date
+              properties:
+                employeeId:
+                  type: string
+                year:
+                  type: integer
+                date:
+                  type: string
+                  format: date
+                  description: Islem tarihi
+                credit:
+                  type: number
+                  description: Eklenen gun
+                  default: 0
+                debit:
+                  type: number
+                  description: Cikarilan gun
+                  default: 0
+                description:
+                  type: string
+                  description: Aciklama
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Duzeltme kaydedildi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/leave-ledger/recalculate/{employeeId}/{year}:
+    post:
+      tags:
+        - Leave Ledger
+      summary: Bakiye yeniden hesapla
+      description: Calisanin belirtilen yil icin izin bakiyesini yeniden hesaplar.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Bakiye hesaplandi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  balance:
+                    type: number
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/leave-ledger/{id}:
+    put:
+      tags:
+        - Leave Ledger
+      summary: Kayit guncelle
+      description: |
+        Izin cetveli kaydini gunceller.
+        - Sadece manuel girisler guncellenebilir
+        - Sistem kayitlari (ENTITLEMENT, USED) guncellenemez
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Kayit ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                credit:
+                  type: number
+                debit:
+                  type: number
+                description:
+                  type: string
+                note:
+                  type: string
+                date:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: Kayit guncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  entry:
+                    $ref: '#/components/schemas/LeaveLedgerEntry'
+        '400':
+          description: Sistem kayitlari guncellenemez
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Leave Ledger
+      summary: Kayit sil
+      description: Izin cetveli kaydini siler.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Kayit silindi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Sistem kayitlarini silme yetkiniz yok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    LeaveLedgerEntry:
+      type: object
+      properties:
+        _id:
+          type: string
+        employee:
+          type: string
+        company:
+          type: string
+        year:
+          type: integer
+        date:
+          type: string
+          format: date
+        type:
+          type: string
+          enum: [ENTITLEMENT, CARRYOVER, USED, REVERSAL, ADJUSTMENT]
+          description: |
+            Kayit turu:
+            - ENTITLEMENT: Hak edilen
+            - CARRYOVER: Onceki yil devir
+            - USED: Kullanilan
+            - REVERSAL: Iptal iade
+            - ADJUSTMENT: Manuel duzeltme
+        description:
+          type: string
+        credit:
+          type: number
+          description: Eklenen gun
+        debit:
+          type: number
+          description: Cikarilan gun
+        balance:
+          type: number
+          description: Kalan bakiye
+        leaveRequest:
+          type: object
+          description: Iliskili izin talebi
+        note:
+          type: string
+        isSystemGenerated:
+          type: boolean
+          description: Sistem tarafindan olusturuldu mu
+        createdBy:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+
