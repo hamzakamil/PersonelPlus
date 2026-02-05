@@ -8,10 +8,10 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Personel Yönetim Sistemi API',
+      title: 'PersonelPlus API',
       version: '1.0.0',
       description: `
-## Personel Yönetim Sistemi (PYS) API Dokümantasyonu
+## PersonelPlus API Dokümantasyonu
 
 Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
 
@@ -33,7 +33,7 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
       `,
       contact: {
         name: 'API Desteği',
-        email: 'api@personel-yonetim.com'
+        email: 'api@personelplus.com'
       },
       license: {
         name: 'ISC',
@@ -46,7 +46,7 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
         description: 'Geliştirme sunucusu'
       },
       {
-        url: 'https://api.personel-yonetim.com',
+        url: 'https://api.personelplus.com',
         description: 'Üretim sunucusu'
       }
     ],

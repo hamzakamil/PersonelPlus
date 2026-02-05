@@ -1,5 +1,5 @@
 {
-  "name": "personel-yonetim-backend",
+  "name": "personelplus-backend",
   "version": "1.0.0",
   "description": "Personel Yönetim Sistemi Backend",
   "main": "server.js",
