@@ -1,13 +1,13 @@
 {
   "backend/**/*.js": [
-    "eslint --fix",
-    "prettier --write"
+    "npm run lint:fix --prefix backend --",
+    "npx prettier --write"
   ],
   "ui/**/*.{js,vue}": [
-    "eslint --fix",
-    "prettier --write"
+    "npm run lint:fix --prefix ui --",
+    "npx prettier --write"
   ],
   "*.{json,md,css}": [
-    "prettier --write"
+    "npx prettier --write"
   ]
 }
