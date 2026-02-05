@@ -11,11 +11,7 @@
             <img :src="companyLogo" alt="Şirket Logosu" class="max-h-12 max-w-full object-contain rounded-lg" />
           </div>
           <div v-else class="flex justify-center mb-3">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center" :style="{ backgroundColor: 'var(--sidebar-active-bg)' }">
-              <svg class="w-8 h-8" viewBox="0 0 576 576">
-                <path fill="currentColor" :style="{ color: 'var(--sidebar-active)' }" d="M287.5,0c2.5,2.5,4.4,5.5,6.1,8.6,17.2,30.3,32.1,62.6,37.9,97.2,3.7,20.6,2.9,42.2-4.9,61.8,14.3-13.3,32.5-22.6,52.1-24.6,3.8,30,4.9,60.4,2.9,90.5-1.5,13.4-3,27-8.5,39.4,10-1.3,19.4-5.5,29.6-6.1,2.7,40.3,4.5,81-.6,121.2-3.9,31.8-15.1,63.4-35.7,88.3-13.4,15.6-31.8,25.6-45.7,40.7-16.2,16.1-29.7,36-32.9,59-3.1-23.9-17.7-44.4-34.6-60.7-13.7-14.6-31.9-24.2-44.6-39.8-15.7-19.2-25.8-42.6-31.4-66.7-9.6-46.7-7.2-94.7-4-141.9,10.1.6,19.5,4.9,29.5,6-10.9-27.4-9.5-57.6-9.1-86.5.4-14.5,1.8-28.9,3.5-43.3,19.7,1.3,39.1,9.6,52.3,24.7-3.4-9.3-5.7-19.2-5.8-29.1-2.1-37.7,11-74.1,27.1-107.6,5.1-10.6,10.7-20.9,16.7-31.1Z"/>
-              </svg>
-            </div>
+            <img src="/logo.svg" alt="PersonelPlus" class="h-14 w-auto" />
           </div>
           <h1 class="text-sm font-semibold truncate text-center" :style="{ color: 'var(--sidebar-text-hover)' }">
             {{ companyTitle }}
@@ -147,7 +143,7 @@ import api from '@/services/api'
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
-const companyTitle = ref('temmuz C|A|P Personel Plus')
+const companyTitle = ref('PersonelPlus')
 const companyLogo = ref('')
 
 const user = computed(() => authStore.user)
