@@ -1641,7 +1641,7 @@ const viewDetails = async (request) => {
   try {
     // Detaylı bilgileri API'den al (onay zinciri dahil)
     const response = await api.get(`/leave-requests/${request._id}`)
-    selectedRequest.value = response.data
+    selectedRequest.value = response.data?.data || response.data
     showDetailModal.value = true
   } catch (error) {
     // Hata durumunda basit veriyle göster

@@ -1178,7 +1178,7 @@ const handleClickOutside = (event) => {
 const loadCompanies = async () => {
   try {
     const response = await api.get('/companies')
-    companies.value = response.data
+    companies.value = response.data?.data || response.data
   } catch (error) {
     console.error('Şirketler yüklenemedi:', error)
   }

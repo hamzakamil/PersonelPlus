@@ -806,7 +806,8 @@ const allExitReasons = [
 const loadEmployee = async () => {
   try {
     const response = await api.get(`/employees/${route.params.id}`)
-    employee.value = response.data
+    // Backend { success: true, data: employee } formatında döndürüyor
+    employee.value = response.data?.data || response.data
     
     // Format dates for input
     const formatDateForInput = (date) => {
@@ -858,7 +859,7 @@ const loadEmployee = async () => {
 const loadDepartments = async () => {
   try {
     const response = await api.get('/departments')
-    departments.value = response.data
+    departments.value = response.data?.data || response.data
   } catch (error) {
     console.error('Departmanlar yüklenemedi:', error)
   }

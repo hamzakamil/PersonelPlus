@@ -159,6 +159,12 @@ const router = createRouter({
           meta: { roles: ['super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik'] }
         },
         {
+          path: 'attendance-dashboard',
+          name: 'AttendanceDashboard',
+          component: () => import('@/views/AttendanceDashboard.vue'),
+          meta: { roles: ['super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik'] }
+        },
+        {
           path: 'leave-requests',
           name: 'LeaveRequests',
           component: () => import('@/views/LeaveRequests.vue'),
@@ -290,6 +296,55 @@ const router = createRouter({
           component: () => import('@/views/employment/EmploymentList.vue'),
           meta: { roles: ['super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik'] }
         },
+        // Bordro Routes
+        {
+          path: 'bordro-upload',
+          name: 'BordroUpload',
+          component: () => import('@/views/bordro/BordroUpload.vue'),
+          meta: { roles: ['super_admin', 'bayi_admin'] }
+        },
+        {
+          path: 'bordro-list',
+          name: 'BordroList',
+          component: () => import('@/views/bordro/BordroList.vue'),
+          meta: { roles: ['super_admin', 'bayi_admin'] }
+        },
+        {
+          path: 'my-bordros',
+          name: 'MyBordros',
+          component: () => import('@/views/MyBordros.vue'),
+          meta: { roles: ['employee'] }
+        },
+        {
+          path: 'bordro-approval',
+          name: 'BordroApproval',
+          component: () => import('@/views/bordro/BordroApproval.vue'),
+          meta: { roles: ['company_admin', 'resmi_muhasebe_ik', 'SIRKET_ADMIN', 'IK_OPERASYON'] }
+        },
+        {
+          path: 'bordro/:id',
+          name: 'BordroDetail',
+          component: () => import('@/views/bordro/BordroDetail.vue'),
+          meta: { roles: ['super_admin', 'bayi_admin', 'company_admin', 'employee'] }
+        },
+        {
+          path: 'bordro-stats',
+          name: 'BordroApprovalStats',
+          component: () => import('@/views/bordro/BordroApprovalStats.vue'),
+          meta: { roles: ['super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik', 'SIRKET_ADMIN', 'IK_OPERASYON'] }
+        },
+        {
+          path: 'bordro-rejections',
+          name: 'BordroRejections',
+          component: () => import('@/views/bordro/BordroRejections.vue'),
+          meta: { roles: ['super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik', 'SIRKET_ADMIN', 'IK_OPERASYON'] }
+        },
+        {
+          path: 'bordro-company-list',
+          name: 'BordroCompanyList',
+          component: () => import('@/views/bordro/BordroCompanyList.vue'),
+          meta: { roles: ['super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik', 'SIRKET_ADMIN', 'IK_OPERASYON'] }
+        },
         // Abonelik Sistemi Routes
         {
           path: 'subscription',
@@ -388,7 +443,7 @@ router.beforeEach((to, from, next) => {
     next('/login')
   } else if (to.meta.requiresAuth === false && authStore.isAuthenticated) {
     next('/')
-  } else if (to.meta.roles && !to.meta.roles.includes(authStore.user?.role)) {
+  } else if (to.meta.roles && !to.meta.roles.includes(authStore.user?.role?.name || authStore.user?.role)) {
     next('/')
   } else {
     next()

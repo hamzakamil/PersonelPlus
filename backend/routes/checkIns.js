@@ -5,6 +5,7 @@ const Employee = require('../models/Employee');
 const Company = require('../models/Company');
 const { auth, requireRole } = require('../middleware/auth');
 const { errorResponse, notFound, forbidden, serverError } = require('../utils/responseHelper');
+const attendanceCalculationService = require('../services/attendanceCalculationService');
 
 // Helper function to calculate distance between two coordinates (Haversine formula)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -268,12 +269,22 @@ router.post('/check-out', auth, async (req, res) => {
     existingCheckIn.status = 'checked_out';
     await existingCheckIn.save();
 
+    // Günlük devam hesaplamasını tetikle
+    let attendanceSummary = null;
+    try {
+      attendanceSummary = await attendanceCalculationService.processCheckInOut(existingCheckIn);
+    } catch (calcError) {
+      console.error('Devam hesaplama hatası:', calcError);
+      // Hesaplama hatası check-out işlemini engellemez
+    }
+
     const checkInRecord = await CheckIn.findById(existingCheckIn._id)
       .populate('employee', 'firstName lastName');
 
     res.json({
       message: 'Çıkış başarılı',
-      checkIn: checkInRecord
+      checkIn: checkInRecord,
+      attendanceSummary
     });
   } catch (error) {
     return serverError(res, error);

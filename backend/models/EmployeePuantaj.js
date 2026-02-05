@@ -55,6 +55,7 @@ const employeePuantajSchema = new mongoose.Schema({
   days: [dailyPuantajSchema],
   // Özet bilgiler (hesaplanmış)
   summary: {
+    notWorkedDays: { type: Number, default: 0 },   // - Çalışmadı
     normalDays: { type: Number, default: 0 },      // N
     weekendDays: { type: Number, default: 0 },     // H
     publicHolidays: { type: Number, default: 0 },  // T

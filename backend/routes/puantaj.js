@@ -13,6 +13,7 @@ const { errorResponse, notFound, forbidden, serverError } = require('../utils/re
 
 // Luca Puantaj varsayılan kodları
 const LUCA_PUANTAJ_CODES = [
+  { code: '-', name: 'Çalışmadı', color: '#1F2937', textColor: '#FFFFFF', autoAssignType: 'not_worked', sortOrder: 0 },
   { code: 'N', name: 'Normal', color: '#FFFFFF', textColor: '#000000', autoAssignType: 'normal', sortOrder: 1 },
   { code: 'T', name: 'Resmi Tatil', color: '#9966FF', textColor: '#FFFFFF', autoAssignType: 'public_holiday', sortOrder: 2 },
   { code: 'H', name: 'Hafta Tatili', color: '#0066FF', textColor: '#FFFFFF', autoAssignType: 'weekend', sortOrder: 3 },
@@ -80,6 +81,27 @@ const getOrCreateLucaPuantajTemplate = async () => {
         template = await PuantajTemplate.findOne({ name: 'Luca Puantaj', company: null });
       } else {
         throw error;
+      }
+    }
+  } else {
+    // Mevcut şablonda "-" (Çalışmadı) kodu yoksa ekle
+    const notWorkedCode = await PuantajCode.findOne({ template: template._id, code: '-' });
+    if (!notWorkedCode) {
+      try {
+        await PuantajCode.create({
+          code: '-',
+          name: 'Çalışmadı',
+          color: '#1F2937',
+          textColor: '#FFFFFF',
+          autoAssignType: 'not_worked',
+          sortOrder: 0,
+          template: template._id,
+          isSystem: true
+        });
+        console.log('"-" (Çalışmadı) kodu Luca Puantaj şablonuna eklendi');
+      } catch (err) {
+        // Kod zaten varsa hata vermez
+        if (err.code !== 11000) console.error('Çalışmadı kodu eklenemedi:', err);
       }
     }
   }
@@ -865,6 +887,7 @@ async function generatePuantaj(employee, template, year, month) {
 // Özeti yeniden hesapla
 function recalculateSummary(puantaj) {
   const summary = {
+    notWorkedDays: 0,
     normalDays: 0,
     weekendDays: 0,
     publicHolidays: 0,
@@ -879,6 +902,7 @@ function recalculateSummary(puantaj) {
 
   for (const day of puantaj.days) {
     switch (day.code) {
+      case '-': summary.notWorkedDays++; break; // Çalışmadı
       case 'N': summary.normalDays++; break;
       case 'H': summary.weekendDays++; break;
       case 'T': summary.publicHolidays++; break;

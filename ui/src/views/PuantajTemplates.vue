@@ -381,7 +381,7 @@ const loadTemplates = async () => {
   loading.value = true
   try {
     const response = await api.get('/puantaj/templates')
-    templates.value = response.data
+    templates.value = response.data?.data || response.data
 
     // Aktif sablonu al
     const companyId = authStore.user?.company

@@ -662,6 +662,192 @@ const sendNotificationEmail = async (toEmail, { title, body, type, priority, dat
   return sendEmail(toEmail, subject, html);
 };
 
+// Bordro yüklendi bildirimi
+const sendBordroUploadedEmail = async (employee, bordro, company) => {
+  const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+                      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  const periodText = `${monthNames[bordro.month - 1]} ${bordro.year}`;
+
+  const subject = `${company.name || 'Şirket'} - ${periodText} Bordronuz Yüklendi`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #10B981; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+        .info-box { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb; }
+        .btn { display: inline-block; background: #4F46E5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: bold; }
+        .warning { background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 15px 0; border-radius: 4px; }
+        .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Yeni Bordronuz Yüklendi</h1>
+        </div>
+        <div class="content">
+          <p>Merhaba <strong>${employee.firstName} ${employee.lastName}</strong>,</p>
+          <p><strong>${periodText}</strong> dönemi bordronuz sisteme yüklenmiştir.</p>
+
+          <div class="info-box">
+            <p><strong>Dönem:</strong> ${periodText}</p>
+            <p><strong>Net Ücret:</strong> ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(bordro.payrollData?.netUcret || 0)}</p>
+          </div>
+
+          <div class="warning">
+            <strong>Önemli:</strong> Bordronuzu inceleyerek onaylayınız. Onay işlemini tamamlamak için sisteme giriş yapmanız gerekmektedir.
+          </div>
+
+          <center>
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/my-bordros" class="btn">
+              Bordromu Görüntüle
+            </a>
+          </center>
+        </div>
+        <div class="footer">
+          <p>Bu email otomatik olarak gönderilmiştir.</p>
+          <p>&copy; ${new Date().getFullYear()} ${company.name || 'Personel Yönetim Sistemi'}</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(employee.email, subject, html);
+};
+
+// Bordro onay kodu gönder
+const sendBordroApprovalCodeEmail = async (employee, code, expiresAt) => {
+  const subject = 'Bordro Onay Kodu';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+        .code-box { background: #1F2937; color: #10B981; font-size: 32px; font-family: monospace; text-align: center; padding: 20px; border-radius: 8px; margin: 20px 0; letter-spacing: 8px; }
+        .warning { color: #DC2626; font-size: 14px; }
+        .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Bordro Onay Kodu</h1>
+        </div>
+        <div class="content">
+          <p>Merhaba <strong>${employee.firstName} ${employee.lastName}</strong>,</p>
+          <p>Bordronuzu onaylamak için aşağıdaki kodu kullanınız:</p>
+
+          <div class="code-box">
+            ${code}
+          </div>
+
+          <p class="warning">
+            <strong>Bu kod 15 dakika içerisinde geçerlidir.</strong><br>
+            Son geçerlilik: ${new Date(expiresAt).toLocaleString('tr-TR')}
+          </p>
+
+          <p style="color: #6B7280; font-size: 14px;">
+            Eğer bu isteği siz yapmadıysanız, bu emaili dikkate almayınız.
+          </p>
+        </div>
+        <div class="footer">
+          <p>Bu email otomatik olarak gönderilmiştir.</p>
+          <p>&copy; ${new Date().getFullYear()} Personel Yönetim Sistemi</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(employee.email, subject, html);
+};
+
+// Bordro reddedildi bildirimi (bayiye gönderilir)
+const sendBordroRejectedEmail = async (company, employee, bordro) => {
+  const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+                      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  const periodText = `${monthNames[bordro.month - 1]} ${bordro.year}`;
+
+  const subject = `Bordro Reddedildi - ${employee.firstName} ${employee.lastName} - ${periodText}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #DC2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+        .info-box { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb; }
+        .reason-box { background: #FEE2E2; border-left: 4px solid #DC2626; padding: 15px; margin: 15px 0; border-radius: 4px; }
+        .btn { display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 15px; }
+        .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Bordro Reddedildi</h1>
+        </div>
+        <div class="content">
+          <p>Bir çalışan bordrosunu reddetti ve itiraz etti.</p>
+
+          <div class="info-box">
+            <p><strong>Şirket:</strong> ${company.name || '-'}</p>
+            <p><strong>Çalışan:</strong> ${employee.firstName} ${employee.lastName}</p>
+            <p><strong>TC Kimlik No:</strong> ${bordro.tcKimlik}</p>
+            <p><strong>Dönem:</strong> ${periodText}</p>
+            <p><strong>Net Ücret:</strong> ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(bordro.payrollData?.netUcret || 0)}</p>
+            <p><strong>Red Tarihi:</strong> ${new Date(bordro.rejectedAt).toLocaleString('tr-TR')}</p>
+          </div>
+
+          <div class="reason-box">
+            <p><strong>İtiraz Sebebi:</strong></p>
+            <p>${bordro.rejectionReason || '-'}</p>
+          </div>
+
+          <center>
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/bordro-list" class="btn">
+              Bordroları Görüntüle
+            </a>
+          </center>
+        </div>
+        <div class="footer">
+          <p>Bu email otomatik olarak gönderilmiştir.</p>
+          <p>&copy; ${new Date().getFullYear()} Personel Yönetim Sistemi</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Şirketin bayisinin email adresine gönder
+  // Company'den dealer bilgisini almak için populate edilmiş olmalı
+  // Burada company.contactEmail veya dealer email kullanılabilir
+  const recipientEmail = company.contactEmail || company.authorizedPerson?.email;
+
+  if (recipientEmail) {
+    return sendEmail(recipientEmail, subject, html);
+  }
+
+  return { success: false, error: 'Alıcı email adresi bulunamadı' };
+};
+
 module.exports = {
   createTransporter,
   sendEmail,
@@ -674,5 +860,8 @@ module.exports = {
   sendEmploymentApprovedNotification,
   sendRevisionRequestNotification,
   sendNewMessageNotification,
-  sendNotificationEmail
+  sendNotificationEmail,
+  sendBordroUploadedEmail,
+  sendBordroApprovalCodeEmail,
+  sendBordroRejectedEmail
 };

@@ -328,7 +328,7 @@ const loadEmployee = async () => {
   try {
     const response = await api.get('/employees/me')
     if (response.data) {
-      employee.value = response.data
+      employee.value = response.data?.data || response.data
     }
   } catch (err) {
     console.error('Çalışan bilgileri yüklenemedi:', err)

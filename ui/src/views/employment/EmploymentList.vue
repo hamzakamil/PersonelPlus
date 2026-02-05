@@ -1440,7 +1440,7 @@ const employeeCheck = ref(null)
 const checkingEmployee = ref(false)
 const addingEmployee = ref(false)
 const deletingRecord = ref(false)
-const companyTitle = ref('temmuz C|A|P Payroll Suite')
+const companyTitle = ref('temmuz C|A|P Personel Plus')
 const sendingWhatsApp = ref(false)
 
 // Bayi İK görüntüleme adı (WhatsApp butonu için)
@@ -2147,8 +2147,8 @@ const checkEmployeeExists = async (preRecordId) => {
   try {
     checkingEmployee.value = true
     const response = await api.get(`/employment/check-employee/${preRecordId}`)
-    if (response.data.success) {
-      employeeCheck.value = response.data
+    if (response.data?.success) {
+      employeeCheck.value = response.data?.data || response.data
     }
   } catch (error) {
     console.error('Çalışan kontrol hatası:', error)

@@ -55,7 +55,12 @@ const notificationSchema = new mongoose.Schema({
       'EXPENSE_APPROVED',     // Masraf onaylandı
       'SYSTEM',               // Sistem bildirimi
       'REMINDER',             // Hatırlatma
-      'ANNOUNCEMENT'          // Duyuru
+      'ANNOUNCEMENT',         // Duyuru
+      'BORDRO_UPLOADED',          // Yeni bordro yüklendi
+      'BORDRO_PENDING_APPROVAL',  // Bordro onay bekliyor (şirket admin'e)
+      'BORDRO_APPROVAL_CODE',     // Bordro onay kodu gönderildi
+      'BORDRO_APPROVED',          // Bordro onaylandı
+      'BORDRO_REJECTED'           // Bordro reddedildi (itiraz)
     ],
     required: true,
     index: true
@@ -64,7 +69,7 @@ const notificationSchema = new mongoose.Schema({
   // İlişkili Kayıt
   relatedModel: {
     type: String,
-    enum: ['LeaveRequest', 'AdvanceRequest', 'OvertimeRequest', 'Message', 'Employee', 'ExpenseRequest', 'Announcement']
+    enum: ['LeaveRequest', 'AdvanceRequest', 'OvertimeRequest', 'Message', 'Employee', 'ExpenseRequest', 'Announcement', 'Bordro', 'BordroUpload']
   },
   relatedId: {
     type: mongoose.Schema.Types.ObjectId

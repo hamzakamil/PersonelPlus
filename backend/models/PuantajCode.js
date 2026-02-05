@@ -31,6 +31,7 @@ const puantajCodeSchema = new mongoose.Schema({
   autoAssignType: {
     type: String,
     enum: [
+      'not_worked',       // - - Çalışmadı
       'normal',           // N - Normal çalışma günü
       'weekend',          // H - Hafta tatili
       'public_holiday',   // T - Resmi tatil

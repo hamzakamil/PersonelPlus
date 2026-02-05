@@ -2,7 +2,7 @@
   <div class="p-6">
     <div class="flex justify-end items-center mb-6 gap-2">
       <Button v-if="canCreate" variant="secondary" @click="showExcelModal = true">Excel'den Toplu Ekle</Button>
-      <Button v-if="canCreate" @click="showModal = true">Yeni Şirket Ekle</Button>
+      <Button v-if="canCreate" @click="openNewCompanyModal">Yeni Şirket Ekle</Button>
     </div>
 
     <!-- Filtreler -->
@@ -812,9 +812,7 @@ const deleteCompany = async (id) => {
   }
 }
 
-const closeModal = () => {
-  showModal.value = false
-  editingCompany.value = null
+const resetForm = () => {
   form.value = {
     name: '',
     dealerId: '',
@@ -828,6 +826,18 @@ const closeModal = () => {
     authorizedPersonEmail: '',
     authorizedPersonPassword: ''
   }
+}
+
+const openNewCompanyModal = () => {
+  editingCompany.value = null
+  resetForm()
+  showModal.value = true
+}
+
+const closeModal = () => {
+  showModal.value = false
+  editingCompany.value = null
+  resetForm()
 }
 
 // Excel import functions

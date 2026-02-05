@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
+// Employee modelini yükle - populate için gerekli
+require('../models/Employee');
 
 // ObjectId doğrulama helper fonksiyonu
 const isValidObjectId = (id) => {

@@ -629,8 +629,9 @@ const loadLedger = async () => {
     loading.value = true
     try {
       const response = await api.get(`/leave-ledger/me/${selectedYear.value}`)
-      ledgerData.value = response.data
-      entries.value = response.data.entries || []
+      const data = response.data?.data || response.data
+      ledgerData.value = data
+      entries.value = data?.entries || []
     } catch (error) {
       console.error('Cetvel yüklenemedi:', error)
       entries.value = []
@@ -651,8 +652,9 @@ const loadLedger = async () => {
   loading.value = true
   try {
     const response = await api.get(`/leave-ledger/employee/${selectedEmployee.value}/${selectedYear.value}`)
-    ledgerData.value = response.data
-    entries.value = response.data.entries || []
+    const data = response.data?.data || response.data
+    ledgerData.value = data
+    entries.value = data?.entries || []
   } catch (error) {
     console.error('Cetvel yüklenemedi:', error)
     entries.value = []

@@ -331,7 +331,7 @@ const runHealthCheck = async () => {
   try {
     loading.value = true
     const response = await api.get('/admin/health-check')
-    healthReport.value = response.data
+    healthReport.value = response.data?.data || response.data
     toast.success('Sağlık kontrolü tamamlandı')
   } catch (error) {
     console.error('Health check error:', error)

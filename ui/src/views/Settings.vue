@@ -2095,7 +2095,7 @@ const loadCompanies = async () => {
   if (!isDealer.value) return
   try {
     const response = await api.get('/companies')
-    companies.value = response.data
+    companies.value = response.data?.data || response.data
   } catch (error) {
     console.error('Şirketler yüklenemedi:', error)
   }
@@ -2248,7 +2248,7 @@ const loadDepartments = async () => {
       return
     }
     const response = await api.get('/departments', { params: { company: companyId } })
-    departments.value = response.data
+    departments.value = response.data?.data || response.data
   } catch (error) {
     console.error('Departmanlar yüklenemedi:', error)
   }
@@ -2262,7 +2262,7 @@ const loadEmployees = async () => {
       return
     }
     const response = await api.get('/employees', { params: { company: companyId } })
-    employees.value = response.data
+    employees.value = response.data?.data || response.data
   } catch (error) {
     console.error('Çalışanlar yüklenemedi:', error)
   }
@@ -2305,7 +2305,7 @@ const loadHolidays = async () => {
 const loadWorkingHours = async () => {
   try {
     const response = await api.get('/working-hours')
-    workingHoursList.value = response.data
+    workingHoursList.value = response.data?.data || response.data
   } catch (error) {
     console.error('Çalışma saatleri yüklenemedi:', error)
   }
@@ -2355,8 +2355,9 @@ const loadYearlyTaxLimits = async () => {
     } else {
       // Normal kullanıcılar için sadece aktif yıl
       const response = await api.get('/yearly-tax-limits/active')
-      activeYearlyTaxLimit.value = response.data
-      yearlyTaxLimits.value = response.data ? [response.data] : []
+      const data = response.data?.data || response.data
+      activeYearlyTaxLimit.value = data
+      yearlyTaxLimits.value = data ? [data] : []
     }
   } catch (error) {
     console.error('Yıllık limitler yüklenemedi:', error)

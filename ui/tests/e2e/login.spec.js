@@ -14,7 +14,7 @@ test.describe('Login Page', () => {
     await expect(page.locator('h2')).toContainText('Giriş Yap')
 
     // Logo ve program adi
-    await expect(page.locator('h1')).toContainText('temmuz C|A|P Payroll Suite')
+    await expect(page.locator('h1')).toContainText('temmuz C|A|P Personel Plus')
 
     // Email ve sifre alanlari
     await expect(page.locator('input[type="email"]')).toBeVisible()

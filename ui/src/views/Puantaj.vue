@@ -1331,6 +1331,7 @@ const saveDayChange = async () => {
       puantajList.value[index].puantaj = response.data?.data || response.data
     }
 
+    toast.success(`${editingDay} ${getMonthName(selectedMonth.value)} puantajı kaydedildi`)
     closeDayEditor()
   } catch (error) {
     toast.error(error.response?.data?.message || 'Kaydetme hatası')
@@ -1396,9 +1397,9 @@ const downloadExcel = async () => {
 const regenerateAll = async () => {
   const confirmed = await confirmModal.show({
     title: 'Puantaj Yeniden Hesaplama',
-    message: 'Tüm çalışanların puantajı yeniden hesaplanacak. Manuel yapılan değişiklikler korunacak. Devam etmek istiyor musunuz?',
+    message: 'DİKKAT: Tüm çalışanların puantajı izin ve tatil bilgilerine göre yeniden hesaplanacak.\n\n⚠️ Manuel olarak işaretlenen günler (isManualOverride) korunacaktır.\n⚠️ Ancak "Çalışmadı (-)" gibi el ile yapılan değişiklikler kaybolabilir.\n\nDevam etmek istiyor musunuz?',
     type: 'warning',
-    confirmText: 'Hesapla'
+    confirmText: 'Yeniden Hesapla'
   })
   if (!confirmed) return
 

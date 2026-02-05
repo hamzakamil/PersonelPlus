@@ -156,7 +156,7 @@ const form = ref({
 const loadWorkingHours = async () => {
   try {
     const response = await api.get('/working-hours')
-    workingHours.value = response.data
+    workingHours.value = response.data?.data || response.data
   } catch (error) {
     console.error('Çalışma saatleri yüklenemedi:', error)
   }

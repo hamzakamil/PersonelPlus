@@ -147,7 +147,7 @@ import api from '@/services/api'
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
-const companyTitle = ref('temmuz C|A|P Payroll Suite')
+const companyTitle = ref('temmuz C|A|P Personel Plus')
 const companyLogo = ref('')
 
 const user = computed(() => authStore.user)
@@ -258,7 +258,9 @@ const icons = {
   commission: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>',
   campaign: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M7.941 18.941c-2.5 2.5-6.5.5-6.5.5s-2-4 .5-6.5l9-9a2 2 0 012.828 0l3.172 3.172a2 2 0 010 2.828l-9 9z" /><path d="M11 11l6 6" /><path d="M20 8l-2-2" /><path d="M22 6l-2-2" /></svg>',
   invoice: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /><path d="M14 2v6h6" /></svg>',
-  chevronDown: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>'
+  upload: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>',
+  chevronDown: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>',
+  alertCircle: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>'
 }
 
 const menuItems = computed(() => {
@@ -309,6 +311,18 @@ const menuItems = computed(() => {
     items.push({ path: '/advance-requests', name: 'Avanslar', icon: icons.wallet })
     items.push({ path: '/overtime-requests', name: 'Fazla Mesai', icon: icons.clock })
     items.push({ path: '/puantaj', name: 'Aylık Puantaj', icon: icons.table })
+    items.push({ path: '/attendance-dashboard', name: 'Devam Takip', icon: icons.clock })
+    // Bordro Yönetimi - Alt menülü
+    items.push({
+      name: 'Bordro Yönetimi',
+      icon: icons.receipt,
+      children: [
+        { path: '/bordro-upload', name: 'Bordro Yükle', icon: icons.upload },
+        { path: '/bordro-list', name: 'Yükleme Geçmişi', icon: icons.list },
+        { path: '/bordro-stats', name: 'Onay İstatistikleri', icon: icons.barChart },
+        { path: '/bordro-rejections', name: 'Reddedilenler', icon: icons.alertCircle }
+      ]
+    })
     items.push({ path: '/reports', name: 'Raporlar', icon: icons.fileText })
     items.push({ path: '/settings', name: 'Ayarlar', icon: icons.settings })
     items.push({ path: '/messages', name: 'Mesajlar', icon: icons.message })
@@ -339,12 +353,24 @@ const menuItems = computed(() => {
     items.push({ path: '/advance-requests', name: 'Avanslar', icon: icons.wallet })
     items.push({ path: '/overtime-requests', name: 'Fazla Mesai', icon: icons.clock })
     items.push({ path: '/puantaj', name: 'Aylık Puantaj', icon: icons.table })
+    items.push({ path: '/attendance-dashboard', name: 'Devam Takip', icon: icons.clock })
+    // Bordro Yönetimi - Şirket Admin
+    items.push({
+      name: 'Bordro Yönetimi',
+      icon: icons.receipt,
+      children: [
+        { path: '/bordro-approval', name: 'Bordro Onayı', icon: icons.checkCircle },
+        { path: '/bordro-company-list', name: 'Bordro Listesi', icon: icons.list },
+        { path: '/bordro-stats', name: 'Onay İstatistikleri', icon: icons.barChart }
+      ]
+    })
     items.push({ path: '/reports', name: 'Raporlar', icon: icons.fileText })
     items.push({ path: '/settings', name: 'Ayarlar', icon: icons.settings })
     items.push({ path: '/messages', name: 'Mesajlar', icon: icons.message })
     items.push({ path: '/support', name: 'Destek', icon: icons.support })
   } else if (role === 'employee') {
     items.push({ path: '/', name: 'Genel Durum Özeti', icon: icons.dashboard })
+    items.push({ path: '/my-bordros', name: 'Bordrolarım', icon: icons.receipt })
     items.push({ path: '/employee-leave-types', name: 'İzin Türleri', icon: icons.list })
     items.push({ path: '/my-leaves', name: 'İzin Taleplerim', icon: icons.myLeaves })
     items.push({ path: '/advance-requests', name: 'Avans Taleplerim', icon: icons.wallet })

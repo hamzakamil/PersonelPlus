@@ -13,7 +13,7 @@
         </select>
       </div>
       <div class="flex gap-2">
-        <Button variant="secondary" size="sm" @click="showImportModal = true">Excel'den İçe Aktar</Button>
+        <Button variant="secondary" size="sm" @click="openImportModal">Excel'den İçe Aktar</Button>
         <Button size="sm" @click="showModal = true">Yeni Çalışan Ekle</Button>
       </div>
     </div>
@@ -229,6 +229,15 @@
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
+                      <button v-if="!employee.isActivated && employee.status !== 'separated'" @click="sendActivationLink(employee._id)" :disabled="sendingActivation === employee._id" class="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Aktivasyon Emaili Gönder">
+                        <svg v-if="sendingActivation === employee._id" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </button>
                       <button v-if="employee.status === 'separated'" @click="rehireEmployee(employee)" class="p-1 text-emerald-600 hover:bg-emerald-50 rounded" title="Tekrar İşe Al">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -297,6 +306,15 @@
                     <button @click="showLeaveRequestModal(employee)" class="p-1 text-green-600 hover:bg-green-50 rounded" title="İzin Talebi">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                    <button v-if="!employee.isActivated && employee.status !== 'separated'" @click="sendActivationLink(employee._id)" :disabled="sendingActivation === employee._id" class="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Aktivasyon Emaili Gonder">
+                      <svg v-if="sendingActivation === employee._id" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                      </svg>
+                      <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     </button>
                     <button v-if="employee.status === 'separated'" @click="rehireEmployee(employee)" class="p-1 text-emerald-600 hover:bg-emerald-50 rounded" title="Tekrar İşe Al">
@@ -872,19 +890,71 @@
           
           <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <h3 class="text-sm font-semibold text-yellow-800 mb-2">Zorunlu Alanlar:</h3>
-            <ul class="text-sm text-yellow-700 list-disc list-inside space-y-1">
-              <li>Adı</li>
-              <li>Soyadı</li>
-              <li>TC Kimlik No</li>
-              <li>İşe Giriş Tarihi</li>
-              <li>Doğum Tarihi</li>
-              <li>Görevi</li>
-              <li>Email Adresi</li>
-              <li>Telefon Numarası</li>
-            </ul>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-yellow-700">
+              <div>• Adı</div>
+              <div>• Soyadı</div>
+              <div>• TC Kimlik No <span class="text-xs text-yellow-600">(11 hane)</span></div>
+              <div>• Görevi</div>
+              <div>• İşe Giriş Tarihi <span class="text-xs text-yellow-600">(GG.AA.YYYY)</span></div>
+              <div>• Doğum Tarihi <span class="text-xs text-yellow-600">(GG.AA.YYYY)</span></div>
+              <div>• Email Adresi</div>
+              <div>• Telefon Numarası</div>
+            </div>
             <p class="text-xs text-yellow-600 mt-2">
-              ⚠️ Bu alanlar eksik ise yükleme içeri aktarılmaz.
+              ⚠️ Bu alanlar eksik ise satır içeri aktarılmaz.
             </p>
+          </div>
+
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">Opsiyonel Alanlar:</h3>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600">
+              <div>• Personel Numarası</div>
+              <div>• Departman</div>
+              <div>• SGK İşyeri</div>
+              <div>• İşyeri Bölümü</div>
+              <div>• Doğum Yeri</div>
+              <div>• Pasaport No</div>
+              <div>• Kan Grubu</div>
+              <div>• Askerlik Durumu</div>
+              <div>• Sabıka Kaydı Var mı? <span class="text-xs">(Evet/Hayır)</span></div>
+              <div>• Ehliyet Var mı? <span class="text-xs">(Evet/Hayır)</span></div>
+              <div>• Emekli Mi? <span class="text-xs">(Evet/Hayır)</span></div>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">
+              💡 SGK İşyeri ve Departman Excel'deki isimlerle eşleşmelidir.
+            </p>
+          </div>
+
+          <!-- İçe aktarma sonucu -->
+          <div v-if="importResult" class="mb-4">
+            <div :class="[
+              'rounded-lg p-4 border',
+              importResult.errorCount > 0
+                ? 'bg-yellow-50 border-yellow-200'
+                : 'bg-green-50 border-green-200'
+            ]">
+              <div class="flex items-center gap-2">
+                <span v-if="importResult.errorCount > 0" class="text-yellow-600 text-xl">⚠️</span>
+                <span v-else class="text-green-600 text-xl">✅</span>
+                <span :class="importResult.errorCount > 0 ? 'text-yellow-800' : 'text-green-800'" class="font-semibold">
+                  {{ importResult.added }} çalışan başarıyla eklendi
+                  <span v-if="importResult.errorCount > 0">, {{ importResult.errorCount }} hata oluştu</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hatalar listesi -->
+          <div v-if="importErrors.length > 0" class="mb-4">
+            <h3 class="text-sm font-semibold text-red-800 mb-2">Hatalar:</h3>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-3 max-h-64 overflow-y-auto">
+              <ul class="text-sm text-red-700 space-y-1">
+                <li v-for="(error, index) in importErrors" :key="index" class="flex items-start gap-2">
+                  <span class="text-red-500 mt-0.5">•</span>
+                  <span>{{ error }}</span>
+                </li>
+              </ul>
+            </div>
           </div>
 
           <form @submit.prevent="importEmployees">
@@ -907,8 +977,10 @@
                 />
               </div>
               <div class="flex gap-2 justify-end">
-                <Button variant="secondary" @click="showImportModal = false">İptal</Button>
-                <Button type="submit" :disabled="importing">{{ importing ? 'İçe Aktarılıyor...' : 'İçe Aktar' }}</Button>
+                <Button variant="secondary" @click="closeImportModal">{{ importErrors.length > 0 ? 'Kapat' : 'İptal' }}</Button>
+                <Button v-if="!importResult || importErrors.length > 0" type="submit" :disabled="importing">
+                  {{ importing ? 'İçe Aktarılıyor...' : (importResult ? 'Tekrar Dene' : 'İçe Aktar') }}
+                </Button>
               </div>
             </div>
           </form>
@@ -946,6 +1018,8 @@ const editingEmployee = ref(null)
 const importing = ref(false)
 const importFile = ref(null)
 const importCompany = ref('')
+const importErrors = ref([])
+const importResult = ref(null)
 const sendingActivation = ref(null)
 const sendingBulkActivation = ref(false)
 const manualActivatingId = ref(null)
@@ -1933,6 +2007,9 @@ const importEmployees = async () => {
   }
 
   importing.value = true
+  importErrors.value = []
+  importResult.value = null
+
   try {
     const formData = new FormData()
     formData.append('file', importFile.value)
@@ -1946,20 +2023,42 @@ const importEmployees = async () => {
       }
     })
 
-    if (response.data.errors && response.data.errors.length > 0) {
-      toast.warning(`${response.data.added} çalışan eklendi, ${response.data.errors.length} hata oluştu`)
+    const added = response.data.data.added || 0
+    const errors = response.data.data.errors || []
+
+    importResult.value = { added, errorCount: errors.length }
+    importErrors.value = errors
+
+    if (errors.length > 0) {
+      toast.warning(`${added} çalışan eklendi, ${errors.length} hata oluştu`)
+      // Modal'ı açık tut, hataları göster
     } else {
-      toast.success(`${response.data.added} çalışan başarıyla eklendi`)
+      toast.success(`${added} çalışan başarıyla eklendi`)
+      closeImportModal()
     }
-    showImportModal.value = false
-    importFile.value = null
-    importCompany.value = ''
+
     loadEmployees()
   } catch (error) {
     toast.error(error.response?.data?.message || 'Hata oluştu')
   } finally {
     importing.value = false
   }
+}
+
+const openImportModal = () => {
+  importFile.value = null
+  importCompany.value = ''
+  importErrors.value = []
+  importResult.value = null
+  showImportModal.value = true
+}
+
+const closeImportModal = () => {
+  showImportModal.value = false
+  importFile.value = null
+  importCompany.value = ''
+  importErrors.value = []
+  importResult.value = null
 }
 
 const sendActivationLink = async (employeeId) => {

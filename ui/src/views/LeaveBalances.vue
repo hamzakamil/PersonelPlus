@@ -95,10 +95,10 @@ const loadBalances = async () => {
   try {
     if (isEmployee.value) {
       const response = await api.get('/leave-balances/employee/me')
-      myBalance.value = response.data
+      myBalance.value = response.data?.data || response.data
     } else {
       const response = await api.get('/leave-balances')
-      balances.value = response.data
+      balances.value = response.data?.data || response.data
     }
   } catch (error) {
     console.error('Bakiyeler yüklenemedi:', error)

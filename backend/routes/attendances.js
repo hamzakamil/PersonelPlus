@@ -276,6 +276,11 @@ router.get('/export-excel', auth, requireRole('super_admin', 'bayi_admin', 'comp
       if (hasAdvanceDeduction) rows.push(['Avans Kesintisi (TL)', 'Bu ay kesilecek avans taksit toplamı']);
     }
 
+    // Footer - Powered By
+    rows.push([]);
+    rows.push([]);
+    rows.push(['Powered By Personel Plus']);
+
     // Excel workbook oluştur
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(rows);

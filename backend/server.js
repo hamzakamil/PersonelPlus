@@ -1,7 +1,16 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+
+// Debug: SMTP ayarlarını logla (başlangıçta)
+console.log('SMTP Config:', {
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: process.env.SMTP_SECURE,
+  user: process.env.SMTP_USER ? 'SET' : 'NOT SET',
+  pass: process.env.SMTP_PASS ? 'SET' : 'NOT SET'
+});
 
 // Error handling setup (en basta olmali)
 const { setupUncaughtExceptionHandler } = require('./middleware/errorHandler');
@@ -47,12 +56,14 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Ensure uploads directories exist
 const uploadsDirs = [
-  'uploads', 
+  'uploads',
   'uploads/leaves',
   'uploads/employment',
   'uploads/employment/contracts',
   'uploads/employment/resignations',
-  'uploads/employment/severance'
+  'uploads/employment/severance',
+  'uploads/bordro',
+  'uploads/bordro-pdf'  // Zaman damgalı PDF'ler için
 ];
 uploadsDirs.forEach(dir => {
   const dirPath = path.join(__dirname, dir);
@@ -129,6 +140,8 @@ const overtimeRequestsRoutes = require('./routes/overtimeRequests');
 const commissionsRoutes = require('./routes/commissions');
 const campaignsRoutes = require('./routes/campaigns');
 const invoicesRoutes = require('./routes/invoices');
+const attendanceSummaryRoutes = require('./routes/attendance-summary');
+const bordroRoutes = require('./routes/bordro');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dealers', dealerRoutes);
@@ -177,6 +190,8 @@ app.use('/api/overtime-requests', overtimeRequestsRoutes);
 app.use('/api/commissions', commissionsRoutes);
 app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/invoices', invoicesRoutes);
+app.use('/api/attendance-summary', attendanceSummaryRoutes);
+app.use('/api/bordro', bordroRoutes);
 
 // Error handling middleware
 const { errorHandler, notFoundHandler, setupUnhandledRejectionHandler } = require('./middleware/errorHandler');

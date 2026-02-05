@@ -331,7 +331,7 @@ const loadTickets = async () => {
 const loadStats = async () => {
   try {
     const response = await api.get('/support/stats')
-    stats.value = response.data
+    stats.value = response.data?.data || response.data
   } catch (err) {
     console.error('Load stats error:', err)
   }

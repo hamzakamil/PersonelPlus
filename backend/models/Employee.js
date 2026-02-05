@@ -363,6 +363,8 @@ employeeSchema.pre('save', async function(next) {
 // Indexes
 // TC Kimlik No şirket bazında unique olmalı (aynı kişi farklı şirketlerde çalışabilir)
 employeeSchema.index({ tcKimlik: 1, company: 1 }, { unique: true });
+// Personel numarası şirket bazında unique olmalı (her şirket 1'den başlar)
+employeeSchema.index({ company: 1, employeeNumber: 1 }, { unique: true, sparse: true });
 // İş geçmişi sorguları için
 employeeSchema.index({ company: 1, isActive: 1 });
 employeeSchema.index({ company: 1, rehireCount: 1 });

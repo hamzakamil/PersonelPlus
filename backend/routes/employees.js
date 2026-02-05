@@ -211,8 +211,8 @@ router.get('/template', auth, requireRole('super_admin', 'bayi_admin', 'company_
         'Ahmet', // Adı
         'Yılmaz', // Soyadı
         '12345678901', // TC Kimlik No
-        '2024-01-15', // İşe Giriş Tarihi
-        '1990-05-20', // Doğum Tarihi
+        '15.01.2024', // İşe Giriş Tarihi (GG.AA.YYYY formatı)
+        '20.05.1990', // Doğum Tarihi (GG.AA.YYYY formatı)
         'Yazılım Geliştirici', // Görevi
         'ahmet.yilmaz@example.com', // Email Adresi
         '05551234567', // Telefon Numarası
@@ -227,7 +227,10 @@ router.get('/template', auth, requireRole('super_admin', 'bayi_admin', 'company_
         'Hayır', // Sabıka Kaydı Var mı?
         'Evet', // Ehliyet Var mı?
         'Hayır' // Emekli Mi?
-      ]
+      ],
+      [], // Boş satır
+      [], // Boş satır
+      ['Powered By Personel Plus'] // Footer
     ];
 
     const worksheet = xlsx.utils.aoa_to_sheet(worksheetData);
@@ -519,7 +522,39 @@ router.post('/bulk-import', auth, requireRole('super_admin', 'bayi_admin', 'comp
 
         employeesList.push(employee);
       } catch (error) {
-        errors.push(`Satır ${i + 2}: ${error.message}`);
+        // Hata mesajını kullanıcı dostu hale getir
+        let friendlyError = error.message;
+
+        // MongoDB duplicate key hatası
+        if (error.code === 11000 || error.message.includes('E11000')) {
+          const duplicateField = error.message.match(/index: (\w+)_/)?.[1];
+          const duplicateValue = error.message.match(/dup key: \{ \w+: "?([^"}\s]+)"? \}/)?.[1];
+
+          const fieldNames = {
+            'employeeNumber': 'Personel Numarası',
+            'tcKimlik': 'TC Kimlik No',
+            'email': 'Email Adresi',
+            'personelNumarasi': 'Personel Numarası'
+          };
+
+          const fieldName = fieldNames[duplicateField] || duplicateField;
+          friendlyError = `${fieldName} "${duplicateValue}" zaten sistemde kayıtlı. Farklı bir değer kullanın.`;
+        }
+        // Validation hataları
+        else if (error.name === 'ValidationError') {
+          const validationErrors = Object.values(error.errors).map(e => e.message);
+          friendlyError = validationErrors.join(', ');
+        }
+        // TC Kimlik hatası
+        else if (error.message.includes('TC Kimlik')) {
+          friendlyError = error.message;
+        }
+        // Genel hatalar için daha açıklayıcı mesajlar
+        else if (error.message.includes('Cast to ObjectId failed')) {
+          friendlyError = 'Geçersiz referans değeri (Departman, İşyeri vb. kontrol edin)';
+        }
+
+        errors.push(`Satır ${i + 2}: ${friendlyError}`);
       }
     }
 

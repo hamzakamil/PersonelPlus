@@ -594,7 +594,7 @@ const submitForm = async () => {
 const viewStats = async (campaign) => {
   try {
     const response = await api.get(`/campaigns/${campaign._id}/stats`)
-    selectedStats.value = response.data
+    selectedStats.value = response.data?.data || response.data
     showStatsModal.value = true
   } catch (error) {
     toast.error('İstatistikler yüklenemedi')
