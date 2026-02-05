@@ -33,22 +33,22 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
       `,
       contact: {
         name: 'API Desteği',
-        email: 'api@personelplus.com'
+        email: 'api@personelplus.com',
       },
       license: {
         name: 'ISC',
-        url: 'https://opensource.org/licenses/ISC'
-      }
+        url: 'https://opensource.org/licenses/ISC',
+      },
     },
     servers: [
       {
         url: 'http://localhost:3000',
-        description: 'Geliştirme sunucusu'
+        description: 'Geliştirme sunucusu',
       },
       {
         url: 'https://api.personelplus.com',
-        description: 'Üretim sunucusu'
-      }
+        description: 'Üretim sunucusu',
+      },
     ],
     tags: [
       { name: 'Auth', description: 'Kimlik doğrulama işlemleri' },
@@ -96,7 +96,8 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
       { name: 'Employee Payments', description: 'Çalışan ödeme atamaları' },
       { name: 'Company Payment Types', description: 'Şirket ödeme türleri' },
       { name: 'Working Permits', description: 'Çalışma izin türleri' },
-      { name: 'Employment', description: 'İşe giriş/çıkış işlemleri' }
+      { name: 'Employment', description: 'İşe giriş/çıkış işlemleri' },
+      { name: 'Company Subscriptions', description: 'Bayi - Şirket arası abonelik yönetimi' },
     ],
     components: {
       securitySchemes: {
@@ -104,8 +105,9 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'JWT token ile kimlik doğrulama. Login endpoint\'inden alınan token kullanılır.'
-        }
+          description:
+            "JWT token ile kimlik doğrulama. Login endpoint'inden alınan token kullanılır.",
+        },
       },
       schemas: {
         // Ortak Şemalar
@@ -114,11 +116,11 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
           properties: {
             success: {
               type: 'boolean',
-              example: false
+              example: false,
             },
             message: {
               type: 'string',
-              example: 'Bir hata oluştu'
+              example: 'Bir hata oluştu',
             },
             errors: {
               type: 'array',
@@ -126,24 +128,24 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
                 type: 'object',
                 properties: {
                   field: { type: 'string' },
-                  message: { type: 'string' }
-                }
-              }
-            }
-          }
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
         },
         Success: {
           type: 'object',
           properties: {
             success: {
               type: 'boolean',
-              example: true
+              example: true,
             },
             data: {
-              type: 'object'
+              type: 'object',
             },
             message: {
-              type: 'string'
+              type: 'string',
             },
             meta: {
               type: 'object',
@@ -151,10 +153,10 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
                 page: { type: 'integer' },
                 limit: { type: 'integer' },
                 total: { type: 'integer' },
-                totalPages: { type: 'integer' }
-              }
-            }
-          }
+                totalPages: { type: 'integer' },
+              },
+            },
+          },
         },
         // Auth Şemaları
         LoginRequest: {
@@ -164,14 +166,14 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
             email: {
               type: 'string',
               format: 'email',
-              example: 'admin@sirket.com'
+              example: 'admin@sirket.com',
             },
             password: {
               type: 'string',
               format: 'password',
-              example: 'sifre123'
-            }
-          }
+              example: 'sifre123',
+            },
+          },
         },
         LoginResponse: {
           type: 'object',
@@ -187,13 +189,13 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
                     id: { type: 'string' },
                     email: { type: 'string' },
                     role: { type: 'string' },
-                    company: { type: 'object' }
-                  }
-                }
-              }
+                    company: { type: 'object' },
+                  },
+                },
+              },
             },
-            message: { type: 'string', example: 'Giriş başarılı' }
-          }
+            message: { type: 'string', example: 'Giriş başarılı' },
+          },
         },
         // Department Şemaları
         Department: {
@@ -207,8 +209,8 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
             isActive: { type: 'boolean', example: true },
             isDefault: { type: 'boolean', example: false },
             createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' }
-          }
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
         },
         DepartmentCreate: {
           type: 'object',
@@ -217,8 +219,8 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
             name: { type: 'string', example: 'Yazılım Geliştirme' },
             description: { type: 'string', example: 'Yazılım geliştirme departmanı' },
             company: { type: 'string', example: '507f1f77bcf86cd799439012' },
-            manager: { type: 'string', example: '507f1f77bcf86cd799439013' }
-          }
+            manager: { type: 'string', example: '507f1f77bcf86cd799439013' },
+          },
         },
         // Employee Şemaları
         Employee: {
@@ -234,8 +236,8 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
             company: { type: 'string' },
             hireDate: { type: 'string', format: 'date' },
             status: { type: 'string', enum: ['active', 'inactive', 'pending'] },
-            salary: { type: 'number', example: 25000 }
-          }
+            salary: { type: 'number', example: 25000 },
+          },
         },
         // Leave Request Şemaları
         LeaveRequest: {
@@ -257,12 +259,12 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
                   approver: { type: 'string' },
                   status: { type: 'string' },
                   comment: { type: 'string' },
-                  date: { type: 'string', format: 'date-time' }
-                }
-              }
-            }
-          }
-        }
+                  date: { type: 'string', format: 'date-time' },
+                },
+              },
+            },
+          },
+        },
       },
       responses: {
         UnauthorizedError: {
@@ -270,70 +272,63 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
           content: {
             'application/json': {
               schema: {
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Error',
               },
               example: {
                 success: false,
-                message: 'Geçersiz veya süresi dolmuş token'
-              }
-            }
-          }
+                message: 'Geçersiz veya süresi dolmuş token',
+              },
+            },
+          },
         },
         ForbiddenError: {
           description: 'Yetki hatası',
           content: {
             'application/json': {
               schema: {
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Error',
               },
               example: {
                 success: false,
-                message: 'Bu işlem için yetkiniz yok'
-              }
-            }
-          }
+                message: 'Bu işlem için yetkiniz yok',
+              },
+            },
+          },
         },
         NotFoundError: {
           description: 'Kaynak bulunamadı',
           content: {
             'application/json': {
               schema: {
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Error',
               },
               example: {
                 success: false,
-                message: 'Kayıt bulunamadı'
-              }
-            }
-          }
+                message: 'Kayıt bulunamadı',
+              },
+            },
+          },
         },
         ValidationError: {
           description: 'Validation hatası',
           content: {
             'application/json': {
               schema: {
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Error',
               },
               example: {
                 success: false,
                 message: 'Validation hatası',
-                errors: [
-                  { field: 'email', message: 'Geçerli bir email adresi giriniz' }
-                ]
-              }
-            }
-          }
-        }
-      }
+                errors: [{ field: 'email', message: 'Geçerli bir email adresi giriniz' }],
+              },
+            },
+          },
+        },
+      },
     },
-    security: [
-      { bearerAuth: [] }
-    ]
+    security: [{ bearerAuth: [] }],
   },
-  apis: [
-    './routes/*.js',
-    './docs/*.yaml'
-  ]
+  apis: ['./routes/*.js', './docs/*.yaml'],
 };
 
 const swaggerSpec = swaggerJsdoc(options);

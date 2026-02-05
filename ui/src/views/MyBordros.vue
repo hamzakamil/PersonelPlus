@@ -38,26 +38,53 @@
     <!-- Loading -->
     <div v-if="isLoading" class="flex justify-center py-12">
       <svg class="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        ></circle>
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        ></path>
       </svg>
     </div>
 
     <!-- Empty State -->
     <div v-else-if="bordros.length === 0" class="bg-white rounded-lg shadow p-12 text-center">
-      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      <svg
+        class="mx-auto h-12 w-12 text-gray-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
       </svg>
       <h3 class="mt-2 text-sm font-medium text-gray-900">Bordro bulunamadı</h3>
       <p class="mt-1 text-sm text-gray-500">
-        {{ filters.year || filters.month ? 'Filtrelerinize uygun bordro yok.' : 'Henüz bordronuz bulunmuyor.' }}
+        {{
+          filters.year || filters.month
+            ? 'Filtrelerinize uygun bordro yok.'
+            : 'Henüz bordronuz bulunmuyor.'
+        }}
       </p>
     </div>
 
     <!-- Bordro List -->
     <div v-else class="space-y-4">
       <!-- Toplam Özet -->
-      <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg shadow-lg p-4 text-white">
+      <div
+        class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg shadow-lg p-4 text-white"
+      >
         <div class="flex items-center justify-between">
           <div>
             <p class="text-sm text-indigo-100">Toplam Net Ödenecek</p>
@@ -79,7 +106,9 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4 cursor-pointer" @click="viewBordro(bordro)">
             <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
-              <span class="text-lg font-bold text-indigo-600">{{ months[bordro.month - 1]?.substring(0, 1) }}</span>
+              <span class="text-lg font-bold text-indigo-600">{{
+                months[bordro.month - 1]?.substring(0, 1)
+              }}</span>
             </div>
             <div>
               <h3 class="font-medium text-gray-900">
@@ -121,8 +150,20 @@
             </div>
 
             <!-- View Icon for approved -->
-            <svg v-else class="h-5 w-5 text-gray-400 cursor-pointer" @click="viewBordro(bordro)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            <svg
+              v-else
+              class="h-5 w-5 text-gray-400 cursor-pointer"
+              @click="viewBordro(bordro)"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </div>
         </div>
@@ -132,19 +173,39 @@
     <!-- Approve Modal (Kod Giriş) -->
     <div v-if="showApproveModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeApproveModal"></div>
+        <div
+          class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          @click="closeApproveModal"
+        ></div>
 
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <div
+          class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+        >
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div class="text-center">
-              <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              <div
+                class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4"
+              >
+                <svg
+                  class="h-6 w-6 text-green-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </div>
               <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">Bordro Onayı</h3>
               <p class="text-sm text-gray-500 mb-4">
-                {{ selectedBordro ? `${months[selectedBordro.month - 1]} ${selectedBordro.year}` : '' }} bordronuzu onaylamak için email adresinize gönderilen 6 haneli kodu girin.
+                {{
+                  selectedBordro ? `${months[selectedBordro.month - 1]} ${selectedBordro.year}` : ''
+                }}
+                bordronuzu onaylamak için telefonunuza SMS ile gonderilen 6 haneli kodu girin.
               </p>
 
               <!-- Request Code Button -->
@@ -154,15 +215,15 @@
                   :disabled="isRequestingCode"
                   class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  <span v-if="isRequestingCode">Gönderiliyor...</span>
-                  <span v-else>Onay Kodu Gönder</span>
+                  <span v-if="isRequestingCode">SMS Gonderiliyor...</span>
+                  <span v-else>SMS ile Onay Kodu Gonder</span>
                 </button>
               </div>
 
               <!-- Code Input -->
               <div v-else>
                 <p class="text-sm text-green-600 mb-4">
-                  Onay kodu {{ maskedEmail }}'e gönderildi
+                  Onay kodu {{ maskedPhone }} numarasina SMS ile gonderildi
                 </p>
                 <div class="flex justify-center gap-2 mb-4">
                   <input
@@ -170,10 +231,14 @@
                     :key="i"
                     type="text"
                     maxlength="1"
-                    :ref="el => { if (el) codeInputs[i-1] = el }"
-                    v-model="codeDigits[i-1]"
-                    @input="onCodeInput(i-1)"
-                    @keydown="onCodeKeydown($event, i-1)"
+                    :ref="
+                      el => {
+                        if (el) codeInputs[i - 1] = el;
+                      }
+                    "
+                    v-model="codeDigits[i - 1]"
+                    @input="onCodeInput(i - 1)"
+                    @keydown="onCodeKeydown($event, i - 1)"
                     class="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
                   />
                 </div>
@@ -182,7 +247,11 @@
                   :disabled="isRequestingCode || codeRequestCooldown > 0"
                   class="text-sm text-indigo-600 hover:text-indigo-800 disabled:text-gray-400"
                 >
-                  {{ codeRequestCooldown > 0 ? `Yeni kod için ${codeRequestCooldown}s bekleyin` : 'Yeni kod gönder' }}
+                  {{
+                    codeRequestCooldown > 0
+                      ? `Yeni kod için ${codeRequestCooldown}s bekleyin`
+                      : 'Yeni kod gönder'
+                  }}
                 </button>
               </div>
             </div>
@@ -210,19 +279,39 @@
     <!-- Reject Modal -->
     <div v-if="showRejectModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeRejectModal"></div>
+        <div
+          class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          @click="closeRejectModal"
+        ></div>
 
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <div
+          class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+        >
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div class="text-center">
-              <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <div
+                class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4"
+              >
+                <svg
+                  class="h-6 w-6 text-red-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
                 </svg>
               </div>
               <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">Bordro İtirazı</h3>
               <p class="text-sm text-gray-500 mb-4">
-                {{ selectedBordro ? `${months[selectedBordro.month - 1]} ${selectedBordro.year}` : '' }} bordronuza itiraz etmek istiyorsanız, lütfen sebebini açıklayın.
+                {{
+                  selectedBordro ? `${months[selectedBordro.month - 1]} ${selectedBordro.year}` : ''
+                }}
+                bordronuza itiraz etmek istiyorsanız, lütfen sebebini açıklayın.
               </p>
               <textarea
                 v-model="rejectReason"
@@ -257,215 +346,234 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import api from '@/services/api'
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import api from '@/services/api';
 
-const router = useRouter()
+const router = useRouter();
 
-const bordros = ref([])
-const isLoading = ref(false)
+const bordros = ref([]);
+const isLoading = ref(false);
 const filters = ref({
   year: '',
-  month: ''
-})
+  month: '',
+});
 
 // Approve Modal State
-const showApproveModal = ref(false)
-const selectedBordro = ref(null)
-const codeRequested = ref(false)
-const maskedEmail = ref('')
-const codeDigits = ref(['', '', '', '', '', ''])
-const codeInputs = ref([])
-const isRequestingCode = ref(false)
-const isApproving = ref(false)
-const codeRequestCooldown = ref(0)
+const showApproveModal = ref(false);
+const selectedBordro = ref(null);
+const codeRequested = ref(false);
+const maskedPhone = ref('');
+const verificationId = ref(null);
+const codeDigits = ref(['', '', '', '', '', '']);
+const codeInputs = ref([]);
+const isRequestingCode = ref(false);
+const isApproving = ref(false);
+const codeRequestCooldown = ref(0);
 
 // Reject Modal State
-const showRejectModal = ref(false)
-const rejectReason = ref('')
-const isRejecting = ref(false)
+const showRejectModal = ref(false);
+const rejectReason = ref('');
+const isRejecting = ref(false);
 
 const months = [
-  'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
-]
+  'Ocak',
+  'Şubat',
+  'Mart',
+  'Nisan',
+  'Mayıs',
+  'Haziran',
+  'Temmuz',
+  'Ağustos',
+  'Eylül',
+  'Ekim',
+  'Kasım',
+  'Aralık',
+];
 
 const years = computed(() => {
-  const currentYear = new Date().getFullYear()
-  return [currentYear, currentYear - 1, currentYear - 2]
-})
+  const currentYear = new Date().getFullYear();
+  return [currentYear, currentYear - 1, currentYear - 2];
+});
 
-const approvalCode = computed(() => codeDigits.value.join(''))
+const approvalCode = computed(() => codeDigits.value.join(''));
 
 // Toplam net ödenecek tutar
 const totalNetAmount = computed(() => {
-  return bordros.value.reduce((sum, b) => sum + (b.payrollData?.netOdenen || 0), 0)
-})
+  return bordros.value.reduce((sum, b) => sum + (b.payrollData?.netOdenen || 0), 0);
+});
 
 onMounted(() => {
-  loadBordros()
-})
+  loadBordros();
+});
 
 const loadBordros = async () => {
-  isLoading.value = true
+  isLoading.value = true;
 
   try {
-    const params = new URLSearchParams()
-    if (filters.value.year) params.append('year', filters.value.year)
-    if (filters.value.month) params.append('month', filters.value.month)
+    const params = new URLSearchParams();
+    if (filters.value.year) params.append('year', filters.value.year);
+    if (filters.value.month) params.append('month', filters.value.month);
 
-    const response = await api.get(`/bordro/my-bordros?${params.toString()}`)
-    const data = response.data.data || response.data
+    const response = await api.get(`/bordro/my-bordros?${params.toString()}`);
+    const data = response.data.data || response.data;
 
-    bordros.value = Array.isArray(data) ? data : []
+    bordros.value = Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error('Bordrolar yüklenemedi:', error)
-    bordros.value = []
+    console.error('Bordrolar yüklenemedi:', error);
+    bordros.value = [];
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
-const viewBordro = (bordro) => {
-  router.push(`/bordro/${bordro._id}`)
-}
+const viewBordro = bordro => {
+  router.push(`/bordro/${bordro._id}`);
+};
 
-const getBorderClass = (status) => {
-  if (status === 'company_approved') return 'border-l-4 border-amber-500'
-  if (status === 'approved') return 'border-l-4 border-green-500'
-  return 'border-l-4 border-gray-300'
-}
+const getBorderClass = status => {
+  if (status === 'company_approved') return 'border-l-4 border-amber-500';
+  if (status === 'approved') return 'border-l-4 border-green-500';
+  return 'border-l-4 border-gray-300';
+};
 
-const getStatusBadgeClass = (status) => {
-  if (status === 'company_approved') return 'px-2 py-1 text-xs rounded-full bg-amber-100 text-amber-700'
-  if (status === 'approved') return 'px-2 py-1 text-xs rounded-full bg-green-100 text-green-700'
-  return 'px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700'
-}
+const getStatusBadgeClass = status => {
+  if (status === 'company_approved')
+    return 'px-2 py-1 text-xs rounded-full bg-amber-100 text-amber-700';
+  if (status === 'approved') return 'px-2 py-1 text-xs rounded-full bg-green-100 text-green-700';
+  return 'px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700';
+};
 
-const getStatusText = (status) => {
-  if (status === 'company_approved') return 'Onay Bekliyor'
-  if (status === 'approved') return 'Onaylandı'
-  return status
-}
+const getStatusText = status => {
+  if (status === 'company_approved') return 'Onay Bekliyor';
+  if (status === 'approved') return 'Onaylandı';
+  return status;
+};
 
 // Approve Modal Functions
-const openApproveModal = (bordro) => {
-  selectedBordro.value = bordro
-  showApproveModal.value = true
-  codeRequested.value = false
-  codeDigits.value = ['', '', '', '', '', '']
-  maskedEmail.value = ''
-}
+const openApproveModal = bordro => {
+  selectedBordro.value = bordro;
+  showApproveModal.value = true;
+  codeRequested.value = false;
+  codeDigits.value = ['', '', '', '', '', ''];
+  maskedPhone.value = '';
+  verificationId.value = null;
+};
 
 const closeApproveModal = () => {
-  showApproveModal.value = false
-  selectedBordro.value = null
-  codeRequested.value = false
-  codeDigits.value = ['', '', '', '', '', '']
-}
+  showApproveModal.value = false;
+  selectedBordro.value = null;
+  codeRequested.value = false;
+  codeDigits.value = ['', '', '', '', '', ''];
+  verificationId.value = null;
+};
 
 const requestApprovalCode = async () => {
-  if (!selectedBordro.value) return
+  if (!selectedBordro.value) return;
 
-  isRequestingCode.value = true
+  isRequestingCode.value = true;
   try {
-    const response = await api.post(`/bordro/${selectedBordro.value._id}/request-approval-code`)
-    maskedEmail.value = response.data.email || ''
-    codeRequested.value = true
-    codeRequestCooldown.value = 60
+    const response = await api.post(`/bordro/${selectedBordro.value._id}/request-approval-code`);
+    maskedPhone.value = response.data.maskedPhone || '';
+    verificationId.value = response.data.verificationId || null;
+    codeRequested.value = true;
+    codeRequestCooldown.value = 60;
 
     // Start cooldown timer
     const timer = setInterval(() => {
-      codeRequestCooldown.value--
+      codeRequestCooldown.value--;
       if (codeRequestCooldown.value <= 0) {
-        clearInterval(timer)
+        clearInterval(timer);
       }
-    }, 1000)
+    }, 1000);
 
     // Focus first input
     setTimeout(() => {
       if (codeInputs.value[0]) {
-        codeInputs.value[0].focus()
+        codeInputs.value[0].focus();
       }
-    }, 100)
+    }, 100);
   } catch (error) {
-    alert(error.response?.data?.message || 'Kod gönderilemedi')
+    alert(error.response?.data?.message || 'SMS gonderilemedi');
   } finally {
-    isRequestingCode.value = false
+    isRequestingCode.value = false;
   }
-}
+};
 
-const onCodeInput = (index) => {
+const onCodeInput = index => {
   if (codeDigits.value[index] && index < 5) {
-    codeInputs.value[index + 1]?.focus()
+    codeInputs.value[index + 1]?.focus();
   }
-}
+};
 
 const onCodeKeydown = (event, index) => {
   if (event.key === 'Backspace' && !codeDigits.value[index] && index > 0) {
-    codeInputs.value[index - 1]?.focus()
+    codeInputs.value[index - 1]?.focus();
   }
-}
+};
 
 const submitApproval = async () => {
-  if (approvalCode.value.length !== 6 || !selectedBordro.value) return
+  if (approvalCode.value.length !== 6 || !selectedBordro.value) return;
 
-  isApproving.value = true
+  isApproving.value = true;
   try {
     await api.post(`/bordro/${selectedBordro.value._id}/employee-approve`, {
-      code: approvalCode.value
-    })
-    alert('Bordronuz başarıyla onaylandı!')
-    closeApproveModal()
-    loadBordros()
+      code: approvalCode.value,
+      verificationId: verificationId.value,
+    });
+    alert('Bordronuz SMS dogrulamasi ile basariyla onaylandi!');
+    closeApproveModal();
+    loadBordros();
   } catch (error) {
-    alert(error.response?.data?.message || 'Onay işlemi başarısız')
+    alert(error.response?.data?.message || 'Onay islemi basarisiz');
     // Reset code if wrong
-    if (error.response?.data?.message?.includes('Hatalı kod')) {
-      codeDigits.value = ['', '', '', '', '', '']
-      codeInputs.value[0]?.focus()
+    if (
+      error.response?.data?.message?.includes('Hatali kod') ||
+      error.response?.data?.message?.includes('deneme')
+    ) {
+      codeDigits.value = ['', '', '', '', '', ''];
+      codeInputs.value[0]?.focus();
     }
   } finally {
-    isApproving.value = false
+    isApproving.value = false;
   }
-}
+};
 
 // Reject Modal Functions
-const openRejectModal = (bordro) => {
-  selectedBordro.value = bordro
-  showRejectModal.value = true
-  rejectReason.value = ''
-}
+const openRejectModal = bordro => {
+  selectedBordro.value = bordro;
+  showRejectModal.value = true;
+  rejectReason.value = '';
+};
 
 const closeRejectModal = () => {
-  showRejectModal.value = false
-  selectedBordro.value = null
-  rejectReason.value = ''
-}
+  showRejectModal.value = false;
+  selectedBordro.value = null;
+  rejectReason.value = '';
+};
 
 const submitReject = async () => {
-  if (rejectReason.value.trim().length < 10 || !selectedBordro.value) return
+  if (rejectReason.value.trim().length < 10 || !selectedBordro.value) return;
 
-  isRejecting.value = true
+  isRejecting.value = true;
   try {
     await api.post(`/bordro/${selectedBordro.value._id}/employee-reject`, {
-      reason: rejectReason.value.trim()
-    })
-    alert('İtirazınız kaydedildi ve bayiye bildirildi.')
-    closeRejectModal()
-    loadBordros()
+      reason: rejectReason.value.trim(),
+    });
+    alert('İtirazınız kaydedildi ve bayiye bildirildi.');
+    closeRejectModal();
+    loadBordros();
   } catch (error) {
-    alert(error.response?.data?.message || 'İtiraz işlemi başarısız')
+    alert(error.response?.data?.message || 'İtiraz işlemi başarısız');
   } finally {
-    isRejecting.value = false
+    isRejecting.value = false;
   }
-}
+};
 
-const formatCurrency = (value) => {
+const formatCurrency = value => {
   return new Intl.NumberFormat('tr-TR', {
     style: 'currency',
-    currency: 'TRY'
-  }).format(value || 0)
-}
+    currency: 'TRY',
+  }).format(value || 0);
+};
 </script>

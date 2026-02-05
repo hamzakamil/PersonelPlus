@@ -8,49 +8,54 @@ const { errorResponse, notFound, forbidden, serverError } = require('../utils/re
 /**
  * POST /api/support - Yeni destek talebi oluştur
  */
-router.post('/', auth, requireRole('company_admin', 'bayi_admin', 'resmi_muhasebe_ik'), async (req, res) => {
-  try {
-    const { category, priority, subject, description } = req.body;
+router.post(
+  '/',
+  auth,
+  requireRole('company_admin', 'bayi_admin', 'resmi_muhasebe_ik'),
+  async (req, res) => {
+    try {
+      const { category, priority, subject, description } = req.body;
 
-    if (!category || !subject || !description) {
-      return errorResponse(res, { message: 'Kategori, konu ve açıklama zorunludur' });
+      if (!category || !subject || !description) {
+        return errorResponse(res, { message: 'Kategori, konu ve açıklama zorunludur' });
+      }
+
+      const ticketData = {
+        submittedBy: req.user._id,
+        submitterRole: req.user.role.name,
+        category,
+        priority: priority || 'MEDIUM',
+        subject,
+        description,
+      };
+
+      // Kullanıcının company/dealer bilgisini ekle
+      if (req.user.company) {
+        ticketData.company = req.user.company._id || req.user.company;
+      }
+      if (req.user.dealer) {
+        ticketData.dealer = req.user.dealer._id || req.user.dealer;
+      }
+
+      const ticket = new SupportTicket(ticketData);
+      await ticket.save();
+
+      const populatedTicket = await SupportTicket.findById(ticket._id)
+        .populate('submittedBy', 'email')
+        .populate('company', 'name')
+        .populate('dealer', 'name');
+
+      res.status(201).json({
+        success: true,
+        message: 'Destek talebi oluşturuldu',
+        data: populatedTicket,
+      });
+    } catch (error) {
+      console.error('Support ticket creation error:', error);
+      return serverError(res, error, 'Talep oluşturma başarısız');
     }
-
-    const ticketData = {
-      submittedBy: req.user._id,
-      submitterRole: req.user.role.name,
-      category,
-      priority: priority || 'MEDIUM',
-      subject,
-      description
-    };
-
-    // Kullanıcının company/dealer bilgisini ekle
-    if (req.user.company) {
-      ticketData.company = req.user.company._id || req.user.company;
-    }
-    if (req.user.dealer) {
-      ticketData.dealer = req.user.dealer._id || req.user.dealer;
-    }
-
-    const ticket = new SupportTicket(ticketData);
-    await ticket.save();
-
-    const populatedTicket = await SupportTicket.findById(ticket._id)
-      .populate('submittedBy', 'email')
-      .populate('company', 'name')
-      .populate('dealer', 'name');
-
-    res.status(201).json({
-      success: true,
-      message: 'Destek talebi oluşturuldu',
-      data: populatedTicket
-    });
-  } catch (error) {
-    console.error('Support ticket creation error:', error);
-    return serverError(res, error, 'Talep oluşturma başarısız');
   }
-});
+);
 
 /**
  * GET /api/support - Destek taleplerini listele
@@ -92,8 +97,8 @@ router.get('/', auth, async (req, res) => {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / parseInt(limit))
-      }
+        pages: Math.ceil(total / parseInt(limit)),
+      },
     });
   } catch (error) {
     console.error('Support tickets list error:', error);
@@ -120,7 +125,7 @@ router.get('/stats', auth, async (req, res) => {
       SupportTicket.countDocuments({ ...query, status: 'OPEN' }),
       SupportTicket.countDocuments({ ...query, status: 'IN_PROGRESS' }),
       SupportTicket.countDocuments({ ...query, status: 'RESOLVED' }),
-      SupportTicket.countDocuments({ ...query, status: 'CLOSED' })
+      SupportTicket.countDocuments({ ...query, status: 'CLOSED' }),
     ]);
 
     res.json({
@@ -128,7 +133,7 @@ router.get('/stats', auth, async (req, res) => {
       open: openCount,
       inProgress: inProgressCount,
       resolved: resolvedCount,
-      closed: closedCount
+      closed: closedCount,
     });
   } catch (error) {
     console.error('Support stats error:', error);
@@ -152,10 +157,12 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     // Yetki kontrolü
+    const userCompanyId = req.user.company?._id?.toString() || req.user.company?.toString();
+    const userDealerId = req.user.dealer?._id?.toString() || req.user.dealer?.toString();
     const canView =
       req.user.role.name === 'super_admin' ||
-      (ticket.company && ticket.company._id.toString() === req.user.company?.toString()) ||
-      (ticket.dealer && ticket.dealer._id.toString() === req.user.dealer?.toString());
+      (ticket.company && ticket.company._id.toString() === userCompanyId) ||
+      (ticket.dealer && ticket.dealer._id.toString() === userDealerId);
 
     if (!canView) {
       return forbidden(res, 'Bu talebi görüntüleme yetkiniz yok');
@@ -208,7 +215,7 @@ router.put('/:id', auth, requireRole('super_admin'), async (req, res) => {
     res.json({
       success: true,
       message: 'Talep güncellendi',
-      data: updatedTicket
+      data: updatedTicket,
     });
   } catch (error) {
     console.error('Support ticket update error:', error);
@@ -247,7 +254,7 @@ router.post('/:id/reply', auth, async (req, res) => {
       repliedBy: req.user._id,
       replierRole: req.user.role.name,
       message: message.trim(),
-      isAdminReply: req.user.role.name === 'super_admin'
+      isAdminReply: req.user.role.name === 'super_admin',
     });
 
     await reply.save();
@@ -258,13 +265,12 @@ router.post('/:id/reply', auth, async (req, res) => {
       await ticket.save();
     }
 
-    const populatedReply = await SupportReply.findById(reply._id)
-      .populate('repliedBy', 'email');
+    const populatedReply = await SupportReply.findById(reply._id).populate('repliedBy', 'email');
 
     res.status(201).json({
       success: true,
       message: 'Yanıt eklendi',
-      data: populatedReply
+      data: populatedReply,
     });
   } catch (error) {
     console.error('Support reply error:', error);

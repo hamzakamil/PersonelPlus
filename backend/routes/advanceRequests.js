@@ -24,10 +24,7 @@ router.post('/', auth, async (req, res) => {
 
     // Çalışan bilgisini al
     const employee = await Employee.findOne({
-      $or: [
-        { user: req.user._id },
-        { email: req.user.email }
-      ]
+      $or: [{ user: req.user._id }, { email: req.user.email }],
     });
 
     if (!employee) {
@@ -49,11 +46,15 @@ router.post('/', auth, async (req, res) => {
     );
 
     // Taksit tutarının %25 limitini kontrol et
-    const installmentLimitCheck = advanceService.validateInstallmentLimit(employee, amount, installments);
+    const installmentLimitCheck = advanceService.validateInstallmentLimit(
+      employee,
+      amount,
+      installments
+    );
     if (!installmentLimitCheck.valid) {
       return errorResponse(res, {
         message: installmentLimitCheck.error,
-        data: installmentLimitCheck.suggestions
+        data: installmentLimitCheck.suggestions,
       });
     }
 
@@ -64,7 +65,7 @@ router.post('/', auth, async (req, res) => {
       requireApproval: true,
       autoApproveIfNoApprover: false,
       approvalLevels: 0,
-      allowSelfApproval: false
+      allowSelfApproval: false,
     };
 
     let approvalChain = [];
@@ -79,14 +80,14 @@ router.post('/', auth, async (req, res) => {
         approvalChain = await calculateApprovalChain(employee._id);
       } else {
         // Özel avans onay zinciri
-        approvalChain = await advanceService.createApprovalChain(
-          employee._id,
-          employee.company
-        );
+        approvalChain = await advanceService.createApprovalChain(employee._id, employee.company);
       }
 
       // Approval levels kısıtlaması
-      if (advanceApprovalSettings.approvalLevels > 0 && approvalChain.length > advanceApprovalSettings.approvalLevels) {
+      if (
+        advanceApprovalSettings.approvalLevels > 0 &&
+        approvalChain.length > advanceApprovalSettings.approvalLevels
+      ) {
         approvalChain = approvalChain.slice(0, advanceApprovalSettings.approvalLevels);
       }
 
@@ -95,7 +96,10 @@ router.post('/', auth, async (req, res) => {
         initialStatus = 'PENDING'; // Onay bekliyor
       } else {
         // Onay zinciri boş
-        if (advanceApprovalSettings.requireApproval && !advanceApprovalSettings.autoApproveIfNoApprover) {
+        if (
+          advanceApprovalSettings.requireApproval &&
+          !advanceApprovalSettings.autoApproveIfNoApprover
+        ) {
           // Onay gerekli ama onaylayıcı yok - PENDING'de bekle
           initialStatus = 'PENDING';
         } else if (advanceApprovalSettings.autoApproveIfNoApprover) {
@@ -130,7 +134,7 @@ router.post('/', auth, async (req, res) => {
       approvalChain,
       paymentSchedule,
       currentApprover,
-      status: initialStatus
+      status: initialStatus,
     });
 
     await advanceRequest.save();
@@ -144,7 +148,7 @@ router.post('/', auth, async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Avans talebiniz başarıyla oluşturuldu',
-      data: populatedRequest
+      data: populatedRequest,
     });
   } catch (error) {
     console.error('Avans talebi oluşturma hatası:', error);
@@ -157,15 +161,13 @@ router.get('/', auth, async (req, res) => {
   try {
     const { status, employee: employeeId } = req.query;
     const query = {};
+    const roleName = req.user.role?.name || req.user.role;
 
     // Rol bazlı filtreleme
-    if (req.user.role === 'employee') {
+    if (roleName === 'employee') {
       // Çalışan sadece kendi taleplerini görebilir
       const employee = await Employee.findOne({
-        $or: [
-          { user: req.user._id },
-          { email: req.user.email }
-        ]
+        $or: [{ user: req.user._id }, { email: req.user.email }],
       });
 
       if (!employee) {
@@ -173,7 +175,7 @@ router.get('/', auth, async (req, res) => {
       }
 
       query.employee = employee._id;
-    } else if (['company_admin', 'hr_manager', 'department_manager'].includes(req.user.role)) {
+    } else if (['company_admin', 'hr_manager', 'department_manager'].includes(roleName)) {
       // Yöneticiler şirketlerinin taleplerini görebilir
       query.company = req.user.company;
 
@@ -196,7 +198,7 @@ router.get('/', auth, async (req, res) => {
 
     res.json({
       success: true,
-      data: advanceRequests
+      data: advanceRequests,
     });
   } catch (error) {
     console.error('Avans talepleri listeleme hatası:', error);
@@ -207,6 +209,7 @@ router.get('/', auth, async (req, res) => {
 // Avans talebi detayı
 router.get('/:id', auth, async (req, res) => {
   try {
+    const roleName = req.user.role?.name || req.user.role;
     const advanceRequest = await AdvanceRequest.findById(req.params.id)
       .populate('employee', 'firstName lastName employeeNumber email department')
       .populate('company', 'name')
@@ -221,18 +224,15 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     // Yetki kontrolü
-    if (req.user.role === 'employee') {
+    if (roleName === 'employee') {
       const employee = await Employee.findOne({
-        $or: [
-          { user: req.user._id },
-          { email: req.user.email }
-        ]
+        $or: [{ user: req.user._id }, { email: req.user.email }],
       });
 
       if (!employee || advanceRequest.employee._id.toString() !== employee._id.toString()) {
         return forbidden(res, 'Bu talebi görüntüleme yetkiniz yok');
       }
-    } else if (['company_admin', 'hr_manager', 'department_manager'].includes(req.user.role)) {
+    } else if (['company_admin', 'hr_manager', 'department_manager'].includes(roleName)) {
       if (advanceRequest.company._id.toString() !== req.user.company.toString()) {
         return forbidden(res, 'Bu talebi görüntüleme yetkiniz yok');
       }
@@ -240,7 +240,7 @@ router.get('/:id', auth, async (req, res) => {
 
     res.json({
       success: true,
-      data: advanceRequest
+      data: advanceRequest,
     });
   } catch (error) {
     console.error('Avans talebi detay hatası:', error);
@@ -253,8 +253,10 @@ router.post('/:id/approve', auth, async (req, res) => {
   try {
     const { comment } = req.body;
 
-    const advanceRequest = await AdvanceRequest.findById(req.params.id)
-      .populate('employee', 'firstName lastName email');
+    const advanceRequest = await AdvanceRequest.findById(req.params.id).populate(
+      'employee',
+      'firstName lastName email'
+    );
 
     if (!advanceRequest) {
       return notFound(res, 'Avans talebi bulunamadı');
@@ -270,9 +272,17 @@ router.post('/:id/approve', auth, async (req, res) => {
     );
 
     // Admin rolleri kontrolü
-    const isAdmin = ['company_admin', 'resmi_muhasebe_ik', 'SIRKET_ADMIN', 'IK_OPERASYON', 'bayi_admin', 'super_admin'].includes(req.user.role?.name);
-    const isSameCompany = advanceRequest.company.toString() === req.user.company?.toString() ||
-                          advanceRequest.company.toString() === req.user.company?._id?.toString();
+    const isAdmin = [
+      'company_admin',
+      'resmi_muhasebe_ik',
+      'SIRKET_ADMIN',
+      'IK_OPERASYON',
+      'bayi_admin',
+      'super_admin',
+    ].includes(req.user.role?.name);
+    const isSameCompany =
+      advanceRequest.company.toString() === req.user.company?.toString() ||
+      advanceRequest.company.toString() === req.user.company?._id?.toString();
 
     // Admin değilse ve onay zincirinde yoksa hata döndür
     if (approverIndex === -1 && !(isAdmin && isSameCompany)) {
@@ -314,7 +324,7 @@ router.post('/:id/approve', auth, async (req, res) => {
           company: advanceRequest.company,
           month: scheduleItem.month,
           amount: scheduleItem.amount,
-          paid: false
+          paid: false,
         });
         await payment.save();
       }
@@ -328,7 +338,7 @@ router.post('/:id/approve', auth, async (req, res) => {
         const puantaj = await EmployeePuantaj.findOne({
           employee: advanceRequest.employee._id,
           year,
-          month
+          month,
         });
 
         if (puantaj) {
@@ -342,9 +352,10 @@ router.post('/:id/approve', auth, async (req, res) => {
               advanceRequestId: advanceRequest._id,
               amount: scheduleItem.amount,
               description: `Avans Taksiti ${i + 1}/${advanceRequest.installments}`,
-              isDeducted: false
+              isDeducted: false,
             });
-            puantaj.totalAdvanceDeduction = (puantaj.totalAdvanceDeduction || 0) + scheduleItem.amount;
+            puantaj.totalAdvanceDeduction =
+              (puantaj.totalAdvanceDeduction || 0) + scheduleItem.amount;
             await puantaj.save();
           }
         }
@@ -371,7 +382,7 @@ router.post('/:id/approve', auth, async (req, res) => {
     res.json({
       success: true,
       message: allApproved ? 'Avans talebi onaylandı' : 'Onayınız kaydedildi',
-      data: populatedRequest
+      data: populatedRequest,
     });
   } catch (error) {
     console.error('Avans onaylama hatası:', error);
@@ -404,9 +415,17 @@ router.post('/:id/reject', auth, async (req, res) => {
     );
 
     // Admin rolleri kontrolü
-    const isAdmin = ['company_admin', 'resmi_muhasebe_ik', 'SIRKET_ADMIN', 'IK_OPERASYON', 'bayi_admin', 'super_admin'].includes(req.user.role?.name);
-    const isSameCompany = advanceRequest.company.toString() === req.user.company?.toString() ||
-                          advanceRequest.company.toString() === req.user.company?._id?.toString();
+    const isAdmin = [
+      'company_admin',
+      'resmi_muhasebe_ik',
+      'SIRKET_ADMIN',
+      'IK_OPERASYON',
+      'bayi_admin',
+      'super_admin',
+    ].includes(req.user.role?.name);
+    const isSameCompany =
+      advanceRequest.company.toString() === req.user.company?.toString() ||
+      advanceRequest.company.toString() === req.user.company?._id?.toString();
 
     if (!hasPermission && !(isAdmin && isSameCompany)) {
       return forbidden(res, 'Bu talebi reddetme yetkiniz yok');
@@ -427,7 +446,7 @@ router.post('/:id/reject', auth, async (req, res) => {
     res.json({
       success: true,
       message: 'Avans talebi reddedildi',
-      data: populatedRequest
+      data: populatedRequest,
     });
   } catch (error) {
     console.error('Avans reddetme hatası:', error);
@@ -448,10 +467,7 @@ router.post('/:id/cancel', auth, async (req, res) => {
 
     // Çalışan kontrolü
     const employee = await Employee.findOne({
-      $or: [
-        { user: req.user._id },
-        { email: req.user.email }
-      ]
+      $or: [{ user: req.user._id }, { email: req.user.email }],
     });
 
     if (!employee || advanceRequest.employee.toString() !== employee._id.toString()) {
@@ -475,7 +491,7 @@ router.post('/:id/cancel', auth, async (req, res) => {
     res.json({
       success: true,
       message: 'Avans talebiniz iptal edildi',
-      data: advanceRequest
+      data: advanceRequest,
     });
   } catch (error) {
     console.error('Avans iptal hatası:', error);
@@ -492,16 +508,12 @@ router.post('/:id/payment', auth, async (req, res) => {
       return errorResponse(res, { message: 'Ay bilgisi zorunludur' });
     }
 
-    const payment = await advanceService.processPayment(
-      req.params.id,
-      month,
-      req.user._id
-    );
+    const payment = await advanceService.processPayment(req.params.id, month, req.user._id);
 
     res.json({
       success: true,
       message: 'Ödeme başarıyla kaydedildi',
-      data: payment
+      data: payment,
     });
   } catch (error) {
     console.error('Ödeme işleme hatası:', error);
@@ -518,7 +530,7 @@ router.get('/:id/payments', auth, async (req, res) => {
 
     res.json({
       success: true,
-      data: payments
+      data: payments,
     });
   } catch (error) {
     console.error('Ödeme geçmişi hatası:', error);
@@ -529,20 +541,18 @@ router.get('/:id/payments', auth, async (req, res) => {
 // İstatistikler
 router.get('/stats/summary', auth, async (req, res) => {
   try {
+    const roleName = req.user.role?.name || req.user.role;
     let query = {};
 
-    if (req.user.role === 'employee') {
+    if (roleName === 'employee') {
       const employee = await Employee.findOne({
-        $or: [
-          { user: req.user._id },
-          { email: req.user.email }
-        ]
+        $or: [{ user: req.user._id }, { email: req.user.email }],
       });
 
       if (employee) {
         query.employee = employee._id;
       }
-    } else if (['company_admin', 'hr_manager', 'department_manager'].includes(req.user.role)) {
+    } else if (['company_admin', 'hr_manager', 'department_manager'].includes(roleName)) {
       query.company = req.user.company;
     }
 
@@ -554,7 +564,7 @@ router.get('/stats/summary', auth, async (req, res) => {
     // Toplam avans tutarı
     const totalAmountResult = await AdvanceRequest.aggregate([
       { $match: { ...query, status: 'APPROVED' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $group: { _id: null, total: { $sum: '$amount' } } },
     ]);
 
     const totalAmount = totalAmountResult.length > 0 ? totalAmountResult[0].total : 0;
@@ -562,7 +572,7 @@ router.get('/stats/summary', auth, async (req, res) => {
     // Kalan borç
     const remainingAmountResult = await AdvanceRequest.aggregate([
       { $match: { ...query, status: 'APPROVED' } },
-      { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
+      { $group: { _id: null, total: { $sum: '$remainingAmount' } } },
     ]);
 
     const remainingAmount = remainingAmountResult.length > 0 ? remainingAmountResult[0].total : 0;
@@ -576,8 +586,8 @@ router.get('/stats/summary', auth, async (req, res) => {
         rejectedRequests,
         totalAmount,
         remainingAmount,
-        paidAmount: totalAmount - remainingAmount
-      }
+        paidAmount: totalAmount - remainingAmount,
+      },
     });
   } catch (error) {
     console.error('İstatistik hatası:', error);

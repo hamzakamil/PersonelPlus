@@ -2,9 +2,12 @@
  * Abonelik Cron Jobs
  *
  * Günlük çalışan job'lar:
- * 1. Süresi dolan abonelikleri "expired" yap
+ * 1. Süresi dolan bayi abonelikleri "expired" yap
  * 2. Kota senkronizasyonu
- * 3. Süre dolmak üzere olan aboneliklere uyarı maili gönder
+ * 3. Süre dolmak üzere olan bayi aboneliklere uyarı maili gönder
+ * 4. Süresi dolan şirket abonelikleri kontrol et
+ * 5. Süre dolmak üzere olan şirket aboneliklere uyarı gönder
+ * 6. Ödeme bekleyen şirketleri askıya al
  *
  * Kullanım:
  * - Standalone: node jobs/subscriptionJobs.js
@@ -15,6 +18,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const DealerSubscription = require('../models/DealerSubscription');
 const Dealer = require('../models/Dealer');
+const Company = require('../models/Company');
 const quotaService = require('../services/quotaService');
 const emailService = require('../services/emailService');
 
@@ -39,7 +43,7 @@ async function expireSubscriptions() {
     // Süresi dolan aktif abonelikleri bul
     const expiredSubscriptions = await DealerSubscription.find({
       endDate: { $lt: now },
-      status: 'active'
+      status: 'active',
     }).populate('dealer', 'name contactEmail');
 
     console.log(`Süresi dolan abonelik sayısı: ${expiredSubscriptions.length}`);
@@ -50,14 +54,14 @@ async function expireSubscriptions() {
       sub.history.push({
         action: 'expired',
         date: now,
-        note: 'Otomatik süre dolumu'
+        note: 'Otomatik süre dolumu',
       });
       await sub.save();
 
       // Dealer'ı güncelle
       await Dealer.findByIdAndUpdate(sub.dealer._id, {
         subscriptionStatus: 'expired',
-        activeSubscription: null
+        activeSubscription: null,
       });
 
       console.log(`Abonelik süresi doldu: ${sub.dealer.name} (${sub._id})`);
@@ -89,7 +93,7 @@ async function syncAllQuotas() {
   try {
     // Aktif aboneliği olan bayileri bul
     const dealers = await Dealer.find({
-      subscriptionStatus: 'active'
+      subscriptionStatus: 'active',
     });
 
     console.log(`Aktif bayi sayısı: ${dealers.length}`);
@@ -128,10 +132,11 @@ async function sendExpirationWarnings(daysBeforeExpiry = 7) {
     const expiringSubscriptions = await DealerSubscription.find({
       endDate: {
         $gte: new Date(),
-        $lte: warningDate
+        $lte: warningDate,
       },
-      status: 'active'
-    }).populate('dealer', 'name contactEmail')
+      status: 'active',
+    })
+      .populate('dealer', 'name contactEmail')
       .populate('package', 'name');
 
     console.log(`Süre dolmak üzere olan abonelik sayısı: ${expiringSubscriptions.length}`);
@@ -146,7 +151,7 @@ async function sendExpirationWarnings(daysBeforeExpiry = 7) {
         email: sub.dealer.contactEmail,
         packageName: sub.package?.name,
         expiresAt: sub.endDate,
-        daysRemaining
+        daysRemaining,
       });
 
       console.log(`Uyarı: ${sub.dealer.name} - ${daysRemaining} gün kaldı`);
@@ -184,11 +189,12 @@ async function processAutoRenewals() {
     const autoRenewSubscriptions = await DealerSubscription.find({
       endDate: {
         $gte: now,
-        $lte: tomorrow
+        $lte: tomorrow,
       },
       status: 'active',
-      autoRenew: true
-    }).populate('dealer')
+      autoRenew: true,
+    })
+      .populate('dealer')
       .populate('package');
 
     console.log(`Otomatik yenilenecek abonelik sayısı: ${autoRenewSubscriptions.length}`);
@@ -207,43 +213,259 @@ async function processAutoRenewals() {
   }
 }
 
+// ========================================
+// ŞİRKET ABONELİK KONTROL FONKSİYONLARI
+// ========================================
+
+/**
+ * 5. Süresi dolan şirket aboneliklerini kontrol et
+ * - Süresi dolmuş: status -> 'pending_payment'
+ * - 3 gün ödeme beklenir
+ */
+async function expireCompanySubscriptions() {
+  console.log('\n=== Şirket Abonelik Süre Kontrolü ===');
+
+  try {
+    const now = new Date();
+
+    // Süresi dolan aktif şirket abonelikleri bul (unlimited hariç)
+    const expiredCompanies = await Company.find({
+      'subscription.endDate': { $lt: now },
+      'subscription.status': 'active',
+      'subscription.billingType': { $ne: 'unlimited' },
+    }).populate('dealer', 'name contactEmail');
+
+    console.log(`Süresi dolan şirket aboneliği: ${expiredCompanies.length}`);
+
+    let count = 0;
+    for (const company of expiredCompanies) {
+      // Status'u pending_payment yap (ödeme bekleniyor)
+      company.subscription.status = 'pending_payment';
+      company.subscription.history.push({
+        action: 'expired',
+        date: now,
+        note: 'Abonelik süresi doldu, ödeme bekleniyor',
+      });
+      await company.save();
+
+      console.log(`Şirket aboneliği süresi doldu: ${company.name}`);
+
+      // Bayiye ve şirkete email gönder
+      try {
+        await emailService.sendCompanySubscriptionExpiredEmail(company, company.dealer);
+        console.log(`Süre dolum emaili gönderildi: ${company.name}`);
+      } catch (emailError) {
+        console.error(`Email hatası (${company.name}):`, emailError.message);
+      }
+
+      count++;
+    }
+
+    return count;
+  } catch (error) {
+    console.error('Şirket abonelik süre kontrolü hatası:', error);
+    throw error;
+  }
+}
+
+/**
+ * 6. Ödeme bekleyen şirketleri kontrol et ve askıya al
+ * - 3 günden fazla pending_payment olan şirketler -> suspended
+ */
+async function suspendUnpaidCompanies() {
+  console.log('\n=== Ödeme Bekleyen Şirket Kontrolü ===');
+
+  try {
+    const now = new Date();
+    const gracePeriodDays = 3; // 3 gün ödeme bekleme süresi
+    const suspendDate = new Date();
+    suspendDate.setDate(suspendDate.getDate() - gracePeriodDays);
+
+    // 3 günden fazla pending_payment olan şirketleri bul
+    const unpaidCompanies = await Company.find({
+      'subscription.status': 'pending_payment',
+      'subscription.endDate': { $lt: suspendDate },
+    }).populate('dealer', 'name contactEmail');
+
+    console.log(`Askıya alınacak şirket: ${unpaidCompanies.length}`);
+
+    let count = 0;
+    for (const company of unpaidCompanies) {
+      // Şirketi askıya al
+      company.subscription.status = 'suspended';
+      company.subscription.suspendedAt = now;
+      company.isActive = false;
+
+      company.subscription.history.push({
+        action: 'suspended',
+        date: now,
+        note: 'Ödeme alınmadığı için otomatik askıya alındı',
+      });
+
+      await company.save();
+
+      console.log(`Şirket askıya alındı: ${company.name}`);
+
+      // Email gönder
+      try {
+        await emailService.sendCompanySubscriptionSuspendedEmail(company, company.dealer);
+        console.log(`Askıya alma emaili gönderildi: ${company.name}`);
+      } catch (emailError) {
+        console.error(`Email hatası (${company.name}):`, emailError.message);
+      }
+
+      count++;
+    }
+
+    return count;
+  } catch (error) {
+    console.error('Ödeme bekleyen şirket kontrolü hatası:', error);
+    throw error;
+  }
+}
+
+/**
+ * 7. Şirket abonelik süre dolum uyarıları gönder
+ * @param {number} daysBeforeExpiry - Kaç gün önce uyarı gönderilecek
+ */
+async function sendCompanyExpirationWarnings(daysBeforeExpiry = 7) {
+  console.log('\n=== Şirket Süre Dolum Uyarıları ===');
+
+  try {
+    const now = new Date();
+    const warningDate = new Date();
+    warningDate.setDate(warningDate.getDate() + daysBeforeExpiry);
+
+    // Süre dolmak üzere olan şirket abonelikleri bul
+    // Son 24 saat içinde uyarı gönderilmemiş olanlar
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const expiringCompanies = await Company.find({
+      'subscription.endDate': {
+        $gte: now,
+        $lte: warningDate,
+      },
+      'subscription.status': 'active',
+      'subscription.billingType': { $ne: 'unlimited' },
+      $or: [
+        { 'subscription.lastWarningAt': null },
+        { 'subscription.lastWarningAt': { $lt: yesterday } },
+      ],
+    }).populate('dealer', 'name contactEmail');
+
+    console.log(`Uyarı gönderilecek şirket: ${expiringCompanies.length}`);
+
+    const warnings = [];
+    for (const company of expiringCompanies) {
+      const daysRemaining = Math.ceil((company.subscription.endDate - now) / (1000 * 60 * 60 * 24));
+
+      warnings.push({
+        companyId: company._id,
+        companyName: company.name,
+        dealerName: company.dealer?.name,
+        email: company.contactEmail,
+        expiresAt: company.subscription.endDate,
+        daysRemaining,
+        billingType: company.subscription.billingType,
+      });
+
+      console.log(
+        `Uyarı: ${company.name} - ${daysRemaining} gün kaldı (${company.subscription.billingType})`
+      );
+
+      // Uyarı gönderildi olarak işaretle
+      company.subscription.lastWarningAt = now;
+      company.subscription.warningCount = (company.subscription.warningCount || 0) + 1;
+
+      company.subscription.history.push({
+        action: 'warning_sent',
+        date: now,
+        note: `${daysRemaining} gün kala uyarı gönderildi`,
+      });
+
+      await company.save();
+
+      // Email gönder
+      try {
+        await emailService.sendCompanySubscriptionExpiringEmail(
+          company,
+          company.dealer,
+          daysRemaining
+        );
+        console.log(`Uyarı emaili gönderildi: ${company.name}`);
+      } catch (emailError) {
+        console.error(`Email hatası (${company.name}):`, emailError.message);
+      }
+    }
+
+    return warnings;
+  } catch (error) {
+    console.error('Şirket süre dolum uyarısı hatası:', error);
+    throw error;
+  }
+}
+
 /**
  * Tüm job'ları çalıştır
  */
 async function runAllJobs() {
   console.log('================================================');
-  console.log('Abonelik Job\'ları Başlatılıyor...');
+  console.log("Abonelik Job'ları Başlatılıyor...");
   console.log('Tarih:', new Date().toISOString());
   console.log('================================================');
 
   try {
     await connectDB();
 
-    // 1. Süresi dolmuş abonelikleri kontrol et
+    // === BAYİ ABONELİKLERİ ===
+    // 1. Süresi dolmuş bayi abonelikleri kontrol et
     const expiredCount = await expireSubscriptions();
 
     // 2. Kotaları senkronize et
     const syncCount = await syncAllQuotas();
 
-    // 3. Süre dolum uyarıları gönder
+    // 3. Bayi süre dolum uyarıları gönder
     const warnings = await sendExpirationWarnings(7);
 
     // 4. Otomatik yenilemeleri kontrol et
     const autoRenewCount = await processAutoRenewals();
 
+    // === ŞİRKET ABONELİKLERİ ===
+    // 5. Süresi dolmuş şirket abonelikleri kontrol et
+    const expiredCompanyCount = await expireCompanySubscriptions();
+
+    // 6. Ödeme bekleyen şirketleri askıya al
+    const suspendedCompanyCount = await suspendUnpaidCompanies();
+
+    // 7. Şirket süre dolum uyarıları gönder (7 gün ve 3 gün kala)
+    const companyWarnings7 = await sendCompanyExpirationWarnings(7);
+    const companyWarnings3 = await sendCompanyExpirationWarnings(3);
+
     console.log('\n================================================');
-    console.log('Job\'lar Tamamlandı');
-    console.log(`- Süresi dolan abonelik: ${expiredCount}`);
+    console.log("Job'lar Tamamlandı");
+    console.log('--- BAYİ ABONELİKLERİ ---');
+    console.log(`- Süresi dolan bayi: ${expiredCount}`);
     console.log(`- Senkronize edilen bayi: ${syncCount}`);
-    console.log(`- Uyarı gönderilen: ${warnings.length}`);
+    console.log(`- Uyarı gönderilen bayi: ${warnings.length}`);
     console.log(`- Otomatik yenileme: ${autoRenewCount}`);
+    console.log('--- ŞİRKET ABONELİKLERİ ---');
+    console.log(`- Süresi dolan şirket: ${expiredCompanyCount}`);
+    console.log(`- Askıya alınan şirket: ${suspendedCompanyCount}`);
+    console.log(`- Uyarı gönderilen şirket (7 gün): ${companyWarnings7.length}`);
+    console.log(`- Uyarı gönderilen şirket (3 gün): ${companyWarnings3.length}`);
     console.log('================================================');
 
     return {
+      // Bayi
       expiredCount,
       syncCount,
       warningCount: warnings.length,
-      autoRenewCount
+      autoRenewCount,
+      // Şirket
+      expiredCompanyCount,
+      suspendedCompanyCount,
+      companyWarningCount: companyWarnings7.length + companyWarnings3.length,
     };
   } catch (error) {
     console.error('Job hatası:', error);
@@ -255,19 +477,25 @@ async function runAllJobs() {
 if (require.main === module) {
   runAllJobs()
     .then(() => {
-      console.log('\nJob\'lar başarıyla tamamlandı');
+      console.log("\nJob'lar başarıyla tamamlandı");
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\nJob hatası:', error);
       process.exit(1);
     });
 }
 
 module.exports = {
+  // Bayi abonelikleri
   expireSubscriptions,
   syncAllQuotas,
   sendExpirationWarnings,
   processAutoRenewals,
-  runAllJobs
+  // Şirket abonelikleri
+  expireCompanySubscriptions,
+  suspendUnpaidCompanies,
+  sendCompanyExpirationWarnings,
+  // Tümü
+  runAllJobs,
 };

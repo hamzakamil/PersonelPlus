@@ -1,0 +1,387 @@
+tags:
+  - name: Company Subscriptions
+    description: Bayi - Şirket arası abonelik yönetimi
+
+paths:
+  /api/company-subscriptions:
+    get:
+      tags:
+        - Company Subscriptions
+      summary: Şirket abonelik listesi
+      description: Bayinin şirketlerinin abonelik listesini getirir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Abonelik durumu filtresi
+          schema:
+            type: string
+            enum: [active, pending_payment, expired, suspended, trial]
+        - name: billingType
+          in: query
+          description: Faturalama tipi filtresi
+          schema:
+            type: string
+            enum: [monthly, yearly, unlimited]
+        - name: expiringDays
+          in: query
+          description: Kaç gün içinde süresi dolacak şirketler
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Başarılı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      companies:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CompanySubscription'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+                      stats:
+                        $ref: '#/components/schemas/SubscriptionStats'
+
+  /api/company-subscriptions/{companyId}:
+    get:
+      tags:
+        - Company Subscriptions
+      summary: Şirket abonelik detayı
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Başarılı
+        '404':
+          description: Şirket bulunamadı
+
+  /api/company-subscriptions/{companyId}/activate:
+    post:
+      tags:
+        - Company Subscriptions
+      summary: Şirket aboneliği başlat/güncelle
+      description: Şirket için yeni abonelik başlatır veya mevcut aboneliği günceller
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - billingType
+              properties:
+                billingType:
+                  type: string
+                  enum: [monthly, yearly, unlimited]
+                  description: Faturalama tipi
+                price:
+                  type: number
+                  description: Aylık/Yıllık ücret (TRY)
+                startDate:
+                  type: string
+                  format: date
+                  description: Başlangıç tarihi (varsayılan bugün)
+                autoRenew:
+                  type: boolean
+                  default: false
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Abonelik aktifleştirildi
+        '400':
+          description: Geçersiz istek
+        '403':
+          description: Yetkisiz işlem
+
+  /api/company-subscriptions/{companyId}/extend:
+    post:
+      tags:
+        - Company Subscriptions
+      summary: Abonelik süresini uzat
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                months:
+                  type: integer
+                  description: Kaç ay uzatılacak (aylık abonelikler için)
+                years:
+                  type: integer
+                  description: Kaç yıl uzatılacak (yıllık abonelikler için)
+                price:
+                  type: number
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Süre uzatıldı
+        '400':
+          description: Geçersiz istek
+
+  /api/company-subscriptions/{companyId}/payment:
+    post:
+      tags:
+        - Company Subscriptions
+      summary: Ödeme al
+      description: Mevcut dönem için ödeme kaydeder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+              properties:
+                amount:
+                  type: number
+                  description: Ödeme tutarı (TRY)
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Ödeme kaydedildi
+
+  /api/company-subscriptions/{companyId}/suspend:
+    post:
+      tags:
+        - Company Subscriptions
+      summary: Aboneliği askıya al
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Askıya alma nedeni
+      responses:
+        '200':
+          description: Abonelik askıya alındı
+
+  /api/company-subscriptions/{companyId}/history:
+    get:
+      tags:
+        - Company Subscriptions
+      summary: Abonelik geçmişi
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Abonelik geçmişi
+
+  /api/company-subscriptions/bulk-status:
+    post:
+      tags:
+        - Company Subscriptions
+      summary: Toplu durum güncelle
+      description: Birden fazla şirketin abonelik durumunu toplu günceller
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - companyIds
+                - status
+              properties:
+                companyIds:
+                  type: array
+                  items:
+                    type: string
+                status:
+                  type: string
+                  enum: [active, suspended]
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Toplu güncelleme tamamlandı
+
+  /api/company-subscriptions/reports/expiring:
+    get:
+      tags:
+        - Company Subscriptions
+      summary: Süresi dolmak üzere olan şirketler
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          description: Kaç gün içinde süresi dolacaklar
+          schema:
+            type: integer
+            default: 7
+      responses:
+        '200':
+          description: Uyarı listesi
+
+  /api/company-subscriptions/reports/pending-payments:
+    get:
+      tags:
+        - Company Subscriptions
+      summary: Ödeme bekleyen şirketler
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Ödeme bekleyen şirket listesi
+
+  /api/company-subscriptions/reports/stats:
+    get:
+      tags:
+        - Company Subscriptions
+      summary: Abonelik istatistikleri
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: İstatistik özeti
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionStats'
+
+components:
+  schemas:
+    CompanySubscription:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        contactEmail:
+          type: string
+        isActive:
+          type: boolean
+        subscription:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [active, pending_payment, expired, suspended, trial]
+            billingType:
+              type: string
+              enum: [monthly, yearly, unlimited]
+            startDate:
+              type: string
+              format: date-time
+            endDate:
+              type: string
+              format: date-time
+            price:
+              type: number
+            isPaid:
+              type: boolean
+            autoRenew:
+              type: boolean
+
+    SubscriptionStats:
+      type: object
+      properties:
+        totalCompanies:
+          type: integer
+        activeSubscriptions:
+          type: integer
+        pendingPayments:
+          type: integer
+        expiredSubscriptions:
+          type: integer
+        suspendedSubscriptions:
+          type: integer
+        monthlySubscriptions:
+          type: integer
+        yearlySubscriptions:
+          type: integer
+        unlimitedSubscriptions:
+          type: integer
+        expiringSoon:
+          type: integer
+        totalMonthlyRevenue:
+          type: number
+        totalYearlyRevenue:
+          type: number
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer

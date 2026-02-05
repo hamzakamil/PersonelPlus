@@ -5,7 +5,12 @@ const Dealer = require('../models/Dealer');
 const { auth, requireRole } = require('../middleware/auth');
 const invoiceXmlService = require('../services/invoiceXmlService');
 const integratorService = require('../services/integrators');
-const { errorResponse, notFound, serverError, successResponse: success } = require('../utils/responseHelper');
+const {
+  errorResponse,
+  notFound,
+  serverError,
+  successResponse: success,
+} = require('../utils/responseHelper');
 
 // ==================== SUPER ADMIN ROUTES ====================
 
@@ -20,7 +25,7 @@ router.get('/', auth, requireRole('super_admin'), async (req, res) => {
       startDate,
       endDate,
       invoiceType,
-      search
+      search,
     } = req.query;
 
     let query = {};
@@ -48,7 +53,7 @@ router.get('/', auth, requireRole('super_admin'), async (req, res) => {
       query.$or = [
         { invoiceNumber: new RegExp(search, 'i') },
         { uuid: new RegExp(search, 'i') },
-        { 'accountingCustomerParty.party.partyName': new RegExp(search, 'i') }
+        { 'accountingCustomerParty.party.partyName': new RegExp(search, 'i') },
       ];
     }
 
@@ -69,9 +74,9 @@ router.get('/', auth, requireRole('super_admin'), async (req, res) => {
         $group: {
           _id: '$gibStatus',
           count: { $sum: 1 },
-          totalAmount: { $sum: '$legalMonetaryTotal.payableAmount' }
-        }
-      }
+          totalAmount: { $sum: '$legalMonetaryTotal.payableAmount' },
+        },
+      },
     ]);
 
     return success(res, {
@@ -80,12 +85,12 @@ router.get('/', auth, requireRole('super_admin'), async (req, res) => {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(total / limit),
       },
       stats: stats.reduce((acc, s) => {
         acc[s._id] = { count: s.count, totalAmount: s.totalAmount };
         return acc;
-      }, {})
+      }, {}),
     });
   } catch (error) {
     console.error('Fatura listesi hatası:', error);
@@ -117,9 +122,9 @@ router.get('/stats', auth, requireRole('super_admin'), async (req, res) => {
           sentCount: { $sum: { $cond: [{ $eq: ['$gibStatus', 'sent'] }, 1, 0] } },
           acceptedCount: { $sum: { $cond: [{ $eq: ['$gibStatus', 'accepted'] }, 1, 0] } },
           rejectedCount: { $sum: { $cond: [{ $eq: ['$gibStatus', 'rejected'] }, 1, 0] } },
-          cancelledCount: { $sum: { $cond: [{ $eq: ['$gibStatus', 'cancelled'] }, 1, 0] } }
-        }
-      }
+          cancelledCount: { $sum: { $cond: [{ $eq: ['$gibStatus', 'cancelled'] }, 1, 0] } },
+        },
+      },
     ]);
 
     // Aylık trend
@@ -129,14 +134,14 @@ router.get('/stats', auth, requireRole('super_admin'), async (req, res) => {
         $group: {
           _id: {
             year: { $year: '$issueDate' },
-            month: { $month: '$issueDate' }
+            month: { $month: '$issueDate' },
           },
           count: { $sum: 1 },
-          amount: { $sum: '$legalMonetaryTotal.payableAmount' }
-        }
+          amount: { $sum: '$legalMonetaryTotal.payableAmount' },
+        },
       },
       { $sort: { '_id.year': -1, '_id.month': -1 } },
-      { $limit: 12 }
+      { $limit: 12 },
     ]);
 
     return success(res, {
@@ -148,9 +153,9 @@ router.get('/stats', auth, requireRole('super_admin'), async (req, res) => {
         sentCount: 0,
         acceptedCount: 0,
         rejectedCount: 0,
-        cancelledCount: 0
+        cancelledCount: 0,
       },
-      monthlyTrend: monthlyStats.reverse()
+      monthlyTrend: monthlyStats.reverse(),
     });
   } catch (error) {
     console.error('Fatura istatistik hatası:', error);
@@ -238,8 +243,8 @@ router.get('/my', auth, requireRole('bayi_admin'), async (req, res) => {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Bayi fatura listesi hatası:', error);
@@ -262,7 +267,8 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     // Yetki kontrolü
-    const isSuperAdmin = req.user.role === 'super_admin';
+    const roleName = req.user.role?.name || req.user.role;
+    const isSuperAdmin = roleName === 'super_admin';
     const isOwner = invoice.dealer && invoice.dealer._id.toString() === req.user.dealer?.toString();
 
     if (!isSuperAdmin && !isOwner) {
@@ -322,8 +328,8 @@ router.post('/:id/send', auth, requireRole('super_admin'), async (req, res) => {
         response: {
           status: 'sent',
           ettn: result.ettn,
-          message: result.message
-        }
+          message: result.message,
+        },
       };
 
       if (result.ettn) {
@@ -332,10 +338,14 @@ router.post('/:id/send', auth, requireRole('super_admin'), async (req, res) => {
 
       await invoice.save();
 
-      return success(res, {
-        invoice,
-        integrator: result
-      }, 'Fatura başarıyla gönderildi');
+      return success(
+        res,
+        {
+          invoice,
+          integrator: result,
+        },
+        'Fatura başarıyla gönderildi'
+      );
     }
 
     return errorResponse(res, { message: result.message || 'Fatura gönderilemedi' });
@@ -355,7 +365,8 @@ router.post('/:id/check-status', auth, async (req, res) => {
     }
 
     // Yetki kontrolü
-    const isSuperAdmin = req.user.role === 'super_admin';
+    const roleName = req.user.role?.name || req.user.role;
+    const isSuperAdmin = roleName === 'super_admin';
     const isOwner = invoice.dealer && invoice.dealer.toString() === req.user.dealer?.toString();
 
     if (!isSuperAdmin && !isOwner) {
@@ -375,7 +386,7 @@ router.post('/:id/check-status', auth, async (req, res) => {
         status: result.status,
         statusCode: result.statusCode,
         statusDescription: result.statusDescription,
-        receivedAt: new Date()
+        receivedAt: new Date(),
       };
 
       // Durumu güncelle
@@ -389,7 +400,7 @@ router.post('/:id/check-status', auth, async (req, res) => {
 
       return success(res, {
         invoice,
-        status: result
+        status: result,
       });
     }
 
@@ -447,7 +458,8 @@ router.get('/:id/xml', auth, async (req, res) => {
     }
 
     // Yetki kontrolü
-    const isSuperAdmin = req.user.role === 'super_admin';
+    const roleName = req.user.role?.name || req.user.role;
+    const isSuperAdmin = roleName === 'super_admin';
     const isOwner = invoice.dealer && invoice.dealer.toString() === req.user.dealer?.toString();
 
     if (!isSuperAdmin && !isOwner) {
@@ -483,7 +495,8 @@ router.get('/:id/pdf', auth, async (req, res) => {
     }
 
     // Yetki kontrolü
-    const isSuperAdmin = req.user.role === 'super_admin';
+    const roleName = req.user.role?.name || req.user.role;
+    const isSuperAdmin = roleName === 'super_admin';
     const isOwner = invoice.dealer && invoice.dealer.toString() === req.user.dealer?.toString();
 
     if (!isSuperAdmin && !isOwner) {
@@ -492,7 +505,9 @@ router.get('/:id/pdf', auth, async (req, res) => {
 
     // Taslak faturalar için PDF yoktur
     if (invoice.gibStatus === 'draft') {
-      return errorResponse(res, { message: 'Taslak faturanın PDF\'i mevcut değil. Önce GİB\'e gönderin.' });
+      return errorResponse(res, {
+        message: "Taslak faturanın PDF'i mevcut değil. Önce GİB'e gönderin.",
+      });
     }
 
     // Entegratörden PDF indir
@@ -517,7 +532,9 @@ router.post('/:id/regenerate-xml', auth, requireRole('super_admin'), async (req,
     }
 
     if (invoice.gibStatus !== 'draft') {
-      return errorResponse(res, { message: 'Sadece taslak faturaların XML\'i yeniden oluşturulabilir' });
+      return errorResponse(res, {
+        message: "Sadece taslak faturaların XML'i yeniden oluşturulabilir",
+      });
     }
 
     const updatedInvoice = await invoiceXmlService.regenerateXml(invoice._id);
@@ -550,7 +567,7 @@ router.put('/:id', auth, requireRole('super_admin'), async (req, res) => {
       'accountingCustomerParty',
       'invoiceLines',
       'taxTotal',
-      'legalMonetaryTotal'
+      'legalMonetaryTotal',
     ];
 
     const updates = req.body;
@@ -562,7 +579,9 @@ router.put('/:id', auth, requireRole('super_admin'), async (req, res) => {
     });
 
     // XML yeniden oluştur
-    const xmlContent = require('../services/invoiceXmlService').generateInvoiceXml(invoice.toObject());
+    const xmlContent = require('../services/invoiceXmlService').generateInvoiceXml(
+      invoice.toObject()
+    );
     invoice.xmlContent = xmlContent;
     invoice.xmlHash = require('crypto').createHash('sha256').update(xmlContent).digest('hex');
 
@@ -608,7 +627,7 @@ router.post('/bulk-send', auth, requireRole('super_admin'), async (req, res) => 
 
     const results = {
       success: [],
-      failed: []
+      failed: [],
     };
 
     for (const invoiceId of invoiceIds) {
@@ -639,7 +658,7 @@ router.post('/bulk-send', auth, requireRole('super_admin'), async (req, res) => 
           invoice.integrator = {
             name: integratorService.getDefaultIntegrator().name,
             sentAt: new Date(),
-            sentBy: req.user._id
+            sentBy: req.user._id,
           };
 
           if (result.ettn) {
@@ -656,7 +675,11 @@ router.post('/bulk-send', auth, requireRole('super_admin'), async (req, res) => 
       }
     }
 
-    return success(res, results, `${results.success.length} fatura gönderildi, ${results.failed.length} başarısız`);
+    return success(
+      res,
+      results,
+      `${results.success.length} fatura gönderildi, ${results.failed.length} başarısız`
+    );
   } catch (error) {
     console.error('Toplu gönderim hatası:', error);
     return serverError(res, error, 'Toplu gönderim sırasında bir hata oluştu');

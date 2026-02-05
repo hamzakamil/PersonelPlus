@@ -9,7 +9,7 @@ console.log('SMTP Config:', {
   port: process.env.SMTP_PORT,
   secure: process.env.SMTP_SECURE,
   user: process.env.SMTP_USER ? 'SET' : 'NOT SET',
-  pass: process.env.SMTP_PASS ? 'SET' : 'NOT SET'
+  pass: process.env.SMTP_PASS ? 'SET' : 'NOT SET',
 });
 
 // Error handling setup (en basta olmali)
@@ -19,18 +19,20 @@ setupUncaughtExceptionHandler();
 const app = express();
 
 // Middleware - CORS yapılandırması (Mobil uygulama desteği dahil)
-app.use(cors({
-  origin: [
-    'http://localhost:5173',      // Vue.js development
-    'http://localhost:3000',      // Backend (self)
-    'http://10.0.2.2:3000',       // Android Emulator -> Host
-    'http://127.0.0.1:3000',      // Localhost alternative
-    /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // Local network (gerçek cihaz testi)
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-}));
+app.use(
+  cors({
+    origin: [
+      'http://localhost:5173', // Vue.js development
+      'http://localhost:3000', // Backend (self)
+      'http://10.0.2.2:3000', // Android Emulator -> Host
+      'http://127.0.0.1:3000', // Localhost alternative
+      /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // Local network (gerçek cihaz testi)
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -38,10 +40,14 @@ app.use(express.urlencoded({ extended: true }));
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'PYS API Dokümantasyonu'
-}));
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'PYS API Dokümantasyonu',
+  })
+);
 
 // Swagger JSON endpoint
 app.get('/api-docs.json', (req, res) => {
@@ -63,7 +69,7 @@ const uploadsDirs = [
   'uploads/employment/resignations',
   'uploads/employment/severance',
   'uploads/bordro',
-  'uploads/bordro-pdf'  // Zaman damgalı PDF'ler için
+  'uploads/bordro-pdf', // Zaman damgalı PDF'ler için
 ];
 uploadsDirs.forEach(dir => {
   const dirPath = path.join(__dirname, dir);
@@ -73,19 +79,20 @@ uploadsDirs.forEach(dir => {
 });
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/personel_yonetim', {
-  serverSelectionTimeoutMS: 5000, // 5 saniye timeout
-  socketTimeoutMS: 45000,
-})
-.then(() => {
-  console.log('MongoDB bağlantısı başarılı')
-})
-.catch(err => {
-  console.error('MongoDB bağlantı hatası:', err);
-});
+mongoose
+  .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/personel_yonetim', {
+    serverSelectionTimeoutMS: 5000, // 5 saniye timeout
+    socketTimeoutMS: 45000,
+  })
+  .then(() => {
+    console.log('MongoDB bağlantısı başarılı');
+  })
+  .catch(err => {
+    console.error('MongoDB bağlantı hatası:', err);
+  });
 
 // MongoDB bağlantı durumunu kontrol et
-mongoose.connection.on('error', (err) => {
+mongoose.connection.on('error', err => {
   console.error('MongoDB bağlantı hatası:', err);
 });
 
@@ -142,6 +149,7 @@ const campaignsRoutes = require('./routes/campaigns');
 const invoicesRoutes = require('./routes/invoices');
 const attendanceSummaryRoutes = require('./routes/attendance-summary');
 const bordroRoutes = require('./routes/bordro');
+const companySubscriptionsRoutes = require('./routes/companySubscriptions');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dealers', dealerRoutes);
@@ -192,9 +200,14 @@ app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/attendance-summary', attendanceSummaryRoutes);
 app.use('/api/bordro', bordroRoutes);
+app.use('/api/company-subscriptions', companySubscriptionsRoutes);
 
 // Error handling middleware
-const { errorHandler, notFoundHandler, setupUnhandledRejectionHandler } = require('./middleware/errorHandler');
+const {
+  errorHandler,
+  notFoundHandler,
+  setupUnhandledRejectionHandler,
+} = require('./middleware/errorHandler');
 
 // Tanimlanmamis route'lar icin 404
 app.use(notFoundHandler);
@@ -209,4 +222,3 @@ const server = app.listen(PORT, () => {
 
 // Unhandled promise rejection handler
 setupUnhandledRejectionHandler(server);
-

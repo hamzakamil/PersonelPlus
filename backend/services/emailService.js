@@ -8,8 +8,8 @@ const createTransporter = () => {
     secure: process.env.SMTP_SECURE === 'true',
     auth: {
       user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
+      pass: process.env.SMTP_PASS,
+    },
   });
 };
 
@@ -22,7 +22,7 @@ const sendEmail = async (to, subject, html) => {
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to,
       subject,
-      html
+      html,
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -254,12 +254,16 @@ const sendPaymentSuccessEmail = async (dealer, payment, pkg) => {
               <span class="label">Odeme Yontemi:</span>
               <span class="value">${payment.paymentMethod === 'credit_card' ? 'Kredi Karti' : 'Diger'}</span>
             </div>
-            ${payment.cardLastFour ? `
+            ${
+              payment.cardLastFour
+                ? `
             <div class="info-row">
               <span class="label">Kart:</span>
               <span class="value">**** ${payment.cardLastFour}</span>
             </div>
-            ` : ''}
+            `
+                : ''
+            }
             <div class="info-row">
               <span class="label">Odeme Tarihi:</span>
               <span class="value">${new Date(payment.paidAt || payment.createdAt).toLocaleString('tr-TR')}</span>
@@ -432,9 +436,11 @@ const sendEmploymentApprovedNotification = async (preRecord, company, recipientE
             </div>
             <div class="info-row">
               <div class="label">Tarih</div>
-              <div class="value">${preRecord.processType === 'hire'
-                ? new Date(preRecord.hireDate).toLocaleDateString('tr-TR')
-                : new Date(preRecord.terminationDate).toLocaleDateString('tr-TR')}</div>
+              <div class="value">${
+                preRecord.processType === 'hire'
+                  ? new Date(preRecord.hireDate).toLocaleDateString('tr-TR')
+                  : new Date(preRecord.terminationDate).toLocaleDateString('tr-TR')
+              }</div>
             </div>
             <div class="info-row">
               <div class="label">Durum</div>
@@ -442,12 +448,16 @@ const sendEmploymentApprovedNotification = async (preRecord, company, recipientE
             </div>
           </div>
 
-          ${preRecord.employeeCreated === false ? `
+          ${
+            preRecord.employeeCreated === false
+              ? `
           <p style="background: #FEF3C7; padding: 15px; border-radius: 8px; border-left: 4px solid #F59E0B;">
             <strong>Dikkat:</strong> Çalışan kaydı otomatik oluşturulmadı.
             Çalışanı sisteme eklemek için "Çalışan Olarak Ekle" butonunu kullanabilirsiniz.
           </p>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
         <div class="footer">
           <p>Bu email otomatik olarak gönderilmiştir.</p>
@@ -573,9 +583,9 @@ const sendNotificationEmail = async (toEmail, { title, body, type, priority, dat
   // Önceliğe göre renk belirle
   const priorityColors = {
     urgent: '#DC2626', // Kırmızı
-    high: '#F59E0B',   // Turuncu
+    high: '#F59E0B', // Turuncu
     normal: '#3B82F6', // Mavi
-    low: '#6B7280'     // Gri
+    low: '#6B7280', // Gri
   };
 
   // Bildirim tipine göre ikon belirle
@@ -595,7 +605,7 @@ const sendNotificationEmail = async (toEmail, { title, body, type, priority, dat
     EXPENSE_APPROVED: '✅',
     SYSTEM: '🔔',
     REMINDER: '⏰',
-    ANNOUNCEMENT: '📢'
+    ANNOUNCEMENT: '📢',
   };
 
   const headerColor = priorityColors[priority] || priorityColors.normal;
@@ -626,22 +636,30 @@ const sendNotificationEmail = async (toEmail, { title, body, type, priority, dat
       <div class="container">
         <div class="header">
           <h1>${icon} ${title}</h1>
-          ${priority === 'urgent' || priority === 'high' ? `
+          ${
+            priority === 'urgent' || priority === 'high'
+              ? `
             <span class="priority-badge priority-${priority}">
               ${priority === 'urgent' ? 'ACİL' : 'ÖNEMLİ'}
             </span>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
         <div class="content">
           <div class="message-box">
             <p style="margin: 0; font-size: 16px;">${body}</p>
           </div>
 
-          ${data && Object.keys(data).length > 0 ? `
+          ${
+            data && Object.keys(data).length > 0
+              ? `
             <p style="color: #6B7280; font-size: 14px;">
               Detayları görmek için sisteme giriş yapabilirsiniz.
             </p>
-          ` : ''}
+          `
+              : ''
+          }
 
           <center>
             <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" class="btn">
@@ -664,8 +682,20 @@ const sendNotificationEmail = async (toEmail, { title, body, type, priority, dat
 
 // Bordro yüklendi bildirimi
 const sendBordroUploadedEmail = async (employee, bordro, company) => {
-  const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-                      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  const monthNames = [
+    'Ocak',
+    'Şubat',
+    'Mart',
+    'Nisan',
+    'Mayıs',
+    'Haziran',
+    'Temmuz',
+    'Ağustos',
+    'Eylül',
+    'Ekim',
+    'Kasım',
+    'Aralık',
+  ];
   const periodText = `${monthNames[bordro.month - 1]} ${bordro.year}`;
 
   const subject = `${company.name || 'Şirket'} - ${periodText} Bordronuz Yüklendi`;
@@ -777,8 +807,20 @@ const sendBordroApprovalCodeEmail = async (employee, code, expiresAt) => {
 
 // Bordro reddedildi bildirimi (bayiye gönderilir)
 const sendBordroRejectedEmail = async (company, employee, bordro) => {
-  const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-                      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  const monthNames = [
+    'Ocak',
+    'Şubat',
+    'Mart',
+    'Nisan',
+    'Mayıs',
+    'Haziran',
+    'Temmuz',
+    'Ağustos',
+    'Eylül',
+    'Ekim',
+    'Kasım',
+    'Aralık',
+  ];
   const periodText = `${monthNames[bordro.month - 1]} ${bordro.year}`;
 
   const subject = `Bordro Reddedildi - ${employee.firstName} ${employee.lastName} - ${periodText}`;
@@ -848,6 +890,207 @@ const sendBordroRejectedEmail = async (company, employee, bordro) => {
   return { success: false, error: 'Alıcı email adresi bulunamadı' };
 };
 
+// ========================================
+// ŞİRKET ABONELİK EMAIL FONKSİYONLARI
+// ========================================
+
+// Şirket aboneliği süresi doldu (ödeme bekleniyor)
+const sendCompanySubscriptionExpiredEmail = async (company, dealer) => {
+  const subject = `Şirket Aboneliği Süresi Doldu - ${company.name}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #F59E0B; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+        .warning-box { background: #FEF3C7; border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .info-box { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb; }
+        .btn { display: inline-block; background: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 15px; }
+        .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Şirket Aboneliği Süresi Doldu</h1>
+        </div>
+        <div class="content">
+          <p>Merhaba,</p>
+
+          <div class="warning-box">
+            <p><strong>${company.name}</strong> şirketinin abonelik süresi dolmuştur.</p>
+            <p>Bitiş Tarihi: <strong>${company.subscription?.endDate ? new Date(company.subscription.endDate).toLocaleDateString('tr-TR') : '-'}</strong></p>
+          </div>
+
+          <div class="info-box">
+            <p><strong>Abonelik Tipi:</strong> ${company.subscription?.billingType === 'monthly' ? 'Aylık' : 'Yıllık'}</p>
+            <p><strong>Ücret:</strong> ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(company.subscription?.price || 0)}</p>
+          </div>
+
+          <p><strong>Dikkat:</strong> 3 gün içinde ödeme alınmazsa şirket otomatik olarak askıya alınacaktır.</p>
+
+          <p>Ödeme almak için sisteme giriş yapın:</p>
+
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/company-subscriptions" class="btn">Şirket Aboneliklerini Yönet</a>
+        </div>
+        <div class="footer">
+          <p>Bu email otomatik olarak gönderilmiştir.</p>
+          <p>&copy; ${new Date().getFullYear()} Personel Yönetim Sistemi</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Hem bayiye hem şirket yetkilisine gönder
+  const emails = [];
+  if (dealer?.contactEmail) {
+    emails.push(sendEmail(dealer.contactEmail, subject, html));
+  }
+  if (company.contactEmail && company.contactEmail !== dealer?.contactEmail) {
+    emails.push(sendEmail(company.contactEmail, `Abonelik Süresi Doldu - ${company.name}`, html));
+  }
+
+  return Promise.all(emails);
+};
+
+// Şirket aboneliği askıya alındı
+const sendCompanySubscriptionSuspendedEmail = async (company, dealer) => {
+  const subject = `Şirket Askıya Alındı - ${company.name}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #EF4444; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+        .error-box { background: #FEE2E2; border: 1px solid #EF4444; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .info-box { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb; }
+        .btn { display: inline-block; background: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 15px; }
+        .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Şirket Askıya Alındı</h1>
+        </div>
+        <div class="content">
+          <p>Merhaba,</p>
+
+          <div class="error-box">
+            <p><strong>${company.name}</strong> şirketi ödeme alınmadığı için askıya alınmıştır.</p>
+            <p>Askıya Alınma Tarihi: <strong>${new Date().toLocaleDateString('tr-TR')}</strong></p>
+          </div>
+
+          <div class="info-box">
+            <p><strong>Ne olacak?</strong></p>
+            <ul>
+              <li>Şirket çalışanları sisteme giriş yapamayacak</li>
+              <li>Yeni işlem yapılamayacak</li>
+              <li>Mevcut veriler korunacak</li>
+            </ul>
+          </div>
+
+          <p>Şirketi tekrar aktifleştirmek için ödeme alın:</p>
+
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/company-subscriptions" class="btn">Ödeme Al ve Aktifleştir</a>
+        </div>
+        <div class="footer">
+          <p>Bu email otomatik olarak gönderilmiştir.</p>
+          <p>&copy; ${new Date().getFullYear()} Personel Yönetim Sistemi</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Hem bayiye hem şirket yetkilisine gönder
+  const emails = [];
+  if (dealer?.contactEmail) {
+    emails.push(sendEmail(dealer.contactEmail, subject, html));
+  }
+  if (company.contactEmail && company.contactEmail !== dealer?.contactEmail) {
+    emails.push(sendEmail(company.contactEmail, `Hesabınız Askıya Alındı - ${company.name}`, html));
+  }
+
+  return Promise.all(emails);
+};
+
+// Şirket aboneliği süre dolum uyarısı
+const sendCompanySubscriptionExpiringEmail = async (company, dealer, daysRemaining) => {
+  const subject = `Şirket Aboneliği ${daysRemaining} Gün İçinde Sona Erecek - ${company.name}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #F59E0B; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+        .warning-box { background: #FEF3C7; border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .info-box { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb; }
+        .days-badge { display: inline-block; background: #DC2626; color: white; padding: 8px 16px; border-radius: 20px; font-size: 18px; font-weight: bold; }
+        .btn { display: inline-block; background: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 15px; }
+        .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Abonelik Uyarısı</h1>
+        </div>
+        <div class="content">
+          <p>Merhaba,</p>
+
+          <div class="warning-box">
+            <center>
+              <span class="days-badge">${daysRemaining} GÜN KALDI</span>
+            </center>
+            <p style="text-align: center; margin-top: 15px;">
+              <strong>${company.name}</strong> şirketinin abonelik süresi dolmak üzere.
+            </p>
+          </div>
+
+          <div class="info-box">
+            <p><strong>Bitiş Tarihi:</strong> ${company.subscription?.endDate ? new Date(company.subscription.endDate).toLocaleDateString('tr-TR') : '-'}</p>
+            <p><strong>Abonelik Tipi:</strong> ${company.subscription?.billingType === 'monthly' ? 'Aylık' : 'Yıllık'}</p>
+            <p><strong>Ücret:</strong> ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(company.subscription?.price || 0)}</p>
+          </div>
+
+          <p>Hizmet kesintisi yaşamamak için aboneliği yenileyin:</p>
+
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/company-subscriptions" class="btn">Aboneliği Yenile</a>
+        </div>
+        <div class="footer">
+          <p>Bu email otomatik olarak gönderilmiştir.</p>
+          <p>&copy; ${new Date().getFullYear()} Personel Yönetim Sistemi</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Bayiye gönder
+  if (dealer?.contactEmail) {
+    return sendEmail(dealer.contactEmail, subject, html);
+  }
+
+  return { success: false, error: 'Bayi email adresi bulunamadı' };
+};
+
 module.exports = {
   createTransporter,
   sendEmail,
@@ -863,5 +1106,9 @@ module.exports = {
   sendNotificationEmail,
   sendBordroUploadedEmail,
   sendBordroApprovalCodeEmail,
-  sendBordroRejectedEmail
+  sendBordroRejectedEmail,
+  // Şirket abonelik email'leri
+  sendCompanySubscriptionExpiredEmail,
+  sendCompanySubscriptionSuspendedEmail,
+  sendCompanySubscriptionExpiringEmail,
 };
