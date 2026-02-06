@@ -5,8 +5,81 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const Company = require('../models/Company');
+const RegistrationRequest = require('../models/RegistrationRequest');
 const { auth } = require('../middleware/auth');
 const { successResponse, errorResponse, serverError } = require('../utils/responseHelper');
+
+// Register - Yeni kullanıcı kaydı
+router.post('/register', async (req, res) => {
+  try {
+    const { email, password, fullName, phone, companyName } = req.body;
+
+    // Validasyonlar
+    if (!email || typeof email !== 'string') {
+      return errorResponse(res, { message: 'Email adresi gereklidir' });
+    }
+
+    if (!password || password.length < 6) {
+      return errorResponse(res, { message: 'Şifre en az 6 karakter olmalıdır' });
+    }
+
+    if (!fullName || fullName.trim().length < 2) {
+      return errorResponse(res, { message: 'Ad Soyad gereklidir' });
+    }
+
+    if (!companyName || companyName.trim().length < 2) {
+      return errorResponse(res, { message: 'Firma adı gereklidir' });
+    }
+
+    // Email kontrolü
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingUser) {
+      return errorResponse(res, { message: 'Bu email adresi zaten kayıtlı' });
+    }
+
+    // company_admin rolünü bul
+    const companyAdminRole = await Role.findOne({ name: 'company_admin' });
+    if (!companyAdminRole) {
+      return errorResponse(res, { message: 'Sistem hatası: Rol bulunamadı' });
+    }
+
+    // Şifreyi hashle
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Kullanıcı oluştur (dealer ve company null, isActive false)
+    const user = new User({
+      email: email.toLowerCase().trim(),
+      password: hashedPassword,
+      role: companyAdminRole._id,
+      dealer: null,
+      company: null,
+      isActive: false, // Super admin onayı bekleyecek
+      mustChangePassword: false,
+    });
+
+    await user.save();
+
+    // Kayıt talebini oluştur
+    const registrationRequest = new RegistrationRequest({
+      user: user._id,
+      fullName: fullName.trim(),
+      phone: phone || '',
+      companyName: companyName.trim(),
+      status: 'pending',
+    });
+
+    await registrationRequest.save();
+
+    return successResponse(res, {
+      message:
+        'Kayıt başarılı. Hesabınız onay bekliyor. Onaylandıktan sonra giriş yapabileceksiniz.',
+      data: { email: user.email },
+    });
+  } catch (error) {
+    console.error('Kayıt hatası:', error);
+    return serverError(res, error, 'Kayıt hatası');
+  }
+});
 
 // Login
 router.post('/login', async (req, res) => {
@@ -35,7 +108,7 @@ router.post('/login', async (req, res) => {
       const Employee = require('../models/Employee');
       const employee = await Employee.findOne({
         email: email.toLowerCase().trim(),
-        company: user.company
+        company: user.company,
       });
 
       if (employee && employee.exitDate) {
@@ -47,7 +120,7 @@ router.post('/login', async (req, res) => {
         if (exitDate <= today) {
           return errorResponse(res, {
             message: 'İşten çıkış tarihiniz geçtiği için giriş yapamazsınız',
-            statusCode: 401
+            statusCode: 401,
           });
         }
       }
@@ -57,30 +130,26 @@ router.post('/login', async (req, res) => {
     if (user.role.name === 'employee') {
       // Eğer şifre yoksa veya mustChangePassword true ise, şifre kontrolü yapma
       if (!user.password || user.mustChangePassword) {
-        const token = jwt.sign(
-          { userId: user._id },
-          process.env.JWT_SECRET,
-          { expiresIn: '7d' }
-        );
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
         const userPayload = {
           id: user._id,
           email: user.email,
           role: user.role.name,
           dealer: user.dealer,
           company: user.company,
-          mustChangePassword: true
+          mustChangePassword: true,
         };
         if (user.company) {
           const Employee = require('../models/Employee');
           const emp = await Employee.findOne({
             email: user.email.toLowerCase().trim(),
-            company: user.company._id || user.company
+            company: user.company._id || user.company,
           }).select('firstName lastName');
           if (emp) userPayload.employeeName = `${emp.firstName} ${emp.lastName}`.trim();
         }
         return successResponse(res, {
           data: { token, user: userPayload, requiresPasswordSetup: true },
-          message: 'Giriş başarılı, şifre belirlenmesi gerekiyor'
+          message: 'Giriş başarılı, şifre belirlenmesi gerekiyor',
         });
       }
     }
@@ -105,11 +174,7 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     const userPayload = {
       id: user._id,
@@ -117,19 +182,19 @@ router.post('/login', async (req, res) => {
       role: user.role.name,
       dealer: user.dealer,
       company: user.company,
-      mustChangePassword: user.mustChangePassword
+      mustChangePassword: user.mustChangePassword,
     };
     if (user.role.name === 'employee' && user.company) {
       const Employee = require('../models/Employee');
       const emp = await Employee.findOne({
         email: user.email.toLowerCase().trim(),
-        company: user.company._id || user.company
+        company: user.company._id || user.company,
       }).select('firstName lastName');
       if (emp) userPayload.employeeName = `${emp.firstName} ${emp.lastName}`.trim();
     }
     return successResponse(res, {
       data: { token, user: userPayload },
-      message: 'Giriş başarılı'
+      message: 'Giriş başarılı',
     });
   } catch (error) {
     return serverError(res, error, 'Giriş hatası');
@@ -150,7 +215,7 @@ router.get('/me', auth, async (req, res) => {
       role: user.role.name,
       dealer: user.dealer,
       company: user.company,
-      mustChangePassword: user.mustChangePassword
+      mustChangePassword: user.mustChangePassword,
     };
 
     // Çalışan rolü için Ad Soyad ekle
@@ -158,7 +223,7 @@ router.get('/me', auth, async (req, res) => {
       const Employee = require('../models/Employee');
       const employee = await Employee.findOne({
         email: user.email.toLowerCase().trim(),
-        company: user.company._id || user.company
+        company: user.company._id || user.company,
       }).select('firstName lastName');
       if (employee) {
         payload.employeeName = `${employee.firstName} ${employee.lastName}`.trim();
@@ -242,7 +307,7 @@ router.post('/activate-account', async (req, res) => {
 
     const user = await User.findOne({
       activationToken: hashedToken,
-      activationTokenExpires: { $gt: Date.now() }
+      activationTokenExpires: { $gt: Date.now() },
     }).populate('role');
 
     if (!user) {
@@ -269,11 +334,9 @@ router.post('/activate-account', async (req, res) => {
     }
 
     // JWT token oluştur
-    const jwtToken = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
+    const jwtToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    });
 
     return successResponse(res, {
       data: {
@@ -281,10 +344,10 @@ router.post('/activate-account', async (req, res) => {
         user: {
           _id: user._id,
           email: user.email,
-          role: user.role
-        }
+          role: user.role,
+        },
       },
-      message: 'Hesabınız başarıyla aktive edildi'
+      message: 'Hesabınız başarıyla aktive edildi',
     });
   } catch (error) {
     console.error('Aktivasyon hatası:', error);
@@ -305,17 +368,17 @@ router.get('/verify-activation-token/:token', async (req, res) => {
 
     const user = await User.findOne({
       activationToken: hashedToken,
-      activationTokenExpires: { $gt: Date.now() }
+      activationTokenExpires: { $gt: Date.now() },
     });
 
     if (!user) {
       return errorResponse(res, {
-        message: 'Geçersiz veya süresi dolmuş aktivasyon linki'
+        message: 'Geçersiz veya süresi dolmuş aktivasyon linki',
       });
     }
 
     return successResponse(res, {
-      data: { valid: true, email: user.email }
+      data: { valid: true, email: user.email },
     });
   } catch (error) {
     return serverError(res, error);

@@ -11,6 +11,12 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
+      path: '/register',
+      name: 'Register',
+      component: () => import('@/views/Register.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
       path: '/activate-company',
       name: 'ActivateCompany',
       component: () => import('@/views/ActivateCompany.vue'),
@@ -529,11 +535,12 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
 
-  // Allow activation pages without auth
+  // Allow activation and registration pages without auth
   if (
     to.name === 'ActivateCompany' ||
     to.name === 'ActivateEmployee' ||
-    to.name === 'ActivateAccount'
+    to.name === 'ActivateAccount' ||
+    to.name === 'Register'
   ) {
     next();
     return;
