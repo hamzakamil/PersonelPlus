@@ -2,17 +2,21 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
 const Role = require('../models/Role');
+const Dealer = require('../models/Dealer');
 const Company = require('../models/Company');
+const Settings = require('../models/Settings');
 const RegistrationRequest = require('../models/RegistrationRequest');
 const { auth } = require('../middleware/auth');
 const { successResponse, errorResponse, serverError } = require('../utils/responseHelper');
+const { sendRegistrationVerificationEmail } = require('../services/emailService');
 
 // Register - Yeni kullanıcı kaydı
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, fullName, phone, companyName } = req.body;
+    const { email, password, fullName, phone, companyName, referralCode } = req.body;
 
     // Validasyonlar
     if (!email || typeof email !== 'string') {
@@ -59,6 +63,15 @@ router.post('/register', async (req, res) => {
 
     await user.save();
 
+    // Referans kodu ile bayi bul (opsiyonel)
+    let referredDealer = null;
+    if (referralCode && referralCode.trim()) {
+      referredDealer = await Dealer.findOne({
+        referralCode: referralCode.trim().toUpperCase(),
+        isActive: true,
+      });
+    }
+
     // Kayıt talebini oluştur
     const registrationRequest = new RegistrationRequest({
       user: user._id,
@@ -66,14 +79,47 @@ router.post('/register', async (req, res) => {
       phone: phone || '',
       companyName: companyName.trim(),
       status: 'pending',
+      referralCode: referredDealer ? referralCode.trim().toUpperCase() : null,
+      dealer: referredDealer ? referredDealer._id : null,
     });
 
     await registrationRequest.save();
 
+    // Kayıt modunu kontrol et
+    const settings = await Settings.getSettings();
+
+    if (settings.registrationMode === 'email_verification') {
+      // Email doğrulama modu: Token oluştur ve email gönder
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+      user.activationToken = hashedToken;
+      user.activationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 saat
+      await user.save();
+
+      // Email doğrulama manual onayın yerine geçer
+      registrationRequest.status = 'approved';
+      registrationRequest.processedAt = new Date();
+      registrationRequest.notes = 'Email doğrulama modu - otomatik onay';
+      await registrationRequest.save();
+
+      // Email gönder (fire-and-forget)
+      sendRegistrationVerificationEmail(user.email, fullName.trim(), rawToken).catch(err =>
+        console.error('Email doğrulama gönderim hatası:', err)
+      );
+
+      return successResponse(res, {
+        message:
+          'Kayıt başarılı! Email adresinize bir doğrulama linki gönderildi. Lütfen email kutunuzu kontrol edin.',
+        data: { email: user.email, mode: 'email_verification' },
+      });
+    }
+
+    // Manuel onay modu (varsayılan)
     return successResponse(res, {
       message:
         'Kayıt başarılı. Hesabınız onay bekliyor. Onaylandıktan sonra giriş yapabileceksiniz.',
-      data: { email: user.email },
+      data: { email: user.email, mode: 'manual_approval' },
     });
   } catch (error) {
     console.error('Kayıt hatası:', error);
@@ -302,7 +348,6 @@ router.post('/activate-account', async (req, res) => {
     }
 
     // Token'ı hash'le ve bul
-    const crypto = require('crypto');
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await User.findOne({
@@ -356,6 +401,147 @@ router.post('/activate-account', async (req, res) => {
 });
 
 /**
+ * GET /verify-email/:token
+ * Email doğrulama - Kayıt sırasında gönderilen link ile hesabı aktive eder
+ * Şifre gerekmez (kullanıcı kayıt sırasında zaten şifre belirliyor)
+ */
+router.get('/verify-email/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      activationToken: hashedToken,
+      activationTokenExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return errorResponse(res, {
+        message: 'Geçersiz veya süresi dolmuş doğrulama linki',
+        statusCode: 400,
+      });
+    }
+
+    // Kullanıcının henüz bayi/şirketi yoksa oluştur (kayıt akışı)
+    if (!user.dealer && !user.company) {
+      const regRequest = await RegistrationRequest.findOne({ user: user._id });
+      if (regRequest) {
+        // Bayi belirle: referans kodundan gelen varsa onu kullan
+        let targetDealer;
+        if (regRequest.dealer) {
+          targetDealer = await Dealer.findById(regRequest.dealer);
+        }
+        if (!targetDealer) {
+          targetDealer = await Dealer.findOne({ name: 'Bireysel Kayıtlar' });
+          if (!targetDealer) {
+            targetDealer = new Dealer({
+              name: 'Bireysel Kayıtlar',
+              contactEmail: 'system@personelplus.com',
+              isActive: true,
+            });
+            await targetDealer.save();
+          }
+        }
+
+        const company = new Company({
+          name: regRequest.companyName,
+          dealer: targetDealer._id,
+          contactEmail: user.email,
+          contactPhone: regRequest.phone || '',
+          authorizedPerson: {
+            fullName: regRequest.fullName,
+            phone: regRequest.phone || '',
+            email: user.email,
+          },
+          isActive: true,
+        });
+        await company.save();
+
+        user.dealer = targetDealer._id;
+        user.company = company._id;
+      }
+    }
+
+    // Hesabı aktive et
+    user.isActive = true;
+    user.activationToken = null;
+    user.activationTokenExpires = null;
+    await user.save();
+
+    return successResponse(res, {
+      data: { verified: true, email: user.email },
+      message: 'Email adresiniz başarıyla doğrulandı! Artık giriş yapabilirsiniz.',
+    });
+  } catch (error) {
+    console.error('Email doğrulama hatası:', error);
+    return serverError(res, error);
+  }
+});
+
+/**
+ * POST /resend-verification
+ * Email doğrulama linkini tekrar gönder
+ */
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return errorResponse(res, { message: 'Email adresi gereklidir' });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+      isActive: false,
+    });
+
+    if (!user) {
+      // Güvenlik: Kullanıcı bulunamasa bile başarılı mesaj göster
+      return successResponse(res, {
+        message: 'Eğer bu email adresi sistemde kayıtlıysa, doğrulama linki gönderildi.',
+      });
+    }
+
+    // Rate limit: Son 1 saatte gönderilen email sayısını kontrol et
+    if (user.activationTokenExpires) {
+      const tokenAge = Date.now() - (user.activationTokenExpires.getTime() - 24 * 60 * 60 * 1000);
+      // Token 5 dakikadan daha yeni oluşturulmuşsa tekrar gönderme
+      if (tokenAge < 5 * 60 * 1000) {
+        return errorResponse(res, {
+          message: 'Lütfen birkaç dakika bekleyip tekrar deneyin.',
+          statusCode: 429,
+        });
+      }
+    }
+
+    // Yeni token oluştur
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    user.activationToken = hashedToken;
+    user.activationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 saat
+    await user.save();
+
+    // RegistrationRequest'ten kullanıcı adını al
+    const regRequest = await RegistrationRequest.findOne({ user: user._id });
+    const fullName = regRequest?.fullName || 'Kullanıcı';
+
+    // Email gönder
+    sendRegistrationVerificationEmail(user.email, fullName, rawToken).catch(err =>
+      console.error('Email doğrulama tekrar gönderim hatası:', err)
+    );
+
+    return successResponse(res, {
+      message: 'Doğrulama emaili tekrar gönderildi. Lütfen email kutunuzu kontrol edin.',
+    });
+  } catch (error) {
+    console.error('Resend verification hatası:', error);
+    return serverError(res, error);
+  }
+});
+
+/**
  * GET /verify-activation-token/:token
  * Aktivasyon token'ının geçerliliğini kontrol et
  */
@@ -363,7 +549,6 @@ router.get('/verify-activation-token/:token', async (req, res) => {
   try {
     const { token } = req.params;
 
-    const crypto = require('crypto');
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await User.findOne({

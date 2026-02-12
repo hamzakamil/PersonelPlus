@@ -12,8 +12,8 @@ router.get('/minimum-wages', auth, requireRole('super_admin', 'bayi_admin'), asy
       success: true,
       data: {
         minimumWages: settings.minimumWages.sort((a, b) => b.year - a.year), // Yeni → eski
-        currentYear: settings.currentYear
-      }
+        currentYear: settings.currentYear,
+      },
     });
   } catch (error) {
     console.error('Asgari ücretler getirme hatası:', error);
@@ -35,7 +35,9 @@ router.post('/minimum-wages', auth, requireRole('super_admin', 'bayi_admin'), as
     const parsedBrut = parseFloat(brut);
 
     if (isNaN(parsedYear) || isNaN(parsedNet) || isNaN(parsedBrut)) {
-      return errorResponse(res, { message: 'Yıl, net ve brüt değerleri geçerli sayılar olmalıdır' });
+      return errorResponse(res, {
+        message: 'Yıl, net ve brüt değerleri geçerli sayılar olmalıdır',
+      });
     }
 
     if (parsedNet <= 0 || parsedBrut <= 0) {
@@ -58,7 +60,7 @@ router.post('/minimum-wages', auth, requireRole('super_admin', 'bayi_admin'), as
         year: parsedYear,
         net: parsedNet,
         brut: parsedBrut,
-        effectiveDate: new Date()
+        effectiveDate: new Date(),
       });
     }
 
@@ -67,7 +69,7 @@ router.post('/minimum-wages', auth, requireRole('super_admin', 'bayi_admin'), as
     res.json({
       success: true,
       message: existingIndex !== -1 ? 'Asgari ücret güncellendi' : 'Asgari ücret eklendi',
-      data: settings.minimumWages.find(w => w.year === parsedYear)
+      data: settings.minimumWages.find(w => w.year === parsedYear),
     });
   } catch (error) {
     console.error('Asgari ücret ekleme/güncelleme hatası:', error);
@@ -76,23 +78,28 @@ router.post('/minimum-wages', auth, requireRole('super_admin', 'bayi_admin'), as
 });
 
 // DELETE /api/global-settings/minimum-wages/:year - Yıllık asgari ücret sil
-router.delete('/minimum-wages/:year', auth, requireRole('super_admin', 'bayi_admin'), async (req, res) => {
-  try {
-    const year = parseInt(req.params.year);
-    const settings = await Settings.getSettings();
+router.delete(
+  '/minimum-wages/:year',
+  auth,
+  requireRole('super_admin', 'bayi_admin'),
+  async (req, res) => {
+    try {
+      const year = parseInt(req.params.year);
+      const settings = await Settings.getSettings();
 
-    settings.minimumWages = settings.minimumWages.filter(w => w.year !== year);
-    await settings.save();
+      settings.minimumWages = settings.minimumWages.filter(w => w.year !== year);
+      await settings.save();
 
-    res.json({
-      success: true,
-      message: 'Asgari ücret silindi'
-    });
-  } catch (error) {
-    console.error('Asgari ücret silme hatası:', error);
-    return serverError(res, error);
+      res.json({
+        success: true,
+        message: 'Asgari ücret silindi',
+      });
+    } catch (error) {
+      console.error('Asgari ücret silme hatası:', error);
+      return serverError(res, error);
+    }
   }
-});
+);
 
 // GET /api/global-settings/minimum-wage/:year? - Belirli yıl için asgari ücret getir
 router.get('/minimum-wage/:year?', auth, async (req, res) => {
@@ -102,10 +109,49 @@ router.get('/minimum-wage/:year?', auth, async (req, res) => {
 
     res.json({
       success: true,
-      data: wageData
+      data: wageData,
     });
   } catch (error) {
     console.error('Asgari ücret getirme hatası:', error);
+    return serverError(res, error);
+  }
+});
+
+// GET /api/global-settings/registration-mode - Kayıt modunu getir
+router.get('/registration-mode', auth, requireRole('super_admin'), async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+    return successResponse(res, {
+      data: { registrationMode: settings.registrationMode || 'manual_approval' },
+    });
+  } catch (error) {
+    console.error('Kayıt modu getirme hatası:', error);
+    return serverError(res, error);
+  }
+});
+
+// PUT /api/global-settings/registration-mode - Kayıt modunu güncelle
+router.put('/registration-mode', auth, requireRole('super_admin'), async (req, res) => {
+  try {
+    const { registrationMode } = req.body;
+
+    if (!['email_verification', 'manual_approval'].includes(registrationMode)) {
+      return errorResponse(res, { message: 'Geçersiz kayıt modu' });
+    }
+
+    const settings = await Settings.getSettings();
+    settings.registrationMode = registrationMode;
+    await settings.save();
+
+    return successResponse(res, {
+      data: { registrationMode: settings.registrationMode },
+      message:
+        registrationMode === 'email_verification'
+          ? 'Kayıt modu: Email doğrulama olarak ayarlandı'
+          : 'Kayıt modu: Manuel onay olarak ayarlandı',
+    });
+  } catch (error) {
+    console.error('Kayıt modu güncelleme hatası:', error);
     return serverError(res, error);
   }
 });

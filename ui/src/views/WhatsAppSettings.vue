@@ -21,23 +21,41 @@
       </p>
     </div>
 
-    <div v-if="isBayiAdmin && !selectedCompanyId" class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded mb-4">
+    <div
+      v-if="isBayiAdmin && !selectedCompanyId"
+      class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded mb-4"
+    >
       Lütfen işlem yapmak istediğiniz şirketi seçiniz.
     </div>
 
     <div v-else class="bg-white rounded-lg shadow p-6 max-w-4xl">
       <!-- Mevcut Ayarlar Bilgisi -->
-      <div v-if="settings && settings.data" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+      <div
+        v-if="settings && settings.data"
+        class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg"
+      >
         <div class="flex items-center gap-2 mb-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 text-green-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <span class="text-sm font-medium text-green-800">WhatsApp ayarları yapılandırılmış</span>
         </div>
         <div class="text-sm text-green-700">
           <p><strong>Numara:</strong> {{ settings.data.whatsappBusinessNumber }}</p>
           <p><strong>API Sağlayıcı:</strong> {{ settings.data.apiProvider }}</p>
-          <p><strong>Durum:</strong> 
+          <p>
+            <strong>Durum:</strong>
             <span :class="settings.data.isActive ? 'text-green-600' : 'text-gray-600'">
               {{ settings.data.isActive ? 'Aktif' : 'Pasif' }}
             </span>
@@ -65,7 +83,9 @@
               :class="{ 'border-red-500': phoneError }"
             />
             <p v-if="phoneError" class="mt-1 text-sm text-red-600">{{ phoneError }}</p>
-            <p class="mt-1 text-xs text-gray-500">Numara +90 ile başlamalı ve geçerli formatta olmalıdır</p>
+            <p class="mt-1 text-xs text-gray-500">
+              Numara +90 ile başlamalı ve geçerli formatta olmalıdır
+            </p>
           </div>
 
           <!-- API Sağlayıcı -->
@@ -82,7 +102,9 @@
               <option value="Twilio">Twilio</option>
               <option value="Diğer">Diğer</option>
             </select>
-            <p class="mt-1 text-xs text-gray-500">Entegrasyon henüz aktif değil, sadece seçim yapılabilir</p>
+            <p class="mt-1 text-xs text-gray-500">
+              Entegrasyon henüz aktif değil, sadece seçim yapılabilir
+            </p>
           </div>
 
           <!-- API Key / Token -->
@@ -90,13 +112,50 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">
               API Key / Token <span class="text-red-500">*</span>
             </label>
-            <input
-              v-model="form.apiKey"
-              type="password"
-              placeholder="API anahtarınızı giriniz"
-              required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div class="relative">
+              <input
+                v-model="form.apiKey"
+                :type="showApiKey ? 'text' : 'password'"
+                placeholder="API anahtarınızı giriniz"
+                required
+                class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                tabindex="-1"
+                @click="showApiKey = !showApiKey"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                <svg
+                  v-if="!showApiKey"
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                  />
+                </svg>
+              </button>
+            </div>
             <p class="mt-1 text-xs text-gray-500">API anahtarı şifrelenmiş olarak saklanacaktır</p>
             <p v-if="settings && settings.data" class="mt-1 text-xs text-yellow-600">
               Mevcut API anahtarı değiştirmek için yeni bir değer giriniz
@@ -113,14 +172,18 @@
               />
               <span class="text-sm text-gray-700">Entegrasyonu Aktif Et</span>
             </label>
-            <p class="mt-1 text-xs text-gray-500">Aktif edilse bile mesaj gönderimi henüz çalışmamaktadır</p>
+            <p class="mt-1 text-xs text-gray-500">
+              Aktif edilse bile mesaj gönderimi henüz çalışmamaktadır
+            </p>
           </div>
 
           <!-- Mesaj Şablonları -->
           <div class="border-t pt-6">
             <h2 class="text-lg font-semibold text-gray-800 mb-4">Mesaj Şablonları</h2>
-            <p class="text-sm text-gray-600 mb-4">İleride kullanılacak mesaj şablonlarını düzenleyebilirsiniz</p>
-            
+            <p class="text-sm text-gray-600 mb-4">
+              İleride kullanılacak mesaj şablonlarını düzenleyebilirsiniz
+            </p>
+
             <div class="space-y-4">
               <!-- İşe Giriş Bildirimi -->
               <div>
@@ -133,7 +196,9 @@
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Sayın {employeeName}, {companyName} şirketine hoş geldiniz! İşe giriş tarihiniz: {hireDate}"
                 ></textarea>
-                <p class="mt-1 text-xs text-gray-500">Kullanılabilir değişkenler: {employeeName}, {companyName}, {hireDate}</p>
+                <p class="mt-1 text-xs text-gray-500">
+                  Kullanılabilir değişkenler: {employeeName}, {companyName}, {hireDate}
+                </p>
               </div>
 
               <!-- İşten Çıkış Bildirimi -->
@@ -147,7 +212,9 @@
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Sayın {employeeName}, {companyName} şirketinden ayrılışınız {exitDate} tarihinde gerçekleşmiştir."
                 ></textarea>
-                <p class="mt-1 text-xs text-gray-500">Kullanılabilir değişkenler: {employeeName}, {companyName}, {exitDate}</p>
+                <p class="mt-1 text-xs text-gray-500">
+                  Kullanılabilir değişkenler: {employeeName}, {companyName}, {exitDate}
+                </p>
               </div>
 
               <!-- İzin Talebi Oluşturuldu -->
@@ -161,21 +228,23 @@
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Sayın {employeeName}, {startDate} - {endDate} tarihleri arasındaki izin talebiniz alınmıştır."
                 ></textarea>
-                <p class="mt-1 text-xs text-gray-500">Kullanılabilir değişkenler: {employeeName}, {startDate}, {endDate}</p>
+                <p class="mt-1 text-xs text-gray-500">
+                  Kullanılabilir değişkenler: {employeeName}, {startDate}, {endDate}
+                </p>
               </div>
 
               <!-- İzin Onaylandı -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  İzin Onaylandı
-                </label>
+                <label class="block text-sm font-medium text-gray-700 mb-1"> İzin Onaylandı </label>
                 <textarea
                   v-model="form.messageTemplates.onLeaveApproved"
                   rows="3"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Sayın {employeeName}, {startDate} - {endDate} tarihleri arasındaki izin talebiniz onaylanmıştır."
                 ></textarea>
-                <p class="mt-1 text-xs text-gray-500">Kullanılabilir değişkenler: {employeeName}, {startDate}, {endDate}</p>
+                <p class="mt-1 text-xs text-gray-500">
+                  Kullanılabilir değişkenler: {employeeName}, {startDate}, {endDate}
+                </p>
               </div>
 
               <!-- İzin Reddedildi -->
@@ -189,7 +258,9 @@
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Sayın {employeeName}, {reason} nedeniyle {startDate} - {endDate} tarihleri arasındaki izin talebiniz reddedilmiştir."
                 ></textarea>
-                <p class="mt-1 text-xs text-gray-500">Kullanılabilir değişkenler: {employeeName}, {reason}, {startDate}, {endDate}</p>
+                <p class="mt-1 text-xs text-gray-500">
+                  Kullanılabilir değişkenler: {employeeName}, {reason}, {startDate}, {endDate}
+                </p>
               </div>
             </div>
           </div>
@@ -210,7 +281,15 @@
                 {{ testing ? 'Test Ediliyor...' : 'Bağlantıyı Test Et' }}
               </Button>
             </div>
-            <div v-if="testResult" class="mt-4 p-3 rounded-lg" :class="testResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
+            <div
+              v-if="testResult"
+              class="mt-4 p-3 rounded-lg"
+              :class="
+                testResult.success
+                  ? 'bg-green-50 border border-green-200'
+                  : 'bg-red-50 border border-red-200'
+              "
+            >
               <p :class="testResult.success ? 'text-green-800' : 'text-red-800'" class="text-sm">
                 {{ testResult.message }}
               </p>
@@ -219,13 +298,7 @@
 
           <!-- Kaydet Butonu -->
           <div class="flex justify-end gap-2 pt-4 border-t">
-            <Button
-              type="button"
-              variant="secondary"
-              @click="resetForm"
-            >
-              İptal
-            </Button>
+            <Button type="button" variant="secondary" @click="resetForm"> İptal </Button>
             <Button
               type="submit"
               :disabled="saving || !form.whatsappBusinessNumber || !form.apiKey"
@@ -240,126 +313,136 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-import { useToastStore } from '@/stores/toast'
-import api from '@/services/api'
-import Button from '@/components/Button.vue'
+import { ref, computed, onMounted, watch } from 'vue';
+import { useAuthStore } from '@/stores/auth';
+import { useToastStore } from '@/stores/toast';
+import api from '@/services/api';
+import Button from '@/components/Button.vue';
 
-const authStore = useAuthStore()
-const toast = useToastStore()
-const settings = ref(null)
-const companies = ref([])
-const selectedCompanyId = ref(null)
-const saving = ref(false)
-const testing = ref(false)
-const testResult = ref(null)
-const phoneError = ref('')
+const authStore = useAuthStore();
+const toast = useToastStore();
+const settings = ref(null);
+const companies = ref([]);
+const selectedCompanyId = ref(null);
+const saving = ref(false);
+const testing = ref(false);
+const testResult = ref(null);
+const phoneError = ref('');
+const showApiKey = ref(false);
 
-const isBayiAdmin = computed(() => authStore.isBayiAdmin)
-const isCompanyAdmin = computed(() => authStore.hasAnyRole('company_admin', 'resmi_muhasebe_ik'))
+const isBayiAdmin = computed(() => authStore.isBayiAdmin);
+const isCompanyAdmin = computed(() => authStore.hasAnyRole('company_admin', 'resmi_muhasebe_ik'));
 
 const form = ref({
   whatsappBusinessNumber: '',
   apiProvider: 'Meta Cloud API',
   apiKey: '',
   messageTemplates: {
-    onEmployeeOnboarding: 'Sayın {employeeName}, {companyName} şirketine hoş geldiniz! İşe giriş tarihiniz: {hireDate}',
-    onEmployeeOffboarding: 'Sayın {employeeName}, {companyName} şirketinden ayrılışınız {exitDate} tarihinde gerçekleşmiştir.',
-    onLeaveRequestSubmitted: 'Sayın {employeeName}, {startDate} - {endDate} tarihleri arasındaki izin talebiniz alınmıştır. Onay sürecinde bilgilendirileceksiniz.',
-    onLeaveApproved: 'Sayın {employeeName}, {startDate} - {endDate} tarihleri arasındaki izin talebiniz onaylanmıştır.',
-    onLeaveRejected: 'Sayın {employeeName}, {reason} nedeniyle {startDate} - {endDate} tarihleri arasındaki izin talebiniz reddedilmiştir.'
+    onEmployeeOnboarding:
+      'Sayın {employeeName}, {companyName} şirketine hoş geldiniz! İşe giriş tarihiniz: {hireDate}',
+    onEmployeeOffboarding:
+      'Sayın {employeeName}, {companyName} şirketinden ayrılışınız {exitDate} tarihinde gerçekleşmiştir.',
+    onLeaveRequestSubmitted:
+      'Sayın {employeeName}, {startDate} - {endDate} tarihleri arasındaki izin talebiniz alınmıştır. Onay sürecinde bilgilendirileceksiniz.',
+    onLeaveApproved:
+      'Sayın {employeeName}, {startDate} - {endDate} tarihleri arasındaki izin talebiniz onaylanmıştır.',
+    onLeaveRejected:
+      'Sayın {employeeName}, {reason} nedeniyle {startDate} - {endDate} tarihleri arasındaki izin talebiniz reddedilmiştir.',
   },
-  isActive: false
-})
+  isActive: false,
+});
 
 const loadCompanies = async () => {
   if (isBayiAdmin.value) {
     try {
-      const response = await api.get('/companies')
-      companies.value = response.data?.data || response.data || []
+      const response = await api.get('/companies');
+      companies.value = response.data?.data || response.data || [];
     } catch (error) {
-      console.error('Şirketler yüklenemedi:', error)
+      console.error('Şirketler yüklenemedi:', error);
     }
   }
-}
+};
 
 const loadSettings = async () => {
   try {
-    let companyId = null
-    
+    let companyId = null;
+
     if (isBayiAdmin.value) {
       if (!selectedCompanyId.value) {
-        settings.value = null
-        return
+        settings.value = null;
+        return;
       }
-      companyId = selectedCompanyId.value
+      companyId = selectedCompanyId.value;
     } else if (isCompanyAdmin.value) {
-      companyId = authStore.companyId
+      companyId = authStore.companyId;
     }
 
     if (!companyId) {
-      settings.value = null
-      return
+      settings.value = null;
+      return;
     }
 
-    const response = await api.get(`/whatsapp/settings/${companyId}`)
-    
+    const response = await api.get(`/whatsapp/settings/${companyId}`);
+
     if (response.data.success && response.data.data) {
-      settings.value = response.data
+      settings.value = response.data;
       // Formu doldur
-      form.value.whatsappBusinessNumber = response.data.data.whatsappBusinessNumber || ''
-      form.value.apiProvider = response.data.data.apiProvider || 'Meta Cloud API'
-      form.value.apiKey = '' // API key gösterilmez, yeni değer girilmeli
-      form.value.isActive = response.data.data.isActive || false
+      form.value.whatsappBusinessNumber = response.data.data.whatsappBusinessNumber || '';
+      form.value.apiProvider = response.data.data.apiProvider || 'Meta Cloud API';
+      form.value.apiKey = ''; // API key gösterilmez, yeni değer girilmeli
+      form.value.isActive = response.data.data.isActive || false;
       if (response.data.data.messageTemplates) {
-        form.value.messageTemplates = { ...form.value.messageTemplates, ...response.data.data.messageTemplates }
+        form.value.messageTemplates = {
+          ...form.value.messageTemplates,
+          ...response.data.data.messageTemplates,
+        };
       }
     } else {
-      settings.value = null
+      settings.value = null;
       // Varsayılan değerleri yükle
-      resetForm()
+      resetForm();
     }
   } catch (error) {
-    console.error('WhatsApp ayarları yüklenemedi:', error)
-    settings.value = null
+    console.error('WhatsApp ayarları yüklenemedi:', error);
+    settings.value = null;
   }
-}
+};
 
 const validatePhone = () => {
-  const phoneRegex = /^\+90\s?[0-9]{3}\s?[0-9]{3}\s?[0-9]{2}\s?[0-9]{2}$/
+  const phoneRegex = /^\+90\s?[0-9]{3}\s?[0-9]{3}\s?[0-9]{2}\s?[0-9]{2}$/;
   if (form.value.whatsappBusinessNumber && !phoneRegex.test(form.value.whatsappBusinessNumber)) {
-    phoneError.value = 'Numara +90 ile başlamalı ve geçerli formatta olmalıdır (örn: +90 532 000 00 00)'
-    return false
+    phoneError.value =
+      'Numara +90 ile başlamalı ve geçerli formatta olmalıdır (örn: +90 532 000 00 00)';
+    return false;
   }
-  phoneError.value = ''
-  return true
-}
+  phoneError.value = '';
+  return true;
+};
 
 const saveSettings = async () => {
   if (!validatePhone()) {
-    return
+    return;
   }
 
-  saving.value = true
-  testResult.value = null
+  saving.value = true;
+  testResult.value = null;
 
   try {
-    let companyId = null
-    
+    let companyId = null;
+
     if (isBayiAdmin.value) {
       if (!selectedCompanyId.value) {
-        toast.warning('Lütfen şirket seçiniz')
-        return
+        toast.warning('Lütfen şirket seçiniz');
+        return;
       }
-      companyId = selectedCompanyId.value
+      companyId = selectedCompanyId.value;
     } else if (isCompanyAdmin.value) {
-      companyId = authStore.companyId
+      companyId = authStore.companyId;
     }
 
     if (!companyId) {
-      toast.error('Şirket bilgisi bulunamadı')
-      return
+      toast.error('Şirket bilgisi bulunamadı');
+      return;
     }
 
     const payload = {
@@ -367,59 +450,59 @@ const saveSettings = async () => {
       whatsappBusinessNumber: form.value.whatsappBusinessNumber.trim(),
       apiProvider: form.value.apiProvider,
       messageTemplates: form.value.messageTemplates,
-      isActive: form.value.isActive
-    }
+      isActive: form.value.isActive,
+    };
 
     // API key sadece yeni değer girilmişse gönder
     // Eğer boşsa ve mevcut ayarlar varsa, backend mevcut key'i koruyacak
     if (form.value.apiKey && form.value.apiKey.trim() !== '') {
-      payload.apiKey = form.value.apiKey
+      payload.apiKey = form.value.apiKey;
     } else if (!settings.value || !settings.value.data) {
       // Yeni kayıt için API key zorunlu
-      toast.warning('API anahtarı zorunludur')
-      saving.value = false
-      return
+      toast.warning('API anahtarı zorunludur');
+      saving.value = false;
+      return;
     }
 
-    const response = await api.post('/whatsapp/settings', payload)
+    const response = await api.post('/whatsapp/settings', payload);
 
     if (response.data.success) {
-      toast.success('WhatsApp entegrasyon ayarları başarıyla kaydedildi')
-      await loadSettings()
+      toast.success('WhatsApp entegrasyon ayarları başarıyla kaydedildi');
+      await loadSettings();
     } else {
-      toast.error(response.data.message || 'Kayıt başarısız oldu')
+      toast.error(response.data.message || 'Kayıt başarısız oldu');
     }
   } catch (error) {
-    console.error('WhatsApp ayarları kaydetme hatası:', error)
-    toast.error(error.response?.data?.message || error.message || 'Hata oluştu')
+    console.error('WhatsApp ayarları kaydetme hatası:', error);
+    toast.error(error.response?.data?.message || error.message || 'Hata oluştu');
   } finally {
-    saving.value = false
+    saving.value = false;
   }
-}
+};
 
 const testConnection = async () => {
   if (!validatePhone()) {
-    return
+    return;
   }
 
-  testing.value = true
-  testResult.value = null
+  testing.value = true;
+  testResult.value = null;
 
   try {
-    let companyId = null
-    
+    let companyId = null;
+
     if (isBayiAdmin.value) {
-      companyId = selectedCompanyId.value
+      companyId = selectedCompanyId.value;
     } else if (isCompanyAdmin.value) {
-      companyId = authStore.companyId
+      companyId = authStore.companyId;
     }
 
     if (!companyId) {
       testResult.value = {
         success: false,
-        message: 'Şirket bilgisi bulunamadı'
-      }
-      return
+        message: 'Şirket bilgisi bulunamadı',
+      };
+      return;
     }
 
     // Önce ayarları kaydet (test için)
@@ -428,28 +511,28 @@ const testConnection = async () => {
       whatsappBusinessNumber: form.value.whatsappBusinessNumber.trim(),
       apiProvider: form.value.apiProvider,
       apiKey: form.value.apiKey,
-      isActive: false // Test için aktif etme
-    }
+      isActive: false, // Test için aktif etme
+    };
 
-    await api.post('/whatsapp/settings', payload)
+    await api.post('/whatsapp/settings', payload);
 
     // Sonra test et
-    const response = await api.post('/whatsapp/validate', { companyId })
+    const response = await api.post('/whatsapp/validate', { companyId });
 
     testResult.value = {
       success: response.data.success,
-      message: response.data.message || 'Test tamamlandı'
-    }
+      message: response.data.message || 'Test tamamlandı',
+    };
   } catch (error) {
-    console.error('Bağlantı testi hatası:', error)
+    console.error('Bağlantı testi hatası:', error);
     testResult.value = {
       success: false,
-      message: error.response?.data?.message || 'Test başarısız oldu'
-    }
+      message: error.response?.data?.message || 'Test başarısız oldu',
+    };
   } finally {
-    testing.value = false
+    testing.value = false;
   }
-}
+};
 
 const resetForm = () => {
   form.value = {
@@ -457,47 +540,54 @@ const resetForm = () => {
     apiProvider: 'Meta Cloud API',
     apiKey: '',
     messageTemplates: {
-      onEmployeeOnboarding: 'Sayın {employeeName}, {companyName} şirketine hoş geldiniz! İşe giriş tarihiniz: {hireDate}',
-      onEmployeeOffboarding: 'Sayın {employeeName}, {companyName} şirketinden ayrılışınız {exitDate} tarihinde gerçekleşmiştir.',
-      onLeaveRequestSubmitted: 'Sayın {employeeName}, {startDate} - {endDate} tarihleri arasındaki izin talebiniz alınmıştır. Onay sürecinde bilgilendirileceksiniz.',
-      onLeaveApproved: 'Sayın {employeeName}, {startDate} - {endDate} tarihleri arasındaki izin talebiniz onaylanmıştır.',
-      onLeaveRejected: 'Sayın {employeeName}, {reason} nedeniyle {startDate} - {endDate} tarihleri arasındaki izin talebiniz reddedilmiştir.'
+      onEmployeeOnboarding:
+        'Sayın {employeeName}, {companyName} şirketine hoş geldiniz! İşe giriş tarihiniz: {hireDate}',
+      onEmployeeOffboarding:
+        'Sayın {employeeName}, {companyName} şirketinden ayrılışınız {exitDate} tarihinde gerçekleşmiştir.',
+      onLeaveRequestSubmitted:
+        'Sayın {employeeName}, {startDate} - {endDate} tarihleri arasındaki izin talebiniz alınmıştır. Onay sürecinde bilgilendirileceksiniz.',
+      onLeaveApproved:
+        'Sayın {employeeName}, {startDate} - {endDate} tarihleri arasındaki izin talebiniz onaylanmıştır.',
+      onLeaveRejected:
+        'Sayın {employeeName}, {reason} nedeniyle {startDate} - {endDate} tarihleri arasındaki izin talebiniz reddedilmiştir.',
     },
-    isActive: false
-  }
-  phoneError.value = ''
-  testResult.value = null
-}
+    isActive: false,
+  };
+  phoneError.value = '';
+  testResult.value = null;
+};
 
-const formatDate = (date) => {
-  if (!date) return ''
+const formatDate = date => {
+  if (!date) return '';
   return new Date(date).toLocaleDateString('tr-TR', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
-  })
-}
+    minute: '2-digit',
+  });
+};
 
 // Telefon numarası validasyonu (real-time)
 const watchPhone = () => {
   if (form.value.whatsappBusinessNumber) {
-    validatePhone()
+    validatePhone();
   }
-}
+};
 
 // Telefon numarası değiştiğinde validasyon yap
-watch(() => form.value.whatsappBusinessNumber, () => {
-  watchPhone()
-})
+watch(
+  () => form.value.whatsappBusinessNumber,
+  () => {
+    watchPhone();
+  }
+);
 
 onMounted(async () => {
   if (isBayiAdmin.value) {
-    await loadCompanies()
+    await loadCompanies();
   } else {
-    await loadSettings()
+    await loadSettings();
   }
-})
+});
 </script>
-

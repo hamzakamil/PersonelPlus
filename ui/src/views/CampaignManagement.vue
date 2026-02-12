@@ -10,7 +10,11 @@
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Durum</label>
-          <select v-model="filters.status" @change="loadCampaigns" class="w-full border rounded-lg px-3 py-2">
+          <select
+            v-model="filters.status"
+            @change="loadCampaigns"
+            class="w-full border rounded-lg px-3 py-2"
+          >
             <option value="">Tumu</option>
             <option value="active">Aktif</option>
             <option value="inactive">Pasif</option>
@@ -29,14 +33,22 @@
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kampanya</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Kampanya
+            </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kod</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tip</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Indirim</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gecerlilik</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kullanim</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Gecerlilik
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Kullanim
+            </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Islemler</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Islemler
+            </th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
@@ -69,7 +81,7 @@
                   'bg-green-100 text-green-800': isActive(campaign),
                   'bg-gray-100 text-gray-800': !campaign.isActive,
                   'bg-red-100 text-red-800': isExpired(campaign),
-                  'bg-yellow-100 text-yellow-800': isUpcoming(campaign)
+                  'bg-yellow-100 text-yellow-800': isUpcoming(campaign),
                 }"
                 class="px-2 py-1 text-xs font-semibold rounded-full"
               >
@@ -77,9 +89,16 @@
               </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-              <button @click="viewStats(campaign)" class="text-blue-600 hover:text-blue-900">Detay</button>
-              <button @click="openEditModal(campaign)" class="text-green-600 hover:text-green-900">Duzenle</button>
-              <button @click="toggleCampaign(campaign)" class="text-yellow-600 hover:text-yellow-900">
+              <button @click="viewStats(campaign)" class="text-blue-600 hover:text-blue-900">
+                Detay
+              </button>
+              <button @click="openEditModal(campaign)" class="text-green-600 hover:text-green-900">
+                Duzenle
+              </button>
+              <button
+                @click="toggleCampaign(campaign)"
+                class="text-yellow-600 hover:text-yellow-900"
+              >
                 {{ campaign.isActive ? 'Pasif' : 'Aktif' }}
               </button>
               <button
@@ -92,9 +111,7 @@
             </td>
           </tr>
           <tr v-if="campaigns.length === 0">
-            <td colspan="8" class="px-6 py-8 text-center text-gray-500">
-              Kampanya bulunamadi
-            </td>
+            <td colspan="8" class="px-6 py-8 text-center text-gray-500">Kampanya bulunamadi</td>
           </tr>
         </tbody>
       </table>
@@ -110,9 +127,7 @@
         >
           Onceki
         </button>
-        <span class="text-sm text-gray-600">
-          {{ pagination.page }} / {{ pagination.pages }}
-        </span>
+        <span class="text-sm text-gray-600"> {{ pagination.page }} / {{ pagination.pages }} </span>
         <button
           @click="changePage(pagination.page + 1)"
           :disabled="pagination.page === pagination.pages"
@@ -124,7 +139,10 @@
     </div>
 
     <!-- Olusturma/Duzenleme Modal -->
-    <div v-if="showFormModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+    <div
+      v-if="showFormModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
+    >
       <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl font-bold mb-4">
           {{ editingCampaign ? 'Kampanya Duzenle' : 'Yeni Kampanya' }}
@@ -137,6 +155,7 @@
               <input
                 v-model="form.name"
                 type="text"
+                @input="form.name = $event.target.value.toLocaleUpperCase('tr-TR')"
                 class="w-full border rounded-lg px-3 py-2"
                 placeholder="Ornek: Yilbasi Indirimi"
               />
@@ -179,7 +198,13 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">
-                {{ form.type === 'percentage' ? 'Indirim Orani (%)' : form.type === 'fixed' ? 'Indirim Tutari (TL)' : 'Deneme Suresi (Gun)' }}
+                {{
+                  form.type === 'percentage'
+                    ? 'Indirim Orani (%)'
+                    : form.type === 'fixed'
+                      ? 'Indirim Tutari (TL)'
+                      : 'Deneme Suresi (Gun)'
+                }}
               </label>
               <input
                 v-if="form.type === 'percentage'"
@@ -237,7 +262,9 @@
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Bayi Basina Kullanim</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Bayi Basina Kullanim</label
+              >
               <input
                 v-model.number="form.maxUsesPerDealer"
                 type="number"
@@ -249,7 +276,9 @@
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Gecerli Fatura Tipleri</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Gecerli Fatura Tipleri</label
+              >
               <div class="flex gap-4 mt-2">
                 <label class="flex items-center">
                   <input
@@ -273,7 +302,9 @@
               <p class="text-xs text-gray-500 mt-1">Bos = Tum tipler</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Siparis Tutari (TL)</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Minimum Siparis Tutari (TL)</label
+              >
               <input
                 v-model.number="form.minOrderAmount"
                 type="number"
@@ -312,7 +343,10 @@
     </div>
 
     <!-- Detay/Istatistik Modal -->
-    <div v-if="showStatsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+    <div
+      v-if="showStatsModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
+    >
       <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl font-bold mb-4">Kampanya Detayi</h2>
 
@@ -320,15 +354,21 @@
           <!-- Ozet -->
           <div class="grid grid-cols-3 gap-4">
             <div class="bg-blue-50 rounded-lg p-4 text-center">
-              <div class="text-2xl font-bold text-blue-600">{{ selectedStats.stats.usedCount }}</div>
+              <div class="text-2xl font-bold text-blue-600">
+                {{ selectedStats.stats.usedCount }}
+              </div>
               <div class="text-sm text-blue-700">Toplam Kullanim</div>
             </div>
             <div class="bg-green-50 rounded-lg p-4 text-center">
-              <div class="text-2xl font-bold text-green-600">{{ formatCurrency(selectedStats.stats.totalDiscountGiven) }}</div>
+              <div class="text-2xl font-bold text-green-600">
+                {{ formatCurrency(selectedStats.stats.totalDiscountGiven) }}
+              </div>
               <div class="text-sm text-green-700">Toplam Indirim</div>
             </div>
             <div class="bg-purple-50 rounded-lg p-4 text-center">
-              <div class="text-2xl font-bold text-purple-600">{{ selectedStats.stats.uniqueDealers }}</div>
+              <div class="text-2xl font-bold text-purple-600">
+                {{ selectedStats.stats.uniqueDealers }}
+              </div>
               <div class="text-sm text-purple-700">Benzersiz Bayi</div>
             </div>
           </div>
@@ -339,10 +379,21 @@
             <div class="grid grid-cols-2 gap-2 text-sm">
               <div><span class="text-gray-500">Ad:</span> {{ selectedStats.campaign.name }}</div>
               <div><span class="text-gray-500">Kod:</span> {{ selectedStats.campaign.code }}</div>
-              <div><span class="text-gray-500">Tip:</span> {{ typeText(selectedStats.campaign.type) }}</div>
-              <div><span class="text-gray-500">Durum:</span> {{ selectedStats.campaign.isActive ? 'Aktif' : 'Pasif' }}</div>
-              <div><span class="text-gray-500">Baslangic:</span> {{ formatDate(selectedStats.campaign.startDate) }}</div>
-              <div><span class="text-gray-500">Bitis:</span> {{ formatDate(selectedStats.campaign.endDate) }}</div>
+              <div>
+                <span class="text-gray-500">Tip:</span> {{ typeText(selectedStats.campaign.type) }}
+              </div>
+              <div>
+                <span class="text-gray-500">Durum:</span>
+                {{ selectedStats.campaign.isActive ? 'Aktif' : 'Pasif' }}
+              </div>
+              <div>
+                <span class="text-gray-500">Baslangic:</span>
+                {{ formatDate(selectedStats.campaign.startDate) }}
+              </div>
+              <div>
+                <span class="text-gray-500">Bitis:</span>
+                {{ formatDate(selectedStats.campaign.endDate) }}
+              </div>
             </div>
           </div>
 
@@ -361,8 +412,12 @@
                 <tbody class="divide-y divide-gray-200">
                   <tr v-for="(usage, index) in selectedStats.recentUsage" :key="index">
                     <td class="px-4 py-2 text-sm">{{ usage.dealer?.name || '-' }}</td>
-                    <td class="px-4 py-2 text-sm text-green-600">{{ formatCurrency(usage.discountApplied) }}</td>
-                    <td class="px-4 py-2 text-sm text-gray-500">{{ formatDateTime(usage.usedAt) }}</td>
+                    <td class="px-4 py-2 text-sm text-green-600">
+                      {{ formatCurrency(usage.discountApplied) }}
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-500">
+                      {{ formatDateTime(usage.usedAt) }}
+                    </td>
                   </tr>
                   <tr v-if="selectedStats.recentUsage.length === 0">
                     <td colspan="3" class="px-4 py-4 text-center text-gray-500">
@@ -384,30 +439,30 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import api from '@/services/api'
-import Button from '@/components/Button.vue'
-import { useToastStore } from '@/stores/toast'
-import { useConfirmStore } from '@/stores/confirm'
+import { ref, onMounted } from 'vue';
+import api from '@/services/api';
+import Button from '@/components/Button.vue';
+import { useToastStore } from '@/stores/toast';
+import { useConfirmStore } from '@/stores/confirm';
 
-const toast = useToastStore()
-const confirmModal = useConfirmStore()
-const campaigns = ref([])
-const packages = ref([])
-const showFormModal = ref(false)
-const showStatsModal = ref(false)
-const editingCampaign = ref(null)
-const selectedStats = ref(null)
+const toast = useToastStore();
+const confirmModal = useConfirmStore();
+const campaigns = ref([]);
+const packages = ref([]);
+const showFormModal = ref(false);
+const showStatsModal = ref(false);
+const editingCampaign = ref(null);
+const selectedStats = ref(null);
 
 const filters = ref({
-  status: ''
-})
+  status: '',
+});
 
 const pagination = ref({
   page: 1,
   pages: 1,
-  total: 0
-})
+  total: 0,
+});
 
 const defaultForm = {
   name: '',
@@ -423,120 +478,120 @@ const defaultForm = {
   maxUsesPerDealer: 1,
   applicablePackages: [],
   applicableBillingTypes: [],
-  minOrderAmount: 0
-}
+  minOrderAmount: 0,
+};
 
-const form = ref({ ...defaultForm })
+const form = ref({ ...defaultForm });
 
-const formatCurrency = (value) => {
+const formatCurrency = value => {
   return new Intl.NumberFormat('tr-TR', {
     style: 'currency',
     currency: 'TRY',
-    minimumFractionDigits: 0
-  }).format(value || 0)
-}
+    minimumFractionDigits: 0,
+  }).format(value || 0);
+};
 
-const formatDate = (date) => {
-  if (!date) return '-'
-  return new Date(date).toLocaleDateString('tr-TR')
-}
+const formatDate = date => {
+  if (!date) return '-';
+  return new Date(date).toLocaleDateString('tr-TR');
+};
 
-const formatDateTime = (date) => {
-  if (!date) return '-'
-  return new Date(date).toLocaleString('tr-TR')
-}
+const formatDateTime = date => {
+  if (!date) return '-';
+  return new Date(date).toLocaleString('tr-TR');
+};
 
-const typeText = (type) => {
+const typeText = type => {
   const texts = {
     percentage: 'Yuzdelik',
     fixed: 'Sabit Tutar',
-    trial: 'Deneme'
-  }
-  return texts[type] || type
-}
+    trial: 'Deneme',
+  };
+  return texts[type] || type;
+};
 
-const discountText = (campaign) => {
+const discountText = campaign => {
   if (campaign.type === 'percentage') {
-    return `%${campaign.discountPercent}`
+    return `%${campaign.discountPercent}`;
   } else if (campaign.type === 'fixed') {
-    return `${campaign.discountAmount} TL`
+    return `${campaign.discountAmount} TL`;
   } else if (campaign.type === 'trial') {
-    return `${campaign.trialDays} gun`
+    return `${campaign.trialDays} gun`;
   }
-  return '-'
-}
+  return '-';
+};
 
-const isActive = (campaign) => {
-  const now = new Date()
-  return campaign.isActive &&
-    new Date(campaign.startDate) <= now &&
-    new Date(campaign.endDate) >= now
-}
+const isActive = campaign => {
+  const now = new Date();
+  return (
+    campaign.isActive && new Date(campaign.startDate) <= now && new Date(campaign.endDate) >= now
+  );
+};
 
-const isExpired = (campaign) => {
-  return new Date(campaign.endDate) < new Date()
-}
+const isExpired = campaign => {
+  return new Date(campaign.endDate) < new Date();
+};
 
-const isUpcoming = (campaign) => {
-  return new Date(campaign.startDate) > new Date()
-}
+const isUpcoming = campaign => {
+  return new Date(campaign.startDate) > new Date();
+};
 
-const statusText = (campaign) => {
-  if (!campaign.isActive) return 'Pasif'
-  if (isExpired(campaign)) return 'Suresi Dolmus'
-  if (isUpcoming(campaign)) return 'Yakinda'
-  return 'Aktif'
-}
+const statusText = campaign => {
+  if (!campaign.isActive) return 'Pasif';
+  if (isExpired(campaign)) return 'Suresi Dolmus';
+  if (isUpcoming(campaign)) return 'Yakinda';
+  return 'Aktif';
+};
 
 const loadCampaigns = async () => {
   try {
-    const params = new URLSearchParams()
-    params.append('page', pagination.value.page)
-    if (filters.value.status) params.append('status', filters.value.status)
+    const params = new URLSearchParams();
+    params.append('page', pagination.value.page);
+    if (filters.value.status) params.append('status', filters.value.status);
 
-    const response = await api.get(`/campaigns?${params.toString()}`)
-    campaigns.value = response.data || []
+    const response = await api.get(`/campaigns?${params.toString()}`);
+    campaigns.value = response.data || [];
     if (response.data.pagination) {
-      pagination.value = response.data.pagination
+      pagination.value = response.data.pagination;
     }
   } catch (error) {
-    console.error('Kampanyalar yuklenirken hata:', error)
+    console.error('Kampanyalar yuklenirken hata:', error);
   }
-}
+};
 
 const loadPackages = async () => {
   try {
-    const response = await api.get('/packages?isActive=true')
-    packages.value = response.data || []
+    const response = await api.get('/packages?isActive=true');
+    packages.value = response.data || [];
   } catch (error) {
-    console.error('Paketler yuklenirken hata:', error)
+    console.error('Paketler yuklenirken hata:', error);
   }
-}
+};
 
 const resetFilters = () => {
-  filters.value = { status: '' }
-  pagination.value.page = 1
-  loadCampaigns()
-}
+  filters.value = { status: '' };
+  pagination.value.page = 1;
+  loadCampaigns();
+};
 
-const changePage = (page) => {
-  pagination.value.page = page
-  loadCampaigns()
-}
+const changePage = page => {
+  pagination.value.page = page;
+  loadCampaigns();
+};
 
 const openCreateModal = () => {
-  editingCampaign.value = null
-  form.value = { ...defaultForm }
+  editingCampaign.value = null;
+  form.value = { ...defaultForm };
   // Varsayilan tarihler
-  const today = new Date()
-  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate())
-  form.value.startDate = today.toISOString().split('T')[0]
-  form.value.endDate = nextMonth.toISOString().split('T')[0]
-  showFormModal.value = true
-}
+  const today = new Date();
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  form.value.startDate = today.toISOString().split('T')[0];
+  form.value.endDate = nextMonth.toISOString().split('T')[0];
+  showFormModal.value = true;
+};
 
-const openEditModal = (campaign) => {
-  editingCampaign.value = campaign
+const openEditModal = campaign => {
+  editingCampaign.value = campaign;
   form.value = {
     name: campaign.name,
     description: campaign.description || '',
@@ -551,85 +606,85 @@ const openEditModal = (campaign) => {
     maxUsesPerDealer: campaign.maxUsesPerDealer || 1,
     applicablePackages: campaign.applicablePackages?.map(p => p._id || p) || [],
     applicableBillingTypes: campaign.applicableBillingTypes || [],
-    minOrderAmount: campaign.minOrderAmount || 0
-  }
-  showFormModal.value = true
-}
+    minOrderAmount: campaign.minOrderAmount || 0,
+  };
+  showFormModal.value = true;
+};
 
 const closeFormModal = () => {
-  showFormModal.value = false
-  editingCampaign.value = null
-}
+  showFormModal.value = false;
+  editingCampaign.value = null;
+};
 
 const generateCode = async () => {
   try {
-    const response = await api.post('/campaigns/generate-code')
-    form.value.code = response.data.code
+    const response = await api.post('/campaigns/generate-code');
+    form.value.code = response.data.code;
   } catch (error) {
-    toast.error('Kod oluşturulamadı')
+    toast.error('Kod oluşturulamadı');
   }
-}
+};
 
 const submitForm = async () => {
   if (!form.value.name || !form.value.type || !form.value.startDate || !form.value.endDate) {
-    toast.warning('Ad, tip, başlangıç ve bitiş tarihi zorunludur')
-    return
+    toast.warning('Ad, tip, başlangıç ve bitiş tarihi zorunludur');
+    return;
   }
 
   try {
     if (editingCampaign.value) {
-      await api.put(`/campaigns/${editingCampaign.value._id}`, form.value)
-      toast.success('Kampanya güncellendi')
+      await api.put(`/campaigns/${editingCampaign.value._id}`, form.value);
+      toast.success('Kampanya güncellendi');
     } else {
-      await api.post('/campaigns', form.value)
-      toast.success('Kampanya oluşturuldu')
+      await api.post('/campaigns', form.value);
+      toast.success('Kampanya oluşturuldu');
     }
-    closeFormModal()
-    loadCampaigns()
+    closeFormModal();
+    loadCampaigns();
   } catch (error) {
-    toast.error(error.response?.data?.message || 'İşlem başarısız')
+    toast.error(error.response?.data?.message || 'İşlem başarısız');
   }
-}
+};
 
-const viewStats = async (campaign) => {
+const viewStats = async campaign => {
   try {
-    const response = await api.get(`/campaigns/${campaign._id}/stats`)
-    selectedStats.value = response.data?.data || response.data
-    showStatsModal.value = true
+    const response = await api.get(`/campaigns/${campaign._id}/stats`);
+    selectedStats.value = response.data?.data || response.data;
+    showStatsModal.value = true;
   } catch (error) {
-    toast.error('İstatistikler yüklenemedi')
+    toast.error('İstatistikler yüklenemedi');
   }
-}
+};
 
-const toggleCampaign = async (campaign) => {
+const toggleCampaign = async campaign => {
   try {
-    await api.post(`/campaigns/${campaign._id}/toggle`)
-    loadCampaigns()
+    await api.post(`/campaigns/${campaign._id}/toggle`);
+    loadCampaigns();
   } catch (error) {
-    toast.error(error.response?.data?.message || 'İşlem başarısız')
+    toast.error(error.response?.data?.message || 'İşlem başarısız');
   }
-}
+};
 
-const deleteCampaign = async (campaign) => {
+const deleteCampaign = async campaign => {
   const confirmed = await confirmModal.show({
     title: 'Kampanyayı Sil',
     message: `"${campaign.name}" kampanyasını silmek istediğinize emin misiniz?`,
     type: 'danger',
-    confirmText: 'Sil'
-  })
-  if (!confirmed) return
+    confirmText: 'Sil',
+  });
+  if (!confirmed) return;
 
   try {
-    await api.delete(`/campaigns/${campaign._id}`)
-    loadCampaigns()
-    toast.success('Kampanya silindi')
+    await api.delete(`/campaigns/${campaign._id}`);
+    loadCampaigns();
+    toast.success('Kampanya silindi');
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Silme başarısız')
+    toast.error(error.response?.data?.message || 'Silme başarısız');
   }
-}
+};
 
 onMounted(() => {
-  loadCampaigns()
-  loadPackages()
-})
+  loadCampaigns();
+  loadPackages();
+});
 </script>

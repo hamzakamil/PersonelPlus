@@ -35,6 +35,12 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
+      path: '/verify-email/:token',
+      name: 'VerifyEmail',
+      component: () => import('@/views/VerifyEmail.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
       path: '/',
       component: () => import('@/layouts/DashboardLayout.vue'),
       meta: { requiresAuth: true },
@@ -73,6 +79,12 @@ const router = createRouter({
           name: 'GlobalSettings',
           component: () => import('@/views/GlobalSettings.vue'),
           meta: { roles: ['super_admin', 'bayi_admin'] },
+        },
+        {
+          path: 'registration-requests',
+          name: 'RegistrationRequests',
+          component: () => import('@/views/RegistrationRequests.vue'),
+          meta: { roles: ['super_admin'] },
         },
         {
           path: 'user-management',
@@ -540,7 +552,8 @@ router.beforeEach((to, from, next) => {
     to.name === 'ActivateCompany' ||
     to.name === 'ActivateEmployee' ||
     to.name === 'ActivateAccount' ||
-    to.name === 'Register'
+    to.name === 'Register' ||
+    to.name === 'VerifyEmail'
   ) {
     next();
     return;

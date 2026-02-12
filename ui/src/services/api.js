@@ -1,42 +1,45 @@
-import axios from 'axios'
-import { useAuthStore } from '@/stores/auth'
+import axios from 'axios';
+import { useAuthStore } from '@/stores/auth';
 
 const api = axios.create({
   baseURL: '/api',
   headers: {
-    'Content-Type': 'application/json'
-  }
-})
+    'Content-Type': 'application/json',
+  },
+});
 
 api.interceptors.request.use(
-  (config) => {
-    const authStore = useAuthStore()
+  config => {
+    const authStore = useAuthStore();
     if (authStore.token) {
-      config.headers.Authorization = `Bearer ${authStore.token}`
+      config.headers.Authorization = `Bearer ${authStore.token}`;
     }
-    return config
+    return config;
   },
-  (error) => {
-    return Promise.reject(error)
+  error => {
+    return Promise.reject(error);
   }
-)
+);
 
 api.interceptors.response.use(
-  (response) => {
+  response => {
     // Response'u olduğu gibi döndür - unwrap yapmıyoruz
     // Her component kendi response formatını handle etsin
     // Backend formatı: { success: true, data: [...], message: "...", pagination: {...} }
-    return response
+    return response;
   },
-  (error) => {
+  error => {
     if (error.response?.status === 401) {
-      const authStore = useAuthStore()
-      authStore.logout()
-      window.location.href = '/login'
+      // Login ve register isteklerinde logout/redirect yapma
+      const requestUrl = error.config?.url || '';
+      if (!requestUrl.includes('/auth/login') && !requestUrl.includes('/auth/register')) {
+        const authStore = useAuthStore();
+        authStore.logout();
+        window.location.href = '/login';
+      }
     }
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 
-export default api
-
+export default api;

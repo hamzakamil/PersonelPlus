@@ -7,7 +7,14 @@ const Role = require('../models/Role');
 const Company = require('../models/Company');
 const { auth, requireRole } = require('../middleware/auth');
 const quotaService = require('../services/quotaService');
-const { successResponse, errorResponse, notFound, forbidden, serverError, createdResponse } = require('../utils/responseHelper');
+const {
+  successResponse,
+  errorResponse,
+  notFound,
+  forbidden,
+  serverError,
+  createdResponse,
+} = require('../utils/responseHelper');
 
 // Get all dealers (only super_admin)
 router.get('/', auth, requireRole('super_admin'), async (req, res) => {
@@ -42,14 +49,37 @@ router.get('/:id', auth, requireRole('super_admin', 'bayi_admin'), async (req, r
 // Create dealer (only super_admin)
 router.post('/', auth, requireRole('super_admin'), async (req, res) => {
   try {
-    const { name, contactEmail, contactPhone, address, maxCompanies, email, password } = req.body;
+    const {
+      name,
+      contactEmail,
+      contactPhone,
+      contactPerson,
+      address,
+      city,
+      zipCode,
+      taxNumber,
+      maxCompanies,
+      startDate,
+      endDate,
+      email,
+      password,
+    } = req.body;
 
     const dealer = new Dealer({
       name,
       contactEmail,
       contactPhone,
+      contactPerson,
       address,
-      maxCompanies: maxCompanies !== undefined && maxCompanies !== null && maxCompanies !== '' ? parseInt(maxCompanies) : null
+      city,
+      zipCode,
+      taxNumber,
+      maxCompanies:
+        maxCompanies !== undefined && maxCompanies !== null && maxCompanies !== ''
+          ? parseInt(maxCompanies)
+          : null,
+      startDate: startDate ? new Date(startDate) : new Date(),
+      endDate: endDate ? new Date(endDate) : null,
     });
     await dealer.save();
 
@@ -63,7 +93,7 @@ router.post('/', auth, requireRole('super_admin'), async (req, res) => {
       isDealerSelfCompany: true,
       isActive: true,
       isActivated: true,
-      activatedAt: new Date()
+      activatedAt: new Date(),
     });
     await selfCompany.save();
 
@@ -79,7 +109,7 @@ router.post('/', auth, requireRole('super_admin'), async (req, res) => {
       email,
       password: hashedPassword,
       role: role._id,
-      dealer: dealer._id
+      dealer: dealer._id,
     });
     await user.save();
 
@@ -104,17 +134,37 @@ router.put('/:id', auth, requireRole('super_admin', 'bayi_admin'), async (req, r
     }
 
     // Update fields (maxCompanies can be set to null for unlimited)
-    const { name, contactEmail, contactPhone, address, maxCompanies, ikDisplayName } = req.body;
+    const {
+      name,
+      contactEmail,
+      contactPhone,
+      contactPerson,
+      address,
+      city,
+      zipCode,
+      taxNumber,
+      maxCompanies,
+      startDate,
+      endDate,
+      ikDisplayName,
+    } = req.body;
 
     if (name !== undefined) dealer.name = name;
     if (contactEmail !== undefined) dealer.contactEmail = contactEmail;
     if (contactPhone !== undefined) dealer.contactPhone = contactPhone;
+    if (contactPerson !== undefined) dealer.contactPerson = contactPerson;
     if (address !== undefined) dealer.address = address;
+    if (city !== undefined) dealer.city = city;
+    if (zipCode !== undefined) dealer.zipCode = zipCode;
+    if (taxNumber !== undefined) dealer.taxNumber = taxNumber;
     if (maxCompanies !== undefined) {
-      dealer.maxCompanies = maxCompanies !== null && maxCompanies !== '' ? parseInt(maxCompanies) : null;
+      dealer.maxCompanies =
+        maxCompanies !== null && maxCompanies !== '' ? parseInt(maxCompanies) : null;
     }
+    if (startDate !== undefined) dealer.startDate = startDate ? new Date(startDate) : null;
+    if (endDate !== undefined) dealer.endDate = endDate ? new Date(endDate) : null;
     if (ikDisplayName !== undefined) {
-      dealer.ikDisplayName = ikDisplayName || null; // Boş string ise null yap
+      dealer.ikDisplayName = ikDisplayName || null;
     }
 
     await dealer.save();
@@ -122,6 +172,112 @@ router.put('/:id', auth, requireRole('super_admin', 'bayi_admin'), async (req, r
     return successResponse(res, { data: dealer, message: 'Bayi güncellendi' });
   } catch (error) {
     return serverError(res, error);
+  }
+});
+
+// Promote company to dealer (only super_admin)
+router.post('/promote-from-company', auth, requireRole('super_admin'), async (req, res) => {
+  try {
+    const { companyId, startDate, endDate, maxCompanies } = req.body;
+
+    if (!companyId) {
+      return errorResponse(res, 'Şirket ID gereklidir', 400);
+    }
+
+    // 1. Şirketi bul
+    const company = await Company.findById(companyId);
+    if (!company) {
+      return notFound(res, 'Şirket bulunamadı');
+    }
+
+    // 2. Zaten selfCompany ise reddet
+    if (company.isDealerSelfCompany) {
+      return errorResponse(res, 'Bu şirket zaten bir bayinin kendi şirketi olarak tanımlı', 400);
+    }
+
+    // 3. Şirketin company_admin kullanıcısını bul
+    const companyAdminRole = await Role.findOne({ name: 'company_admin' });
+    const companyAdminUser = await User.findOne({
+      company: company._id,
+      role: companyAdminRole._id,
+      isActive: true,
+    });
+
+    if (!companyAdminUser) {
+      return errorResponse(
+        res,
+        'Bu şirket için aktif bir company_admin kullanıcısı bulunamadı',
+        400
+      );
+    }
+
+    // 4. bayi_admin rolünü bul
+    const bayiAdminRole = await Role.findOne({ name: 'bayi_admin' });
+    if (!bayiAdminRole) {
+      return serverError(res, new Error('bayi_admin rolü bulunamadı'));
+    }
+
+    // 5. Eski dealer ID'sini sakla (rollback için)
+    const originalDealerId = company.dealer;
+
+    // 6. Yeni Dealer kaydı oluştur
+    const dealer = new Dealer({
+      name: company.name,
+      contactEmail:
+        company.authorizedPerson?.email || company.contactEmail || companyAdminUser.email,
+      contactPhone: company.authorizedPerson?.phone || company.contactPhone || '',
+      contactPerson: company.authorizedPerson?.fullName || '',
+      address: company.address || '',
+      taxNumber: company.taxNumber || '',
+      maxCompanies:
+        maxCompanies !== undefined && maxCompanies !== null && maxCompanies !== ''
+          ? parseInt(maxCompanies)
+          : null,
+      startDate: startDate ? new Date(startDate) : new Date(),
+      endDate: endDate ? new Date(endDate) : null,
+      isActive: true,
+      selfCompany: company._id,
+    });
+    await dealer.save();
+
+    try {
+      // 7. Şirketi güncelle
+      company.dealer = dealer._id;
+      company.isDealerSelfCompany = true;
+      company.isActivated = true;
+      if (!company.activatedAt) {
+        company.activatedAt = new Date();
+      }
+      await company.save();
+
+      // 8. Kullanıcıyı güncelle
+      companyAdminUser.role = bayiAdminRole._id;
+      companyAdminUser.dealer = dealer._id;
+      companyAdminUser.company = null;
+      await companyAdminUser.save();
+    } catch (innerError) {
+      // Rollback: dealer'ı sil, şirketi eski haline getir
+      try {
+        await Dealer.findByIdAndDelete(dealer._id);
+        company.dealer = originalDealerId;
+        company.isDealerSelfCompany = false;
+        await company.save();
+      } catch (rollbackError) {
+        console.error('Rollback hatası:', rollbackError);
+      }
+      throw innerError;
+    }
+
+    return createdResponse(res, {
+      data: {
+        dealer,
+        company,
+        user: { _id: companyAdminUser._id, email: companyAdminUser.email },
+      },
+      message: 'Şirket başarıyla bayiye yükseltildi',
+    });
+  } catch (error) {
+    return serverError(res, error, 'Bayiye yükseltme sırasında bir hata oluştu');
   }
 });
 
@@ -143,8 +299,7 @@ router.get('/:id/quota', auth, async (req, res) => {
     const { id } = req.params;
 
     // Yetki kontrolü
-    if (req.user.role.name !== 'super_admin' &&
-        req.user.dealer?.toString() !== id) {
+    if (req.user.role.name !== 'super_admin' && req.user.dealer?.toString() !== id) {
       return forbidden(res, 'Bu işlem için yetkiniz yok');
     }
 
@@ -163,8 +318,7 @@ router.post('/:id/quota/sync', auth, async (req, res) => {
     const { id } = req.params;
 
     // Yetki kontrolü
-    if (req.user.role.name !== 'super_admin' &&
-        req.user.dealer?.toString() !== id) {
+    if (req.user.role.name !== 'super_admin' && req.user.dealer?.toString() !== id) {
       return forbidden(res, 'Bu işlem için yetkiniz yok');
     }
 
@@ -176,7 +330,7 @@ router.post('/:id/quota/sync', auth, async (req, res) => {
 
     return successResponse(res, {
       data: { usedQuota: actualCount },
-      message: 'Kota senkronizasyonu tamamlandı'
+      message: 'Kota senkronizasyonu tamamlandı',
     });
   } catch (error) {
     console.error('Kota senkronizasyonu hatası:', error);
@@ -185,39 +339,43 @@ router.post('/:id/quota/sync', auth, async (req, res) => {
 });
 
 // POST /api/dealers/:id/companies/:companyId/quota - Şirkete kota ata (bayi_admin)
-router.post('/:id/companies/:companyId/quota', auth, requireRole('bayi_admin', 'super_admin'), async (req, res) => {
-  try {
-    const { id, companyId } = req.params;
-    const { quota, isUnlimited } = req.body;
+router.post(
+  '/:id/companies/:companyId/quota',
+  auth,
+  requireRole('bayi_admin', 'super_admin'),
+  async (req, res) => {
+    try {
+      const { id, companyId } = req.params;
+      const { quota, isUnlimited } = req.body;
 
-    // Yetki kontrolü
-    if (req.user.role.name === 'bayi_admin' &&
-        req.user.dealer?.toString() !== id) {
-      return forbidden(res, 'Bu işlem için yetkiniz yok');
+      // Yetki kontrolü
+      if (req.user.role.name === 'bayi_admin' && req.user.dealer?.toString() !== id) {
+        return forbidden(res, 'Bu işlem için yetkiniz yok');
+      }
+
+      // Sınırsız kota ataması
+      if (isUnlimited) {
+        await Company.findByIdAndUpdate(companyId, {
+          'quota.isUnlimited': true,
+          'quota.allocated': 0,
+        });
+
+        return successResponse(res, { message: 'Şirkete sınırsız kota atandı' });
+      }
+
+      if (quota === undefined || quota < 0) {
+        return errorResponse(res, { message: 'Geçerli bir kota değeri giriniz' });
+      }
+
+      const result = await quotaService.allocateQuotaToCompany(companyId, quota, id);
+
+      return successResponse(res, { data: result, message: 'Kota başarıyla atandı' });
+    } catch (error) {
+      console.error('Kota atama hatası:', error);
+      return serverError(res, error, 'Kota atanırken bir hata oluştu');
     }
-
-    // Sınırsız kota ataması
-    if (isUnlimited) {
-      await Company.findByIdAndUpdate(companyId, {
-        'quota.isUnlimited': true,
-        'quota.allocated': 0
-      });
-
-      return successResponse(res, { message: 'Şirkete sınırsız kota atandı' });
-    }
-
-    if (quota === undefined || quota < 0) {
-      return errorResponse(res, { message: 'Geçerli bir kota değeri giriniz' });
-    }
-
-    const result = await quotaService.allocateQuotaToCompany(companyId, quota, id);
-
-    return successResponse(res, { data: result, message: 'Kota başarıyla atandı' });
-  } catch (error) {
-    console.error('Kota atama hatası:', error);
-    return serverError(res, error, 'Kota atanırken bir hata oluştu');
   }
-});
+);
 
 // GET /api/dealers/:id/companies/quotas - Tüm şirketlerin kota durumu
 router.get('/:id/companies/quotas', auth, async (req, res) => {
@@ -225,8 +383,7 @@ router.get('/:id/companies/quotas', auth, async (req, res) => {
     const { id } = req.params;
 
     // Yetki kontrolü
-    if (req.user.role.name !== 'super_admin' &&
-        req.user.dealer?.toString() !== id) {
+    if (req.user.role.name !== 'super_admin' && req.user.dealer?.toString() !== id) {
       return forbidden(res, 'Bu işlem için yetkiniz yok');
     }
 
@@ -236,7 +393,7 @@ router.get('/:id/companies/quotas', auth, async (req, res) => {
 
     // Her şirketin gerçek kullanımını hesapla
     const companiesWithActualUsage = await Promise.all(
-      companies.map(async (company) => {
+      companies.map(async company => {
         const actualUsed = await quotaService.calculateCompanyUsedQuota(company._id);
         return {
           _id: company._id,
@@ -246,7 +403,7 @@ router.get('/:id/companies/quotas', auth, async (req, res) => {
           isUnlimited: company.quota?.isUnlimited || false,
           percentage: company.quota?.allocated
             ? Math.round((actualUsed / company.quota.allocated) * 100)
-            : 0
+            : 0,
         };
       })
     );
@@ -283,8 +440,7 @@ router.post('/:id/quota/check', auth, async (req, res) => {
     const { companyId } = req.body;
 
     // Yetki kontrolü
-    if (req.user.role.name !== 'super_admin' &&
-        req.user.dealer?.toString() !== id) {
+    if (req.user.role.name !== 'super_admin' && req.user.dealer?.toString() !== id) {
       return forbidden(res, 'Bu işlem için yetkiniz yok');
     }
 
@@ -305,4 +461,3 @@ router.post('/:id/quota/check', auth, async (req, res) => {
 });
 
 module.exports = router;
-

@@ -10,7 +10,24 @@
       <!-- Başarılı kayıt mesajı -->
       <div v-if="success" class="text-center">
         <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+          <!-- Email doğrulama modu ikonu -->
           <svg
+            v-if="registrationMode === 'email_verification'"
+            class="w-12 h-12 text-blue-500 mx-auto mb-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+            ></path>
+          </svg>
+          <!-- Manuel onay modu ikonu -->
+          <svg
+            v-else
             class="w-12 h-12 text-green-500 mx-auto mb-3"
             fill="none"
             stroke="currentColor"
@@ -25,6 +42,9 @@
           </svg>
           <h3 class="text-lg font-medium text-green-800 mb-2">Kayıt Başarılı!</h3>
           <p class="text-sm text-green-700">{{ successMessage }}</p>
+          <p v-if="registrationMode === 'email_verification'" class="text-xs text-gray-500 mt-2">
+            Email gelmedi mi? Spam/Gereksiz klasörünü de kontrol edin.
+          </p>
         </div>
         <router-link
           to="/login"
@@ -43,6 +63,7 @@
             label="Ad Soyad"
             placeholder="Adınız ve soyadınız"
             required
+            uppercase
           />
           <Input
             v-model="form.email"
@@ -51,13 +72,14 @@
             placeholder="Email adresiniz"
             required
           />
-          <Input v-model="form.phone" type="tel" label="Telefon" placeholder="5XX XXX XX XX" />
+          <PhoneInput v-model="form.phone" label="Telefon" />
           <Input
             v-model="form.companyName"
             type="text"
             label="Firma Adı"
             placeholder="Şirketinizin adı"
             required
+            uppercase
           />
           <Input
             v-model="form.password"
@@ -72,6 +94,14 @@
             label="Şifre Tekrar"
             placeholder="Şifrenizi tekrar girin"
             required
+          />
+
+          <Input
+            v-model="form.referralCode"
+            type="text"
+            label="Referans Kodu"
+            placeholder="Bayi referans kodunuz varsa giriniz"
+            uppercase
           />
 
           <p v-if="error" class="text-red-600 text-sm">{{ error }}</p>
@@ -95,6 +125,7 @@
 <script setup>
 import { ref, reactive } from 'vue';
 import Input from '@/components/Input.vue';
+import PhoneInput from '@/components/PhoneInput.vue';
 import Button from '@/components/Button.vue';
 import api from '@/services/api';
 
@@ -105,12 +136,14 @@ const form = reactive({
   companyName: '',
   password: '',
   passwordConfirm: '',
+  referralCode: '',
 });
 
 const error = ref('');
 const loading = ref(false);
 const success = ref(false);
 const successMessage = ref('');
+const registrationMode = ref('');
 
 const handleRegister = async () => {
   error.value = '';
@@ -135,11 +168,13 @@ const handleRegister = async () => {
       phone: form.phone,
       companyName: form.companyName,
       password: form.password,
+      referralCode: form.referralCode || undefined,
     });
 
     if (response.data.success) {
       success.value = true;
       successMessage.value = response.data.message || 'Kayıt başarılı. Hesabınız onay bekliyor.';
+      registrationMode.value = response.data.data?.mode || 'manual_approval';
     } else {
       error.value = response.data.message || 'Kayıt hatası';
     }

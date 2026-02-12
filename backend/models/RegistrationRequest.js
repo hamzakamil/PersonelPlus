@@ -41,6 +41,15 @@ const registrationRequestSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    referralCode: {
+      type: String,
+      default: null,
+    },
+    dealer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Dealer',
+      default: null,
+    },
   },
   {
     timestamps: true,

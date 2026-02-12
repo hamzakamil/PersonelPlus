@@ -16,9 +16,27 @@ console.log('SMTP Config:', {
 const { setupUncaughtExceptionHandler } = require('./middleware/errorHandler');
 setupUncaughtExceptionHandler();
 
+// Security middleware imports
+const {
+  securityHeaders,
+  hppProtection,
+  customSecurityHeaders,
+  requestSizeLimiter,
+  auditLogger,
+} = require('./middleware/security');
+const { noSqlSanitizer, xssSanitizer, sanitizeRequest } = require('./middleware/sanitize');
+const { apiLimiter } = require('./middleware/rateLimiter');
+
 const app = express();
 
-// Middleware - CORS yapılandırması (Mobil uygulama desteği dahil)
+// Trust proxy (if behind reverse proxy like nginx)
+app.set('trust proxy', 1);
+
+// Security headers (Helmet)
+app.use(securityHeaders);
+app.use(customSecurityHeaders);
+
+// CORS yapılandırması (Mobil uygulama desteği dahil)
 app.use(
   cors({
     origin: [
@@ -27,14 +45,33 @@ app.use(
       'http://10.0.2.2:3000', // Android Emulator -> Host
       'http://127.0.0.1:3000', // Localhost alternative
       /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // Local network (gerçek cihaz testi)
-    ],
+      process.env.FRONTEND_URL, // Production frontend
+    ].filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 86400, // 24 hours
   })
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Body parsers with size limits
+app.use(express.json(requestSizeLimiter.json));
+app.use(express.urlencoded(requestSizeLimiter.urlencoded));
+
+// Input sanitization
+app.use(noSqlSanitizer); // NoSQL injection protection
+app.use(xssSanitizer); // XSS protection
+app.use(sanitizeRequest); // Custom sanitization
+
+// HTTP Parameter Pollution protection
+app.use(hppProtection);
+
+// Rate limiting for API routes
+app.use('/api/', apiLimiter);
+
+// Audit logging
+app.use(auditLogger);
 
 // Swagger API Documentation
 const swaggerUi = require('swagger-ui-express');
@@ -84,8 +121,24 @@ mongoose
     serverSelectionTimeoutMS: 5000, // 5 saniye timeout
     socketTimeoutMS: 45000,
   })
-  .then(() => {
+  .then(async () => {
     console.log('MongoDB bağlantısı başarılı');
+
+    // Mevcut bayilere referans kodu ata (bir kerelik migration)
+    try {
+      const Dealer = require('./models/Dealer');
+      const dealersWithoutCode = await Dealer.find({
+        referralCode: { $in: [null, '', undefined] },
+      });
+      if (dealersWithoutCode.length > 0) {
+        for (const dealer of dealersWithoutCode) {
+          await dealer.save(); // pre-save hook otomatik kod üretecek
+        }
+        console.log(`${dealersWithoutCode.length} bayiye referans kodu atandı`);
+      }
+    } catch (err) {
+      console.error('Bayi referans kodu migration hatası:', err);
+    }
   })
   .catch(err => {
     console.error('MongoDB bağlantı hatası:', err);
@@ -110,6 +163,7 @@ const workingPermitRoutes = require('./routes/workingPermits');
 const workingHoursRoutes = require('./routes/workingHours');
 const settingsRoutes = require('./routes/settings');
 const globalSettingsRoutes = require('./routes/globalSettings');
+const registrationRequestsRoutes = require('./routes/registrationRequests');
 const attendanceTemplateRoutes = require('./routes/attendanceTemplates');
 const attendanceRoutes = require('./routes/attendances');
 const leaveRequestRoutes = require('./routes/leaveRequests');
@@ -160,6 +214,7 @@ app.use('/api/working-permits', workingPermitRoutes);
 app.use('/api/working-hours', workingHoursRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/global-settings', globalSettingsRoutes);
+app.use('/api/registration-requests', registrationRequestsRoutes);
 app.use('/api/attendance-templates', attendanceTemplateRoutes);
 app.use('/api/attendances', attendanceRoutes);
 app.use('/api/leave-requests', leaveRequestRoutes);

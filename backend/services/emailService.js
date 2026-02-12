@@ -1091,9 +1091,70 @@ const sendCompanySubscriptionExpiringEmail = async (company, dealer, daysRemaini
   return { success: false, error: 'Bayi email adresi bulunamadı' };
 };
 
+// Kayıt sonrası email doğrulama linki gönder
+const sendRegistrationVerificationEmail = async (email, fullName, verificationToken) => {
+  const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email/${verificationToken}`;
+  const subject = 'PersonelPlus - Email Adresinizi Doğrulayın';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #3B82F6; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+        .btn { display: inline-block; background: #3B82F6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: bold; }
+        .info-box { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #3B82F6; }
+        .warning { color: #DC2626; font-size: 14px; }
+        .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Email Doğrulama</h1>
+        </div>
+        <div class="content">
+          <p>Merhaba <strong>${fullName}</strong>,</p>
+          <p>PersonelPlus'a kayıt olduğunuz için teşekkür ederiz. Hesabınızı aktif etmek için email adresinizi doğrulamanız gerekmektedir.</p>
+
+          <div class="info-box">
+            <p><strong>Email:</strong> ${email}</p>
+          </div>
+
+          <p>Aşağıdaki butona tıklayarak email adresinizi doğrulayın:</p>
+
+          <center>
+            <a href="${verificationUrl}" class="btn">Email Adresimi Doğrula</a>
+          </center>
+
+          <p class="warning"><strong>Not:</strong> Bu link 24 saat geçerlidir.</p>
+
+          <p style="color: #6B7280; font-size: 14px;">
+            Veya bu linki tarayıcınıza yapıştırın:<br>
+            <a href="${verificationUrl}" style="color: #3B82F6; word-break: break-all;">${verificationUrl}</a>
+          </p>
+        </div>
+        <div class="footer">
+          <p>Bu email otomatik olarak gönderilmiştir. Lütfen yanıtlamayınız.</p>
+          <p>Eğer bu kaydı siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
+          <p>&copy; ${new Date().getFullYear()} PersonelPlus</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(email, subject, html);
+};
+
 module.exports = {
   createTransporter,
   sendEmail,
+  sendRegistrationVerificationEmail,
   sendSubscriptionCreatedEmail,
   sendSubscriptionExpiringEmail,
   sendSubscriptionExpiredEmail,

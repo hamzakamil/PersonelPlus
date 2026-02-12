@@ -362,6 +362,11 @@ const menuItems = computed(() => {
     items.push({ path: '/admin/health-check', name: 'Veritabanı Kontrolü', icon: icons.database });
     items.push({ path: '/companies', name: 'Şirketler', icon: icons.company });
     items.push({ path: '/global-settings', name: 'Global Ayarlar', icon: icons.globe });
+    items.push({
+      path: '/registration-requests',
+      name: 'Kayıt Talepleri',
+      icon: icons.checkCircle,
+    });
     items.push({ path: '/role-management', name: 'Yetki Yönetimi', icon: icons.shield });
     items.push({ path: '/user-management', name: 'Kullanıcı Yönetimi', icon: icons.users });
     items.push({ path: '/working-permits', name: 'Çalışan İzinleri', icon: icons.calendar });
@@ -383,6 +388,7 @@ const menuItems = computed(() => {
   } else if (role === 'bayi_admin') {
     items.push({ path: '/', name: 'Genel Durum Özeti', icon: icons.dashboard });
     items.push({ path: '/companies', name: 'Şirketler', icon: icons.company });
+    items.push({ path: '/subscription', name: 'Paket Satın Al', icon: icons.package });
     items.push({
       path: '/company-subscriptions',
       name: 'Şirket Abonelikleri',
