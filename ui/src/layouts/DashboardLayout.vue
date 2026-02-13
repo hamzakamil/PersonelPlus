@@ -5,6 +5,7 @@
     <div class="flex">
       <!-- Sidebar - Modern design with theme support -->
       <aside
+        v-show="!isFullscreen"
         class="sidebar-fixed min-h-screen flex-shrink-0 shadow-2xl"
         :style="{ background: 'var(--sidebar-bg)' }"
       >
@@ -116,6 +117,7 @@
       <main class="flex-1 min-w-0">
         <!-- Header -->
         <header
+          v-show="!isFullscreen"
           class="shadow-sm border-b sticky top-0 z-10"
           :style="{ backgroundColor: 'var(--header-bg)', borderColor: 'var(--header-border)' }"
         >
@@ -186,10 +188,14 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, ref, provide, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
+
+// Fullscreen mod desteği (Puantaj vb. sayfalar için)
+const isFullscreen = ref(false);
+provide('layoutFullscreen', isFullscreen);
 import Button from '@/components/Button.vue';
 import MessageBadge from '@/components/MessageBadge.vue';
 import NotificationBadge from '@/components/NotificationBadge.vue';

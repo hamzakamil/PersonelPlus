@@ -97,6 +97,16 @@ router.post('/', auth, requireRole('super_admin'), async (req, res) => {
     });
     await selfCompany.save();
 
+    // Varsayılan Merkez işyeri oluştur
+    const Workplace = require('../models/Workplace');
+    const defaultWorkplace = new Workplace({
+      name: 'Merkez',
+      company: selfCompany._id,
+      isDefault: true,
+      isActive: true,
+    });
+    await defaultWorkplace.save();
+
     // Dealer'a selfCompany referansını ekle
     dealer.selfCompany = selfCompany._id;
     await dealer.save();

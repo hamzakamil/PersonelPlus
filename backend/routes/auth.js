@@ -458,6 +458,16 @@ router.get('/verify-email/:token', async (req, res) => {
         });
         await company.save();
 
+        // Varsayılan Merkez işyeri oluştur
+        const Workplace = require('../models/Workplace');
+        const defaultWorkplace = new Workplace({
+          name: 'Merkez',
+          company: company._id,
+          isDefault: true,
+          isActive: true,
+        });
+        await defaultWorkplace.save();
+
         user.dealer = targetDealer._id;
         user.company = company._id;
       }
