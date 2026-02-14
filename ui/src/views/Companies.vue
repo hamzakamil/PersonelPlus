@@ -460,6 +460,19 @@
               <p class="text-xs text-blue-600 mt-1">
                 ℹ️ İlk girişte şifre değiştirme ekranı açılacaktır
               </p>
+              <div class="mt-3">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Şifre Tekrar <span class="text-red-500">*</span>
+                </label>
+                <input
+                  v-model="form.authorizedPersonPasswordConfirm"
+                  type="password"
+                  required
+                  placeholder="Şifreyi tekrar girin"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+                <p v-if="form.authorizedPersonPassword && form.authorizedPersonPasswordConfirm && form.authorizedPersonPassword !== form.authorizedPersonPasswordConfirm" class="text-xs text-red-500 mt-1">Şifreler eşleşmiyor</p>
+              </div>
             </div>
 
             <!-- Şifre Belirleme/Sıfırlama (Düzenleme modunda) -->
@@ -557,6 +570,16 @@
                   </svg>
                   {{ resettingPassword ? 'Kaydediliyor...' : 'Şifreyi Kaydet' }}
                 </button>
+              </div>
+              <div class="mt-3">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Yeni Şifre Tekrar</label>
+                <input
+                  v-model="newPasswordConfirm"
+                  type="password"
+                  placeholder="Şifreyi tekrar girin"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                />
+                <p v-if="newPassword && newPasswordConfirm && newPassword !== newPasswordConfirm" class="text-xs text-red-500 mt-1">Şifreler eşleşmiyor</p>
               </div>
               <p class="text-xs text-amber-700 mt-2">
                 ⚠️ Şifre değiştirildiğinde kullanıcı ilk girişte yeni şifre belirlemek zorunda
@@ -841,6 +864,7 @@ const form = ref({
   authorizedPersonPhone: '',
   authorizedPersonEmail: '',
   authorizedPersonPassword: '',
+  authorizedPersonPasswordConfirm: '',
 });
 
 // Excel import refs
@@ -857,6 +881,7 @@ const uploadResults = ref({
 
 // Password reset refs
 const newPassword = ref('');
+const newPasswordConfirm = ref('');
 const resettingPassword = ref(false);
 const showCompanyPassword = ref(false);
 const showResetPassword = ref(false);
@@ -1004,6 +1029,14 @@ const saveCompany = async () => {
         toast.warning('Yetkili şifre gereklidir');
         return;
       }
+      if (form.value.authorizedPersonPassword.length < 6) {
+        toast.warning('Şifre en az 6 karakter olmalıdır');
+        return;
+      }
+      if (form.value.authorizedPersonPassword !== form.value.authorizedPersonPasswordConfirm) {
+        toast.warning('Şifreler eşleşmiyor');
+        return;
+      }
 
       // Super admin için bayi seçimi zorunlu
       if (isSuperAdmin.value && (!form.value.dealerId || form.value.dealerId.trim() === '')) {
@@ -1092,13 +1125,20 @@ const editCompany = company => {
     authorizedPersonPhone: company.authorizedPerson?.phone || '',
     authorizedPersonEmail: company.authorizedPerson?.email || company.contactEmail || '',
     authorizedPersonPassword: '',
+    authorizedPersonPasswordConfirm: '',
   };
+  newPassword.value = '';
+  newPasswordConfirm.value = '';
   showModal.value = true;
 };
 
 const resetPassword = async () => {
   if (!editingCompany.value || !newPassword.value || newPassword.value.length < 6) {
     toast.warning('Şifre en az 6 karakter olmalıdır');
+    return;
+  }
+  if (newPassword.value !== newPasswordConfirm.value) {
+    toast.warning('Şifreler eşleşmiyor');
     return;
   }
 
@@ -1116,6 +1156,7 @@ const resetPassword = async () => {
     }
 
     newPassword.value = '';
+    newPasswordConfirm.value = '';
   } catch (error) {
     console.error('Şifre sıfırlama hatası:', error);
     const errorMessage = error.response?.data?.message || 'Şifre sıfırlanırken bir hata oluştu';
@@ -1156,6 +1197,7 @@ const resetForm = () => {
     authorizedPersonPhone: '',
     authorizedPersonEmail: '',
     authorizedPersonPassword: '',
+    authorizedPersonPasswordConfirm: '',
   };
 };
 

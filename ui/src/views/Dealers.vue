@@ -387,9 +387,11 @@
               Bu bayi için maksimum şirket sayısı. Boş bırakılırsa sınırsız şirket ekleyebilir.
             </p>
 
-            <div v-if="!editingDealer">
+            <div v-if="!editingDealer" class="space-y-4">
               <Input v-model="form.email" type="email" label="Admin Email" required />
               <Input v-model="form.password" type="password" label="Admin Şifre" required />
+              <Input v-model="form.passwordConfirm" type="password" label="Admin Şifre Tekrar" required />
+              <p v-if="form.password && form.passwordConfirm && form.password !== form.passwordConfirm" class="text-xs text-red-500">Şifreler eşleşmiyor</p>
             </div>
 
             <div class="flex gap-2 justify-end">
@@ -438,6 +440,7 @@ const form = ref({
   maxCompanies: null,
   email: '',
   password: '',
+  passwordConfirm: '',
 });
 
 const filteredDealers = computed(() => {
@@ -550,6 +553,16 @@ const loadDealers = async () => {
 
 const saveDealer = async () => {
   try {
+    // Şifre eşleşme kontrolü (yeni bayi oluşturma)
+    if (!editingDealer.value) {
+      if (form.value.password !== form.value.passwordConfirm) {
+        return toast.error('Şifreler eşleşmiyor');
+      }
+      if (form.value.password.length < 6) {
+        return toast.error('Şifre en az 6 karakter olmalıdır');
+      }
+    }
+
     // Eğer bitiş tarihi girilmemişse, başlangıç tarihinden 1 yıl sonrasını ayarla
     if (!form.value.endDate && form.value.startDate) {
       const startDate = new Date(form.value.startDate);
@@ -679,6 +692,7 @@ const closeModal = () => {
     maxCompanies: null,
     email: '',
     password: '',
+    passwordConfirm: '',
   };
 };
 

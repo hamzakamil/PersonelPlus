@@ -414,13 +414,22 @@
                 type="password"
                 :required="!editingUser"
               />
-              <p class="text-xs text-gray-500 mt-1">
+              <Input
+                v-model="userForm.passwordConfirm"
+                label="Şifre Tekrar"
+                type="password"
+                :required="!editingUser"
+              />
+              <p v-if="userForm.password && userForm.passwordConfirm && userForm.password !== userForm.passwordConfirm" class="text-xs text-red-500 mt-1">Şifreler eşleşmiyor</p>
+              <p v-else class="text-xs text-gray-500 mt-1">
                 Boş bırakılırsa kullanıcı ilk girişte şifre belirleyecektir
               </p>
             </div>
             <div v-else>
               <Input v-model="userForm.password" label="Yeni Şifre (Opsiyonel)" type="password" />
-              <p class="text-xs text-gray-500 mt-1">Sadece değiştirmek istiyorsanız doldurun</p>
+              <Input v-model="userForm.passwordConfirm" label="Yeni Şifre Tekrar" type="password" />
+              <p v-if="userForm.password && userForm.passwordConfirm && userForm.password !== userForm.passwordConfirm" class="text-xs text-red-500 mt-1">Şifreler eşleşmiyor</p>
+              <p v-else class="text-xs text-gray-500 mt-1">Sadece değiştirmek istiyorsanız doldurun</p>
             </div>
 
             <div>
@@ -528,6 +537,7 @@ const filters = ref({
 const userForm = ref({
   email: '',
   password: '',
+  passwordConfirm: '',
   roleName: '',
   dealerId: '',
   companyId: '',
@@ -705,6 +715,18 @@ const editUser = user => {
 };
 
 const saveUser = async () => {
+  // Şifre eşleşme kontrolü
+  if (userForm.value.password) {
+    if (userForm.value.password.length < 6) {
+      toast.warning('Şifre en az 6 karakter olmalıdır');
+      return;
+    }
+    if (userForm.value.password !== userForm.value.passwordConfirm) {
+      toast.warning('Şifreler eşleşmiyor');
+      return;
+    }
+  }
+
   saving.value = true;
   try {
     const payload = {
@@ -820,6 +842,7 @@ const closeUserModal = () => {
   userForm.value = {
     email: '',
     password: '',
+    passwordConfirm: '',
     roleName: '',
     dealerId: '',
     companyId: '',
