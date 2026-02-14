@@ -5,7 +5,7 @@ const Company = require('../models/Company');
 
 async function run() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/personel_yonetim');
     console.log('MongoDB bağlandı');
 
     // 1. Global leave types'ları oluştur (eğer yoksa)
