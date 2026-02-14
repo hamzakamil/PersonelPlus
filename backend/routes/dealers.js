@@ -7,6 +7,7 @@ const Role = require('../models/Role');
 const Company = require('../models/Company');
 const { auth, requireRole } = require('../middleware/auth');
 const quotaService = require('../services/quotaService');
+const { normalizePhone, isValidTurkishPhone } = require('../utils/phoneUtils');
 const {
   successResponse,
   errorResponse,
@@ -79,6 +80,15 @@ router.post('/', auth, requireRole('super_admin'), async (req, res) => {
       return errorResponse(res, { message: 'Admin şifresi zorunludur' });
     }
 
+    // Telefon numarası varsa normalize et ve doğrula
+    if (contactPhone && contactPhone.trim()) {
+      const normalized = normalizePhone(contactPhone);
+      if (!isValidTurkishPhone(normalized)) {
+        return errorResponse(res, { message: 'Geçerli bir telefon numarası giriniz (05XX XXX XX XX)' });
+      }
+      req.body.contactPhone = normalized;
+    }
+
     // Email mükerrer kontrolü
     const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
@@ -102,7 +112,7 @@ router.post('/', auth, requireRole('super_admin'), async (req, res) => {
       createdDealer = new Dealer({
         name,
         contactEmail,
-        contactPhone,
+        contactPhone: req.body.contactPhone || contactPhone,
         contactPerson,
         address,
         city,
@@ -216,9 +226,18 @@ router.put('/:id', auth, requireRole('super_admin', 'bayi_admin'), async (req, r
       ikDisplayName,
     } = req.body;
 
+    // Telefon numarası varsa normalize et ve doğrula
+    if (contactPhone !== undefined && contactPhone && contactPhone.trim()) {
+      const normalized = normalizePhone(contactPhone);
+      if (!isValidTurkishPhone(normalized)) {
+        return errorResponse(res, { message: 'Geçerli bir telefon numarası giriniz (05XX XXX XX XX)' });
+      }
+      req.body.contactPhone = normalized;
+    }
+
     if (name !== undefined) dealer.name = name;
     if (contactEmail !== undefined) dealer.contactEmail = contactEmail;
-    if (contactPhone !== undefined) dealer.contactPhone = contactPhone;
+    if (contactPhone !== undefined) dealer.contactPhone = req.body.contactPhone || contactPhone;
     if (contactPerson !== undefined) dealer.contactPerson = contactPerson;
     if (address !== undefined) dealer.address = address;
     if (city !== undefined) dealer.city = city;
@@ -235,6 +254,19 @@ router.put('/:id', auth, requireRole('super_admin', 'bayi_admin'), async (req, r
     }
 
     await dealer.save();
+
+    // selfCompany varsa, ortak alanları senkronize et
+    if (dealer.selfCompany) {
+      const companyUpdate = {};
+      if (name !== undefined) companyUpdate.name = `${name} (Kendi Şirketim)`;
+      if (contactEmail !== undefined) companyUpdate.contactEmail = contactEmail;
+      if (contactPhone !== undefined) companyUpdate.contactPhone = contactPhone;
+      if (address !== undefined) companyUpdate.address = address;
+
+      if (Object.keys(companyUpdate).length > 0) {
+        await Company.findByIdAndUpdate(dealer.selfCompany, companyUpdate);
+      }
+    }
 
     return successResponse(res, { data: dealer, message: 'Bayi güncellendi' });
   } catch (error) {
