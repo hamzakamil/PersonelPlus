@@ -21,16 +21,27 @@ router.get('/', auth, requireRole('super_admin'), async (req, res) => {
     const total = await RegistrationRequest.countDocuments(filter);
 
     const requests = await RegistrationRequest.find(filter)
-      .populate('user', 'email isActive')
+      .populate('user', 'email isActive activationToken')
       .populate('processedBy', 'email')
       .populate('dealer', 'name referralCode')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
+    // Email doğrulama durumunu ekle
+    const enrichedRequests = requests.map(req => {
+      const obj = req.toObject();
+      obj.emailVerified = !obj.user?.activationToken;
+      // activationToken'ı response'a gönderme (güvenlik)
+      if (obj.user) {
+        delete obj.user.activationToken;
+      }
+      return obj;
+    });
+
     return successResponse(res, {
       data: {
-        requests,
+        requests: enrichedRequests,
         pagination: {
           total,
           page: parseInt(page),

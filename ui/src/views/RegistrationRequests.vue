@@ -106,6 +106,13 @@
             </td>
             <td class="px-3 py-3 whitespace-nowrap">
               <span
+                v-if="request.status === 'pending' && !request.emailVerified"
+                class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800"
+              >
+                Email Doğrulama Bekliyor
+              </span>
+              <span
+                v-else
                 class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
                 :class="statusClass(request.status)"
               >
