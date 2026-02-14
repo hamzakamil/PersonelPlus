@@ -65,66 +65,123 @@ router.post('/', auth, requireRole('super_admin'), async (req, res) => {
       password,
     } = req.body;
 
-    const dealer = new Dealer({
-      name,
-      contactEmail,
-      contactPhone,
-      contactPerson,
-      address,
-      city,
-      zipCode,
-      taxNumber,
-      maxCompanies:
-        maxCompanies !== undefined && maxCompanies !== null && maxCompanies !== ''
-          ? parseInt(maxCompanies)
-          : null,
-      startDate: startDate ? new Date(startDate) : new Date(),
-      endDate: endDate ? new Date(endDate) : null,
-    });
-    await dealer.save();
+    // Zorunlu alan kontrolleri
+    if (!name || !name.trim()) {
+      return errorResponse(res, { message: 'Bayi adı zorunludur' });
+    }
+    if (!contactEmail || !contactEmail.trim()) {
+      return errorResponse(res, { message: 'İletişim email adresi zorunludur' });
+    }
+    if (!email || !email.trim()) {
+      return errorResponse(res, { message: 'Admin email adresi zorunludur' });
+    }
+    if (!password) {
+      return errorResponse(res, { message: 'Admin şifresi zorunludur' });
+    }
 
-    // Bayinin kendi şirketini oluştur (çalışanları için)
-    const selfCompany = new Company({
-      name: `${name} (Kendi Şirketim)`,
-      dealer: dealer._id,
-      contactEmail: contactEmail,
-      contactPhone: contactPhone,
-      address: address,
-      isDealerSelfCompany: true,
-      isActive: true,
-      isActivated: true,
-      activatedAt: new Date(),
-    });
-    await selfCompany.save();
+    // Email mükerrer kontrolü
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingUser) {
+      return errorResponse(res, { message: 'Bu email adresi zaten kullanılıyor' });
+    }
 
-    // Varsayılan Merkez işyeri oluştur
-    const Workplace = require('../models/Workplace');
-    const defaultWorkplace = new Workplace({
-      name: 'Merkez',
-      company: selfCompany._id,
-      isDefault: true,
-      isActive: true,
-    });
-    await defaultWorkplace.save();
-
-    // Dealer'a selfCompany referansını ekle
-    dealer.selfCompany = selfCompany._id;
-    await dealer.save();
-
-    // Create bayi_admin user
+    // bayi_admin rolü kontrolü
     const role = await Role.findOne({ name: 'bayi_admin' });
-    const hashedPassword = await bcrypt.hash(password, 10);
+    if (!role) {
+      return errorResponse(res, { message: 'bayi_admin rolü bulunamadı. Lütfen sistem yöneticisine başvurun', statusCode: 500 });
+    }
 
-    const user = new User({
-      email,
-      password: hashedPassword,
-      role: role._id,
-      dealer: dealer._id,
-    });
-    await user.save();
+    // Oluşturulan kayıtları takip et (rollback için)
+    let createdDealer = null;
+    let createdCompany = null;
+    let createdWorkplace = null;
+    let createdUser = null;
 
-    return createdResponse(res, { data: dealer, message: 'Bayi oluşturuldu' });
+    try {
+      // 1. Dealer oluştur
+      createdDealer = new Dealer({
+        name,
+        contactEmail,
+        contactPhone,
+        contactPerson,
+        address,
+        city,
+        zipCode,
+        taxNumber,
+        maxCompanies:
+          maxCompanies !== undefined && maxCompanies !== null && maxCompanies !== ''
+            ? parseInt(maxCompanies)
+            : null,
+        startDate: startDate ? new Date(startDate) : new Date(),
+        endDate: endDate ? new Date(endDate) : null,
+      });
+      await createdDealer.save();
+
+      // 2. Bayinin kendi şirketini oluştur
+      createdCompany = new Company({
+        name: `${name} (Kendi Şirketim)`,
+        dealer: createdDealer._id,
+        contactEmail: contactEmail,
+        contactPhone: contactPhone,
+        address: address,
+        isDealerSelfCompany: true,
+        isActive: true,
+        isActivated: true,
+        activatedAt: new Date(),
+      });
+      await createdCompany.save();
+
+      // 3. Varsayılan Merkez işyeri oluştur
+      const Workplace = require('../models/Workplace');
+      createdWorkplace = new Workplace({
+        name: 'Merkez',
+        company: createdCompany._id,
+        isDefault: true,
+        isActive: true,
+      });
+      await createdWorkplace.save();
+
+      // 4. Dealer'a selfCompany referansını ekle
+      createdDealer.selfCompany = createdCompany._id;
+      await createdDealer.save();
+
+      // 5. bayi_admin kullanıcısını oluştur
+      const hashedPassword = await bcrypt.hash(password, 10);
+      createdUser = new User({
+        email,
+        password: hashedPassword,
+        role: role._id,
+        dealer: createdDealer._id,
+      });
+      await createdUser.save();
+
+      return createdResponse(res, { data: createdDealer, message: 'Bayi oluşturuldu' });
+    } catch (innerError) {
+      // Rollback: Oluşturulan kayıtları temizle
+      console.error('Bayi oluşturma hatası, rollback yapılıyor:', innerError);
+      try {
+        if (createdUser) await User.findByIdAndDelete(createdUser._id);
+        if (createdWorkplace) {
+          const Workplace = require('../models/Workplace');
+          await Workplace.findByIdAndDelete(createdWorkplace._id);
+        }
+        if (createdCompany) await Company.findByIdAndDelete(createdCompany._id);
+        if (createdDealer) await Dealer.findByIdAndDelete(createdDealer._id);
+      } catch (rollbackError) {
+        console.error('Rollback hatası:', rollbackError);
+      }
+      throw innerError;
+    }
   } catch (error) {
+    // Mongoose validation hatalarını anlaşılır mesajla dön
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(e => e.message);
+      return errorResponse(res, { message: messages.join(', ') });
+    }
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0];
+      return errorResponse(res, { message: `Bu ${field === 'email' ? 'email adresi' : field} zaten kullanılıyor` });
+    }
     return serverError(res, error);
   }
 });
