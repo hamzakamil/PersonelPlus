@@ -33,6 +33,17 @@ const userSchema = new mongoose.Schema({
     ref: 'Employee',
     default: null
   },
+  // Google OAuth
+  googleId: {
+    type: String,
+    default: null,
+    sparse: true,
+    unique: true
+  },
+  profilePicture: {
+    type: String,
+    default: null
+  },
   isActive: {
     type: Boolean,
     default: true

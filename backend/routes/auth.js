@@ -17,6 +17,7 @@ const LoginAttempt = require('../models/LoginAttempt');
 const { verifyCaptcha } = require('../services/captchaService');
 const Employee = require('../models/Employee');
 const { normalizePhone } = require('../utils/phoneUtils');
+const { OAuth2Client } = require('google-auth-library');
 
 // Register - Yeni kullanıcı kaydı
 router.post('/register', async (req, res) => {
@@ -487,6 +488,164 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     return serverError(res, error, 'Giriş hatası');
+  }
+});
+
+// Google ile giriş / kayıt
+router.post('/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return errorResponse(res, { message: 'Google credential gerekli' });
+    }
+
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    if (!googleClientId) {
+      return serverError(res, new Error('GOOGLE_CLIENT_ID yapılandırılmamış'), 'Google giriş yapılandırması eksik');
+    }
+
+    // Google ID token doğrula
+    const client = new OAuth2Client(googleClientId);
+    let ticket;
+    try {
+      ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: googleClientId,
+      });
+    } catch (err) {
+      return errorResponse(res, { message: 'Google token doğrulanamadı', statusCode: 401 });
+    }
+
+    const payload = ticket.getPayload();
+    const { sub: googleId, email: googleEmail, name, picture, email_verified } = payload;
+
+    if (!email_verified) {
+      return errorResponse(res, { message: 'Google email adresi doğrulanmamış' });
+    }
+
+    const email = googleEmail.toLowerCase().trim();
+
+    // 1. GoogleId ile mevcut kullanıcıyı ara
+    let user = await User.findOne({ googleId }).populate('role').populate('dealer').populate('company');
+
+    // 2. Email ile mevcut kullanıcıyı ara
+    if (!user) {
+      user = await User.findOne({ email }).populate('role').populate('dealer').populate('company');
+    }
+
+    if (user) {
+      // Mevcut kullanıcı - googleId bağla (yoksa)
+      if (!user.googleId) {
+        user.googleId = googleId;
+        if (picture) user.profilePicture = picture;
+        await user.save();
+      }
+
+      // Aktif mi kontrol et
+      if (!user.isActive) {
+        return errorResponse(res, {
+          message: 'Hesabınız henüz aktif değil. Yönetici onayı bekleniyor.',
+          statusCode: 403,
+          errorCode: 'ACCOUNT_NOT_ACTIVE',
+        });
+      }
+
+      // Pasif bayi kontrolü
+      if (user.role.name === 'bayi_admin' && user.dealer && !user.dealer.isActive) {
+        return errorResponse(res, {
+          message: 'Hesabınız pasif durumdadır.',
+          statusCode: 403,
+        });
+      }
+
+      // company_admin için şirket aktivasyonu
+      if (user.role.name === 'company_admin' && user.company) {
+        const company = await Company.findById(user.company);
+        if (company && !company.isActivated) {
+          company.isActivated = true;
+          company.activatedAt = new Date();
+          await company.save();
+        }
+      }
+
+      // JWT oluştur
+      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+      const userPayload = buildUserPayload(user);
+
+      if (user.role.name === 'employee' && user.company) {
+        await attachEmployeeName(userPayload, user);
+      }
+
+      return successResponse(res, {
+        data: { token, user: userPayload },
+        message: 'Google ile giriş başarılı',
+      });
+    }
+
+    // 3. Yeni kullanıcı - kayıt akışı
+    const companyAdminRole = await Role.findOne({ name: 'company_admin' });
+    if (!companyAdminRole) {
+      return serverError(res, new Error('Role bulunamadı'), 'Sistem hatası');
+    }
+
+    const newUser = new User({
+      email,
+      password: null,
+      role: companyAdminRole._id,
+      googleId,
+      profilePicture: picture || null,
+      isActive: false,
+      mustChangePassword: false,
+    });
+    await newUser.save();
+
+    // Kayıt talebi oluştur
+    const registrationRequest = new RegistrationRequest({
+      user: newUser._id,
+      fullName: name || email,
+      phone: '',
+      companyName: `${name || 'Yeni'} Şirketi`,
+      status: 'pending',
+    });
+    await registrationRequest.save();
+
+    // Kayıt modunu kontrol et
+    const settings = await Settings.getSettings();
+
+    if (settings.registrationMode === 'email_verification') {
+      // Google email zaten doğrulanmış - otomatik onayla
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+      newUser.activationToken = hashedToken;
+      newUser.activationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await newUser.save();
+
+      registrationRequest.status = 'approved';
+      registrationRequest.processedAt = new Date();
+      registrationRequest.notes = 'Google OAuth - email doğrulanmış, otomatik onay';
+      await registrationRequest.save();
+
+      // Email doğrulama linki gönder (şirket oluşturma için gerekli)
+      sendRegistrationVerificationEmail(email, name || email, rawToken).catch(err =>
+        console.error('Google kayıt doğrulama email hatası:', err)
+      );
+
+      return successResponse(res, {
+        message: 'Google ile kayıt başarılı! Email adresinize bir doğrulama linki gönderildi.',
+        data: { email, mode: 'email_verification', isNewUser: true },
+      });
+    }
+
+    // Manuel onay modu
+    return successResponse(res, {
+      message: 'Google ile kayıt başarılı. Hesabınız onay bekliyor.',
+      data: { email, mode: 'manual_approval', isNewUser: true },
+    });
+  } catch (error) {
+    console.error('Google giriş hatası:', error);
+    return serverError(res, error, 'Google giriş hatası');
   }
 });
 

@@ -41,6 +41,12 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
+      path: '/privacy-policy',
+      name: 'PrivacyPolicy',
+      component: () => import('@/views/PrivacyPolicy.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
       path: '/forgot-password',
       name: 'ForgotPassword',
       component: () => import('@/views/ForgotPassword.vue'),
@@ -554,7 +560,8 @@ router.beforeEach((to, from, next) => {
     to.name === 'ActivateAccount' ||
     to.name === 'Register' ||
     to.name === 'VerifyEmail' ||
-    to.name === 'ResetPassword'
+    to.name === 'ResetPassword' ||
+    to.name === 'PrivacyPolicy'
   ) {
     next();
     return;

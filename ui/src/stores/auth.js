@@ -59,6 +59,36 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function googleLogin(credential) {
+    try {
+      const response = await api.post('/auth/google', { credential })
+      const resData = response.data?.data || response.data
+
+      // Yeni kullanıcı - kayıt akışı
+      if (resData.isNewUser) {
+        return {
+          success: false,
+          isNewUser: true,
+          message: response.data?.message || 'Kayıt talebi oluşturuldu',
+          mode: resData.mode
+        }
+      }
+
+      // Mevcut kullanıcı - giriş
+      token.value = resData.token
+      user.value = resData.user
+      localStorage.setItem('token', resData.token)
+      localStorage.setItem('user', JSON.stringify(resData.user))
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Google ile giriş başarısız',
+        errorCode: error.response?.data?.errorCode || null
+      }
+    }
+  }
+
   async function logout() {
     token.value = null
     user.value = null
@@ -99,6 +129,7 @@ export const useAuthStore = defineStore('auth', () => {
     isBayiAdmin,
     isCompanyAdmin,
     login,
+    googleLogin,
     logout,
     fetchCurrentUser,
     setUser
