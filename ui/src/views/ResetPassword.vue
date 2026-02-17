@@ -1,0 +1,247 @@
+<template>
+  <div
+    class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
+  >
+    <div class="max-w-md w-full space-y-8">
+      <!-- Logo -->
+      <div class="text-center">
+        <img src="/logo.svg" alt="PersonelPlus" class="h-24 w-auto mx-auto" />
+      </div>
+
+      <!-- Başlık -->
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-gray-900">Şifre Sıfırlama</h2>
+        <p class="mt-2 text-sm text-gray-600">Güvenliğiniz için yeni bir şifre belirleyin</p>
+      </div>
+
+      <!-- Yükleniyor -->
+      <div v-if="loading" class="bg-white rounded-lg shadow p-6 text-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
+        <p class="mt-4 text-gray-600">Token doğrulanıyor...</p>
+      </div>
+
+      <!-- Geçersiz Token -->
+      <div v-else-if="!tokenValid" class="bg-white rounded-lg shadow p-6">
+        <div class="text-center">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+            <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h3 class="mt-4 text-lg font-medium text-gray-900">Geçersiz veya Süresi Dolmuş Link</h3>
+          <p class="mt-2 text-sm text-gray-500">{{ errorMessage }}</p>
+          <div class="mt-6">
+            <router-link
+              to="/login"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-500 hover:bg-orange-600"
+            >
+              Giriş Sayfasına Dön
+            </router-link>
+          </div>
+        </div>
+      </div>
+
+      <!-- Şifre Değiştirme Formu -->
+      <div v-else-if="!resetSuccess" class="bg-white rounded-lg shadow p-6">
+        <div class="mb-6">
+          <div class="flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mx-auto">
+            <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h3 class="mt-4 text-lg font-medium text-gray-900 text-center">Yeni Şifre Belirleyin</h3>
+          <p class="mt-2 text-sm text-gray-500 text-center">
+            E-posta: <strong>{{ userEmail }}</strong>
+          </p>
+        </div>
+
+        <form @submit.prevent="resetPassword" class="space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Yeni Şifre</label>
+            <div class="relative">
+              <input
+                v-model="password"
+                :type="showPassword ? 'text' : 'password'"
+                required
+                minlength="6"
+                class="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                placeholder="En az 6 karakter"
+              />
+              <button
+                type="button"
+                tabindex="-1"
+                @click="showPassword = !showPassword"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                <svg v-if="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Şifre Tekrar</label>
+            <div class="relative">
+              <input
+                v-model="confirmPassword"
+                :type="showConfirmPassword ? 'text' : 'password'"
+                required
+                class="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                placeholder="Şifrenizi tekrar girin"
+              />
+              <button
+                type="button"
+                tabindex="-1"
+                @click="showConfirmPassword = !showConfirmPassword"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                <svg v-if="!showConfirmPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="password && confirmPassword && password !== confirmPassword" class="text-sm text-red-600">
+            Şifreler eşleşmiyor
+          </div>
+
+          <div v-if="resetError" class="text-sm text-red-600 bg-red-50 p-3 rounded">
+            {{ resetError }}
+          </div>
+
+          <button
+            type="submit"
+            :disabled="!canSubmit || resetting"
+            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg
+              v-if="resetting"
+              class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ resetting ? 'Şifre Değiştiriliyor...' : 'Şifremi Değiştir' }}
+          </button>
+        </form>
+      </div>
+
+      <!-- Başarılı Şifre Değişikliği -->
+      <div v-else class="bg-white rounded-lg shadow p-6">
+        <div class="text-center">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+            <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 class="mt-4 text-lg font-medium text-gray-900">Şifreniz Değiştirildi!</h3>
+          <p class="mt-2 text-sm text-gray-500">
+            Yeni şifreniz başarıyla belirlendi. Şimdi giriş yapabilirsiniz.
+          </p>
+          <div class="mt-6">
+            <router-link
+              to="/login"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-500 hover:bg-orange-600"
+            >
+              Giriş Yap
+            </router-link>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-8 text-center">
+      <p class="text-sm text-gray-500">
+        Powered by <span class="font-semibold" style="color: #e53935">PersonelPlus</span>
+      </p>
+      <p class="text-xs text-gray-400 mt-1">
+        &copy; {{ new Date().getFullYear() }} Tüm hakları saklıdır.
+      </p>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import api from '@/services/api';
+
+const route = useRoute();
+
+const loading = ref(true);
+const tokenValid = ref(false);
+const userEmail = ref('');
+const password = ref('');
+const confirmPassword = ref('');
+const resetting = ref(false);
+const resetSuccess = ref(false);
+const errorMessage = ref('');
+const resetError = ref('');
+const showPassword = ref(false);
+const showConfirmPassword = ref(false);
+
+const canSubmit = computed(() => {
+  return password.value.length >= 6 && password.value === confirmPassword.value;
+});
+
+const verifyToken = async () => {
+  const token = route.params.token;
+  if (!token) {
+    errorMessage.value = 'Şifre sıfırlama linki geçersiz.';
+    loading.value = false;
+    return;
+  }
+
+  try {
+    const response = await api.get(`/auth/verify-reset-token/${token}`);
+    if (response.data.data?.valid) {
+      tokenValid.value = true;
+      userEmail.value = response.data.data.email;
+    } else {
+      errorMessage.value = response.data.message || 'Şifre sıfırlama linki geçersiz veya süresi dolmuş.';
+    }
+  } catch (error) {
+    errorMessage.value = error.response?.data?.message || 'Şifre sıfırlama linki doğrulanamadı.';
+  } finally {
+    loading.value = false;
+  }
+};
+
+const resetPassword = async () => {
+  if (!canSubmit.value) return;
+
+  resetting.value = true;
+  resetError.value = '';
+
+  try {
+    const token = route.params.token;
+    await api.post('/auth/reset-password', {
+      token,
+      password: password.value,
+    });
+
+    resetSuccess.value = true;
+  } catch (error) {
+    resetError.value = error.response?.data?.message || 'Şifre değiştirilemedi.';
+  } finally {
+    resetting.value = false;
+  }
+};
+
+onMounted(() => {
+  verifyToken();
+});
+</script>

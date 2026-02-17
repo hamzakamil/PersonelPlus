@@ -50,6 +50,10 @@ const registrationRequestSchema = new mongoose.Schema(
       ref: 'Dealer',
       default: null,
     },
+    lastAdminNotificationSent: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

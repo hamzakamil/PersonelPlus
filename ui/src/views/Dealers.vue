@@ -233,6 +233,21 @@
                     </svg>
                   </button>
                   <button
+                    v-if="!dealer.isActive"
+                    @click="openTransferModal(dealer)"
+                    class="p-1.5 text-purple-600 hover:bg-purple-50 rounded"
+                    title="Şirket Transfer Et"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                  </button>
+                  <button
                     @click="editDealer(dealer)"
                     class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded"
                     title="Düzenle"
@@ -402,6 +417,172 @@
         </form>
       </div>
     </div>
+
+    <!-- Transfer Modal -->
+    <div
+      v-if="showTransferModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-start justify-center z-50 overflow-y-auto py-8"
+    >
+      <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">Şirket Transferi</h2>
+          <button
+            @click="closeTransferModal"
+            class="text-gray-400 hover:text-gray-600"
+            :disabled="transferLoading"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p class="text-sm text-blue-800">
+            <strong>{{ transferForm.sourceDealerName }}</strong> bayisinin aktif şirketlerini başka bir
+            bayiye transfer edebilirsiniz.
+          </p>
+        </div>
+
+        <!-- Hedef Bayi Seçimi -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Hedef Bayi <span class="text-red-500">*</span>
+          </label>
+          <select
+            v-model="transferForm.targetDealerId"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :disabled="transferLoading"
+            required
+          >
+            <option value="">Bayi Seçin</option>
+            <option
+              v-for="dealer in transferForm.availableDealers"
+              :key="dealer._id"
+              :value="dealer._id"
+            >
+              {{ dealer.name }}
+              {{
+                dealer.maxCompanies !== null && dealer.maxCompanies !== undefined
+                  ? `(Max: ${dealer.maxCompanies} şirket)`
+                  : '(Sınırsız)'
+              }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Şirket Listesi -->
+        <div class="mb-6">
+          <div class="flex justify-between items-center mb-2">
+            <label class="block text-sm font-medium text-gray-700">
+              Transfer Edilecek Şirketler
+              <span class="text-gray-500 font-normal"
+                >({{ transferForm.selectedCompanyIds.length }} / {{ transferForm.sourceCompanies.length }}
+                seçili)</span
+              >
+            </label>
+            <button
+              type="button"
+              @click="selectAllCompanies"
+              class="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              :disabled="transferLoading"
+            >
+              {{ transferForm.selectedCompanyIds.length === transferForm.sourceCompanies.length ? 'Tümünü Kaldır' : 'Tümünü Seç' }}
+            </button>
+          </div>
+
+          <div
+            class="border border-gray-300 rounded-lg max-h-80 overflow-y-auto"
+            :class="{ 'opacity-50': transferLoading }"
+          >
+            <div
+              v-for="company in transferForm.sourceCompanies"
+              :key="company._id"
+              class="p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
+            >
+              <label class="flex items-start cursor-pointer">
+                <input
+                  type="checkbox"
+                  :value="company._id"
+                  :checked="transferForm.selectedCompanyIds.includes(company._id)"
+                  @change="toggleCompanySelection(company._id)"
+                  class="mt-1 mr-3 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  :disabled="transferLoading"
+                />
+                <div class="flex-1">
+                  <div class="font-medium text-gray-900">{{ company.name }}</div>
+                  <div class="text-sm text-gray-600 mt-0.5">
+                    <span v-if="company.contactEmail">{{ company.contactEmail }}</span>
+                    <span v-if="company.contactPhone" class="ml-2">{{ company.contactPhone }}</span>
+                  </div>
+                  <div class="text-xs text-gray-500 mt-1">
+                    Kota: {{ company.quota?.allocated || 0 }}
+                    <span v-if="company.quota?.isUnlimited" class="text-green-600">(Sınırsız)</span>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <div
+              v-if="transferForm.sourceCompanies.length === 0"
+              class="p-6 text-center text-gray-500"
+            >
+              Transfer edilebilir şirket bulunamadı
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-2 justify-end">
+          <button
+            type="button"
+            @click="closeTransferModal"
+            class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+            :disabled="transferLoading"
+          >
+            İptal
+          </button>
+          <button
+            type="button"
+            @click="transferCompanies"
+            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            :disabled="
+              transferLoading ||
+              transferForm.selectedCompanyIds.length === 0 ||
+              !transferForm.targetDealerId
+            "
+          >
+            <svg
+              v-if="transferLoading"
+              class="animate-spin h-4 w-4 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            {{ transferLoading ? 'Transfer Ediliyor...' : 'Transfer Et' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -424,6 +605,18 @@ const filters = ref({
   status: '',
   timeStatus: '',
 });
+
+// Transfer modal state
+const showTransferModal = ref(false);
+const transferForm = ref({
+  sourceDealerId: null,
+  sourceDealerName: '',
+  sourceCompanies: [],
+  selectedCompanyIds: [],
+  targetDealerId: '',
+  availableDealers: [],
+});
+const transferLoading = ref(false);
 
 const form = ref({
   name: '',
@@ -599,14 +792,25 @@ const toggleStatus = async dealer => {
   if (!confirmed) return;
 
   try {
-    await api.put(`/dealers/${dealer._id}`, {
-      ...dealer,
-      isActive: newStatus,
-    });
+    if (newStatus) {
+      // Aktifleştir
+      await api.patch(`/dealers/${dealer._id}/activate`);
+    } else {
+      // Pasife al
+      await api.patch(`/dealers/${dealer._id}/deactivate`);
+    }
     loadDealers();
     toast.success('Bayi durumu güncellendi');
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Durum güncellenemedi');
+    const errorData = error.response?.data;
+
+    // Aktif şirket varsa transfer modalı aç
+    if (errorData?.activeCompaniesCount > 0) {
+      toast.warning(`${errorData.activeCompaniesCount} aktif şirket var. Transfer işlemi için modal açılıyor...`);
+      await openTransferModal(dealer);
+    } else {
+      toast.error(errorData?.message || 'Durum güncellenemedi');
+    }
   }
 };
 
@@ -640,9 +844,12 @@ const editDealer = dealer => {
 };
 
 const deleteDealer = async id => {
+  const dealer = dealers.value.find(d => d._id === id);
+  const dealerName = dealer?.name || 'Bu bayi';
+
   const confirmed = await confirmModal.show({
     title: 'Bayi Sil',
-    message: 'Bu bayiyi silmek istediğinize emin misiniz?',
+    message: `${dealerName}'yi kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz. Bayide aktif şirket veya kullanıcı varsa silme işlemi engellenecektir.`,
     type: 'danger',
     confirmText: 'Sil',
   });
@@ -653,8 +860,130 @@ const deleteDealer = async id => {
     loadDealers();
     toast.success('Bayi silindi');
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Hata oluştu');
+    const errorData = error.response?.data;
+    if (errorData?.activeCompaniesCount > 0) {
+      toast.error(`${errorData.activeCompaniesCount} aktif şirket var. Önce bayiyi pasife alın ve şirketleri transfer edin.`);
+    } else if (errorData?.userCount > 0) {
+      toast.error(`${errorData.userCount} kullanıcı var. Güvenlik nedeniyle silme engellenmiştir.`);
+    } else {
+      toast.error(errorData?.message || 'Hata oluştu');
+    }
   }
+};
+
+// Transfer modal functions
+const openTransferModal = async dealer => {
+  try {
+    transferLoading.value = true;
+
+    // Kaynak bayinin şirketlerini yükle
+    const companiesResponse = await api.get(`/companies?dealer=${dealer._id}`);
+    const companies = companiesResponse.data.data || [];
+
+    // selfCompany olanları filtrele (transfer edilemez)
+    const transferableCompanies = companies.filter(c => c.isActive && !c.isDealerSelfCompany);
+
+    if (transferableCompanies.length === 0) {
+      toast.info('Transfer edilebilir şirket bulunamadı');
+      return;
+    }
+
+    // Aktif bayileri yükle (hedef bayi seçimi için)
+    const dealersResponse = await api.get('/dealers');
+    const allDealers = dealersResponse.data.data || [];
+    const activeDealers = allDealers.filter(d => d.isActive && d._id !== dealer._id);
+
+    if (activeDealers.length === 0) {
+      toast.error('Transfer için aktif bayi bulunamadı');
+      return;
+    }
+
+    // Transfer form state'ini ayarla
+    transferForm.value = {
+      sourceDealerId: dealer._id,
+      sourceDealerName: dealer.name,
+      sourceCompanies: transferableCompanies,
+      selectedCompanyIds: [],
+      targetDealerId: '',
+      availableDealers: activeDealers,
+    };
+
+    showTransferModal.value = true;
+  } catch (error) {
+    toast.error('Şirketler yüklenirken hata oluştu');
+  } finally {
+    transferLoading.value = false;
+  }
+};
+
+const toggleCompanySelection = companyId => {
+  const index = transferForm.value.selectedCompanyIds.indexOf(companyId);
+  if (index > -1) {
+    transferForm.value.selectedCompanyIds.splice(index, 1);
+  } else {
+    transferForm.value.selectedCompanyIds.push(companyId);
+  }
+};
+
+const selectAllCompanies = () => {
+  if (transferForm.value.selectedCompanyIds.length === transferForm.value.sourceCompanies.length) {
+    // Tümünü kaldır
+    transferForm.value.selectedCompanyIds = [];
+  } else {
+    // Tümünü seç (selfCompany hariç - zaten filtrelenmiş)
+    transferForm.value.selectedCompanyIds = transferForm.value.sourceCompanies.map(c => c._id);
+  }
+};
+
+const transferCompanies = async () => {
+  if (transferForm.value.selectedCompanyIds.length === 0) {
+    return toast.error('Lütfen en az bir şirket seçin');
+  }
+
+  if (!transferForm.value.targetDealerId) {
+    return toast.error('Lütfen hedef bayi seçin');
+  }
+
+  const targetDealer = transferForm.value.availableDealers.find(
+    d => d._id === transferForm.value.targetDealerId
+  );
+
+  const confirmed = await confirmModal.show({
+    title: 'Şirket Transferi',
+    message: `${transferForm.value.selectedCompanyIds.length} şirketi "${targetDealer?.name}" bayisine transfer etmek istediğinize emin misiniz? Bu işlem şirketlerin bağlı olduğu bayiyi değiştirecektir.`,
+    type: 'warning',
+    confirmText: 'Transfer Et',
+  });
+  if (!confirmed) return;
+
+  try {
+    transferLoading.value = true;
+
+    await api.post(`/dealers/${transferForm.value.sourceDealerId}/transfer-companies`, {
+      companyIds: transferForm.value.selectedCompanyIds,
+      targetDealerId: transferForm.value.targetDealerId,
+    });
+
+    toast.success(`${transferForm.value.selectedCompanyIds.length} şirket başarıyla transfer edildi`);
+    closeTransferModal();
+    loadDealers();
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Transfer sırasında hata oluştu');
+  } finally {
+    transferLoading.value = false;
+  }
+};
+
+const closeTransferModal = () => {
+  showTransferModal.value = false;
+  transferForm.value = {
+    sourceDealerId: null,
+    sourceDealerName: '',
+    sourceCompanies: [],
+    selectedCompanyIds: [],
+    targetDealerId: '',
+    availableDealers: [],
+  };
 };
 
 const viewCompanies = dealerId => {

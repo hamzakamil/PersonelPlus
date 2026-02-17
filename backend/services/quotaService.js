@@ -359,6 +359,61 @@ const quotaService = {
         isUnlimited: c.quota?.isUnlimited || false
       }))
     };
+  },
+
+  /**
+   * Mevcut çalışan sayılarına göre otomatik kota dağıt
+   * @param {string} dealerId - Bayi ID
+   * @returns {Object} Dağıtım sonucu
+   */
+  async autoAllocateQuotaBasedOnEmployees(dealerId) {
+    const dealer = await Dealer.findById(dealerId).populate('activeSubscription');
+
+    if (!dealer) {
+      throw new Error('Bayi bulunamadı');
+    }
+
+    const totalQuota = dealer.employeeQuota || 0;
+
+    // Tüm aktif şirketleri bul
+    const companies = await Company.find({ dealer: dealerId, isActive: true });
+
+    // Her şirketin mevcut çalışan sayısını hesapla ve kota ata
+    const companyAllocations = [];
+    let totalAllocated = 0;
+
+    for (const company of companies) {
+      const employeeCount = await Employee.countDocuments({
+        company: company._id,
+        status: 'active'
+      });
+
+      // Şirkete çalışan sayısı kadar kota ata
+      company.quota = company.quota || {};
+      company.quota.allocated = employeeCount;
+      company.quota.used = employeeCount;
+      await company.save();
+
+      totalAllocated += employeeCount;
+
+      companyAllocations.push({
+        _id: company._id,
+        name: company.name,
+        allocated: employeeCount,
+        used: employeeCount
+      });
+    }
+
+    // Dealer'ın allocatedQuota'sını güncelle
+    dealer.allocatedQuota = totalAllocated;
+    await dealer.save();
+
+    return {
+      totalQuota,
+      totalAllocated,
+      unallocated: totalQuota - totalAllocated,
+      companies: companyAllocations
+    };
   }
 };
 

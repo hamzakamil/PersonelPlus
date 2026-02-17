@@ -118,7 +118,7 @@
         <!-- Header -->
         <header
           v-show="!isFullscreen"
-          class="shadow-sm border-b sticky top-0 z-10"
+          class="shadow-sm border-b sticky top-0 z-50"
           :style="{ backgroundColor: 'var(--header-bg)', borderColor: 'var(--header-border)' }"
         >
           <div class="px-6 py-3 flex justify-between items-center">
@@ -488,6 +488,7 @@ const menuItems = computed(() => {
     items.push({ path: '/advance-requests', name: 'Avans Taleplerim', icon: icons.wallet });
     items.push({ path: '/leave-ledger', name: 'İzin Cetveli', icon: icons.table });
     items.push({ path: '/messages', name: 'Mesajlar', icon: icons.message });
+    items.push({ path: '/my-account', name: 'Hesabım', icon: icons.userCog });
   }
 
   return items;

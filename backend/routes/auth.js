@@ -9,9 +9,14 @@ const Dealer = require('../models/Dealer');
 const Company = require('../models/Company');
 const Settings = require('../models/Settings');
 const RegistrationRequest = require('../models/RegistrationRequest');
+const Notification = require('../models/Notification');
 const { auth } = require('../middleware/auth');
 const { successResponse, errorResponse, serverError } = require('../utils/responseHelper');
-const { sendRegistrationVerificationEmail } = require('../services/emailService');
+const { sendRegistrationVerificationEmail, sendPasswordAtRiskEmail, sendAdminRegistrationNotification } = require('../services/emailService');
+const LoginAttempt = require('../models/LoginAttempt');
+const { verifyCaptcha } = require('../services/captchaService');
+const Employee = require('../models/Employee');
+const { normalizePhone } = require('../utils/phoneUtils');
 
 // Register - Yeni kullanıcı kaydı
 router.post('/register', async (req, res) => {
@@ -127,35 +132,276 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// ===== Login Yardımcı Fonksiyonları =====
+
+// Çoklu identifier ile kullanıcı bulma (email, TC Kimlik, telefon, vergi no)
+async function resolveUserByIdentifier(identifier) {
+  const trimmed = identifier.trim().toLowerCase();
+  const populateOpts = [
+    { path: 'role' },
+    { path: 'dealer' },
+    { path: 'company' }
+  ];
+
+  // 1. Direkt email ile ara
+  let user = await User.findOne({ email: trimmed }).populate(populateOpts);
+  if (user) return user;
+
+  // 2. 11 haneli sayı → TC Kimlik
+  if (/^\d{11}$/.test(trimmed)) {
+    // Önce placeholder email ile dene
+    user = await User.findOne({ email: `${trimmed}@personelplus.com` }).populate(populateOpts);
+    if (user) return user;
+    // Yoksa Employee.tcKimlik → User (email değişmiş olabilir)
+    const emp = await Employee.findOne({ tcKimlik: trimmed });
+    if (emp) {
+      user = await User.findOne({ employee: emp._id }).populate(populateOpts);
+      if (user) return user;
+    }
+  }
+
+  // 3. 10 haneli sayı → Vergi No
+  if (/^\d{10}$/.test(trimmed)) {
+    user = await User.findOne({ email: `${trimmed}@personelplus.com` }).populate(populateOpts);
+    if (user) return user;
+  }
+
+  // 4. Telefon numarası (05xx, +90, 5xx pattern)
+  const phoneDigits = trimmed.replace(/\D/g, '');
+  if (phoneDigits.length >= 10 && phoneDigits.length <= 12) {
+    const normalized = normalizePhone(phoneDigits);
+    if (normalized) {
+      const emp = await Employee.findOne({ phone: normalized });
+      if (emp) {
+        user = await User.findOne({ employee: emp._id }).populate(populateOpts);
+        if (user) return user;
+      }
+    }
+  }
+
+  return null;
+}
+
+function buildUserPayload(user) {
+  return {
+    id: user._id,
+    email: user.email,
+    role: user.role.name,
+    dealer: user.dealer,
+    company: user.company,
+    mustChangePassword: user.mustChangePassword,
+  };
+}
+
+async function attachEmployeeName(userPayload, user) {
+  let emp = null;
+  if (user.employee) {
+    const empId = user.employee._id || user.employee;
+    emp = await Employee.findById(empId).select('firstName lastName');
+  }
+  if (!emp) {
+    emp = await Employee.findOne({
+      email: user.email.toLowerCase().trim(),
+      company: user.company._id || user.company,
+    }).select('firstName lastName');
+  }
+  if (emp) userPayload.employeeName = `${emp.firstName} ${emp.lastName}`.trim();
+}
+
+function loginFailureResponse(res, loginAttempt) {
+  if (!loginAttempt) {
+    return errorResponse(res, { message: 'Email veya şifre hatalı', statusCode: 401 });
+  }
+
+  // 9+ başarısız deneme: hesap kilitli
+  if (loginAttempt.isLocked()) {
+    const remainingSeconds = loginAttempt.getRemainingLockSeconds();
+    return errorResponse(res, {
+      message: `Çok fazla başarısız deneme. Hesabınız ${Math.ceil(remainingSeconds / 60)} dakika süreyle kilitlendi.`,
+      statusCode: 423,
+      errorCode: 'LOGIN_ACCOUNT_LOCKED',
+      data: {
+        lockedUntil: loginAttempt.lockedUntil,
+        remainingSeconds,
+      },
+    });
+  }
+
+  // 3+ başarısız deneme: bir sonraki deneme için CAPTCHA gerekli
+  if (loginAttempt.isCaptchaRequired()) {
+    return errorResponse(res, {
+      message: 'Email veya şifre hatalı. Güvenlik doğrulaması gerekli.',
+      statusCode: 401,
+      errorCode: 'LOGIN_CAPTCHA_REQUIRED',
+      data: { attemptNumber: loginAttempt.failedAttempts },
+    });
+  }
+
+  // 1-2 başarısız deneme: rate limit bilgisi
+  const delay = loginAttempt.getRateLimitDelay();
+  if (delay > 0) {
+    return errorResponse(res, {
+      message: 'Email veya şifre hatalı.',
+      statusCode: 401,
+      errorCode: 'LOGIN_RATE_LIMITED',
+      data: {
+        retryAfter: Math.ceil(delay / 1000),
+        attemptNumber: loginAttempt.failedAttempts,
+      },
+    });
+  }
+
+  // İlk başarısız deneme: normal mesaj
+  return errorResponse(res, { message: 'Email veya şifre hatalı', statusCode: 401 });
+}
+
+function sendPasswordAtRiskWarning(user, previousAttempts, clientIp) {
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+  User.findByIdAndUpdate(user._id, {
+    resetPasswordToken: hashedToken,
+    resetPasswordExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  }).catch(err => console.error('Reset token kaydetme hatası:', err));
+
+  sendPasswordAtRiskEmail(user.email, rawToken, previousAttempts, clientIp).catch(err =>
+    console.error('Şifre risk uyarısı email gönderim hatası:', err)
+  );
+}
+
 // Login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, captchaToken } = req.body;
 
     if (!email || typeof email !== 'string') {
-      return errorResponse(res, { message: 'Email adresi gereklidir' });
+      return errorResponse(res, { message: 'Kullanıcı bilgisi gereklidir' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() })
-      .populate('role')
-      .populate('dealer')
-      .populate('company');
+    const loginIdentifier = email.trim().toLowerCase();
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
 
+    // ===== ADIM 1: Kullanıcıyı bul (email, TC, telefon veya vergi no) =====
+    const user = await resolveUserByIdentifier(loginIdentifier);
+
+    // LoginAttempt için user email'ini kullan (bulunduysa), yoksa girilen identifier'ı
+    const attemptEmail = user ? user.email : loginIdentifier;
+
+    const loginAttempt = await LoginAttempt.findOrCreateByEmail(attemptEmail);
+
+    // Hesap kilitli mi?
+    if (loginAttempt.isLocked()) {
+      const remainingSeconds = loginAttempt.getRemainingLockSeconds();
+      return errorResponse(res, {
+        message: `Çok fazla başarısız deneme. Hesabınız geçici olarak kilitlendi. ${Math.ceil(remainingSeconds / 60)} dakika sonra tekrar deneyin.`,
+        statusCode: 423,
+        errorCode: 'LOGIN_ACCOUNT_LOCKED',
+        data: {
+          lockedUntil: loginAttempt.lockedUntil,
+          remainingSeconds,
+        },
+      });
+    }
+
+    // ===== ADIM 2: Rate limit kontrolü (2-3. denemeler) =====
+    const rateLimitDelay = loginAttempt.getRateLimitDelay();
+    if (rateLimitDelay > 0 && loginAttempt.lastFailedAt) {
+      const elapsed = Date.now() - loginAttempt.lastFailedAt.getTime();
+      if (elapsed < rateLimitDelay) {
+        const retryAfter = Math.ceil((rateLimitDelay - elapsed) / 1000);
+        return errorResponse(res, {
+          message: `Lütfen ${retryAfter} saniye bekleyip tekrar deneyin.`,
+          statusCode: 429,
+          errorCode: 'LOGIN_RATE_LIMITED',
+          data: {
+            retryAfter,
+            attemptNumber: loginAttempt.failedAttempts,
+          },
+        });
+      }
+    }
+
+    // ===== ADIM 3: CAPTCHA kontrolü (4+ denemeler) =====
+    if (loginAttempt.isCaptchaRequired()) {
+      if (!captchaToken) {
+        return errorResponse(res, {
+          message: 'Güvenlik doğrulaması (CAPTCHA) gereklidir.',
+          statusCode: 401,
+          errorCode: 'LOGIN_CAPTCHA_REQUIRED',
+          data: { attemptNumber: loginAttempt.failedAttempts },
+        });
+      }
+
+      const captchaResult = await verifyCaptcha(captchaToken, clientIp);
+      if (!captchaResult.success) {
+        return errorResponse(res, {
+          message: 'CAPTCHA doğrulaması başarısız. Lütfen tekrar deneyin.',
+          statusCode: 401,
+          errorCode: 'LOGIN_CAPTCHA_REQUIRED',
+          data: { attemptNumber: loginAttempt.failedAttempts },
+        });
+      }
+    }
+
+    // ===== ADIM 4: Kullanıcı doğrulama =====
     if (!user) {
-      return errorResponse(res, { message: 'Email veya şifre hatalı', statusCode: 401 });
+      await LoginAttempt.recordFailure(attemptEmail, clientIp);
+      const updated = await LoginAttempt.findOne({ email: attemptEmail });
+      return loginFailureResponse(res, updated);
     }
 
     if (!user.isActive) {
-      return errorResponse(res, { message: 'Hesabınız aktif değil', statusCode: 401 });
+      // Kullanıcının kayıt talebini kontrol et
+      const registrationRequest = await RegistrationRequest.findOne({ user: user._id }).sort({ createdAt: -1 });
+
+      // Email doğrulama token'ı var mı ve hala geçerli mi kontrol et
+      const hasValidActivationToken = user.activationToken && user.activationTokenExpires && user.activationTokenExpires > new Date();
+
+      // Email doğrulama modunda mı?
+      const settings = await Settings.getSettings();
+      const isEmailVerificationMode = settings.registrationMode === 'email_verification';
+
+      if (hasValidActivationToken && isEmailVerificationMode) {
+        // Email doğrulama bekleniyor
+        return errorResponse(res, {
+          message: 'Hesabınız aktif değil. Email adresinize gönderilen doğrulama linkine tıklayın.',
+          statusCode: 401,
+          errorCode: 'ACCOUNT_INACTIVE',
+          data: {
+            activationMethod: 'email_verification',
+            canResendEmail: true,
+          }
+        });
+      } else if (registrationRequest && registrationRequest.status === 'pending') {
+        // Manuel onay bekleniyor
+        return errorResponse(res, {
+          message: 'Hesabınız aktif değil. Admin onayı bekleniyor.',
+          statusCode: 401,
+          errorCode: 'ACCOUNT_INACTIVE',
+          data: {
+            activationMethod: 'manual_approval',
+            canResendEmail: false,
+          }
+        });
+      } else {
+        // Genel aktif değil mesajı
+        return errorResponse(res, {
+          message: 'Hesabınız aktif değil',
+          statusCode: 401,
+          errorCode: 'ACCOUNT_INACTIVE',
+          data: {
+            activationMethod: 'unknown',
+            canResendEmail: false,
+          }
+        });
+      }
     }
 
     // Employee rolü için işten çıkış tarihi kontrolü
     if (user.role.name === 'employee' && user.company) {
-      const Employee = require('../models/Employee');
-      const employee = await Employee.findOne({
-        email: email.toLowerCase().trim(),
-        company: user.company,
-      });
+      const employee = user.employee
+        ? await Employee.findById(user.employee)
+        : await Employee.findOne({ email: user.email, company: user.company });
 
       if (employee && employee.exitDate) {
         const exitDate = new Date(employee.exitDate);
@@ -172,32 +418,21 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    // Employee role: İlk girişte şifre kontrolü yapma (sadece email ile giriş)
-    if (user.role.name === 'employee') {
-      // Eğer şifre yoksa veya mustChangePassword true ise, şifre kontrolü yapma
-      if (!user.password || user.mustChangePassword) {
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-        const userPayload = {
-          id: user._id,
-          email: user.email,
-          role: user.role.name,
-          dealer: user.dealer,
-          company: user.company,
-          mustChangePassword: true,
-        };
-        if (user.company) {
-          const Employee = require('../models/Employee');
-          const emp = await Employee.findOne({
-            email: user.email.toLowerCase().trim(),
-            company: user.company._id || user.company,
-          }).select('firstName lastName');
-          if (emp) userPayload.employeeName = `${emp.firstName} ${emp.lastName}`.trim();
-        }
-        return successResponse(res, {
-          data: { token, user: userPayload, requiresPasswordSetup: true },
-          message: 'Giriş başarılı, şifre belirlenmesi gerekiyor',
-        });
+    // Employee ilk giriş: şifresi yoksa direkt giriş yap (şifre belirleme gerekiyor)
+    if (user.role.name === 'employee' && !user.password) {
+      const previousAttempts = loginAttempt.failedAttempts;
+      await LoginAttempt.resetAttempts(attemptEmail);
+      if (previousAttempts > 0) {
+        sendPasswordAtRiskWarning(user, previousAttempts, clientIp);
       }
+      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+      const userPayload = buildUserPayload(user);
+      userPayload.mustChangePassword = true;
+      if (user.company) await attachEmployeeName(userPayload, user);
+      return successResponse(res, {
+        data: { token, user: userPayload, requiresPasswordSetup: true },
+        message: 'Giriş başarılı, şifre belirlenmesi gerekiyor',
+      });
     }
 
     // Normal giriş: Şifre kontrolü yap
@@ -207,10 +442,21 @@ router.post('/login', async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return errorResponse(res, { message: 'Email veya şifre hatalı', statusCode: 401 });
+      await LoginAttempt.recordFailure(attemptEmail, clientIp);
+      const updated = await LoginAttempt.findOne({ email: attemptEmail });
+      return loginFailureResponse(res, updated);
     }
 
-    // If company_admin, activate company on first login
+    // ===== BAŞARILI GİRİŞ =====
+    const previousAttempts = loginAttempt.failedAttempts;
+    await LoginAttempt.resetAttempts(attemptEmail);
+
+    // Önceki başarısız denemeler varsa güvenlik uyarı emaili gönder
+    if (previousAttempts > 0) {
+      sendPasswordAtRiskWarning(user, previousAttempts, clientIp);
+    }
+
+    // company_admin için şirket aktivasyonu
     if (user.role.name === 'company_admin' && user.company) {
       const company = await Company.findById(user.company);
       if (company && !company.isActivated) {
@@ -221,26 +467,23 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const userPayload = buildUserPayload(user);
 
-    const userPayload = {
-      id: user._id,
-      email: user.email,
-      role: user.role.name,
-      dealer: user.dealer,
-      company: user.company,
-      mustChangePassword: user.mustChangePassword,
-    };
     if (user.role.name === 'employee' && user.company) {
-      const Employee = require('../models/Employee');
-      const emp = await Employee.findOne({
-        email: user.email.toLowerCase().trim(),
-        company: user.company._id || user.company,
-      }).select('firstName lastName');
-      if (emp) userPayload.employeeName = `${emp.firstName} ${emp.lastName}`.trim();
+      await attachEmployeeName(userPayload, user);
     }
+
+    const responseData = { token, user: userPayload };
+
+    // mustChangePassword olan kullanıcılar (tüm roller — company_admin dahil)
+    if (user.mustChangePassword) {
+      responseData.requiresPasswordSetup = true;
+      userPayload.mustChangePassword = true;
+    }
+
     return successResponse(res, {
-      data: { token, user: userPayload },
-      message: 'Giriş başarılı',
+      data: responseData,
+      message: user.mustChangePassword ? 'Giriş başarılı, şifre belirlenmesi gerekiyor' : 'Giriş başarılı',
     });
   } catch (error) {
     return serverError(res, error, 'Giriş hatası');
@@ -266,11 +509,17 @@ router.get('/me', auth, async (req, res) => {
 
     // Çalışan rolü için Ad Soyad ekle
     if (user.role.name === 'employee' && user.company) {
-      const Employee = require('../models/Employee');
-      const employee = await Employee.findOne({
-        email: user.email.toLowerCase().trim(),
-        company: user.company._id || user.company,
-      }).select('firstName lastName');
+      let employee = null;
+      if (user.employee) {
+        const empId = user.employee._id || user.employee;
+        employee = await Employee.findById(empId).select('firstName lastName');
+      }
+      if (!employee) {
+        employee = await Employee.findOne({
+          email: user.email.toLowerCase().trim(),
+          company: user.company._id || user.company,
+        }).select('firstName lastName');
+      }
       if (employee) {
         payload.employeeName = `${employee.firstName} ${employee.lastName}`.trim();
       }
@@ -285,7 +534,7 @@ router.get('/me', auth, async (req, res) => {
 // Change password
 router.post('/change-password', auth, async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, newEmail, newPhone } = req.body;
 
     if (!newPassword) {
       return errorResponse(res, { message: 'Yeni şifre gereklidir' });
@@ -295,7 +544,33 @@ router.post('/change-password', auth, async (req, res) => {
       return errorResponse(res, { message: 'Yeni şifre en az 6 karakter olmalıdır' });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).populate('role');
+
+    // Placeholder email kontrolü
+    const isPlaceholderEmail = user.email.endsWith('@personelplus.com') || user.email.endsWith('@placeholder.com');
+
+    // Placeholder email olan kullanıcılar için gerçek email ve telefon zorunlu
+    if (user.mustChangePassword && isPlaceholderEmail) {
+      if (!newEmail || !newEmail.trim()) {
+        return errorResponse(res, { message: 'Email adresi gereklidir' });
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newEmail.trim())) {
+        return errorResponse(res, { message: 'Geçerli bir email adresi girin' });
+      }
+      // Placeholder domain'lere izin verme
+      if (newEmail.trim().toLowerCase().endsWith('@personelplus.com') || newEmail.trim().toLowerCase().endsWith('@placeholder.com')) {
+        return errorResponse(res, { message: 'Lütfen gerçek bir email adresi girin' });
+      }
+      if (!newPhone || !newPhone.trim()) {
+        return errorResponse(res, { message: 'Telefon numarası gereklidir' });
+      }
+      // Email unique kontrolü
+      const existingUser = await User.findOne({ email: newEmail.trim().toLowerCase(), _id: { $ne: user._id } });
+      if (existingUser) {
+        return errorResponse(res, { message: 'Bu email adresi zaten kullanılıyor' });
+      }
+    }
 
     // Verify current password (if not first login and password exists)
     if (!user.mustChangePassword && user.password) {
@@ -311,13 +586,54 @@ router.post('/change-password', auth, async (req, res) => {
     // Update password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
-    user.mustChangePassword = false; // Şifre değiştirildi, artık zorunlu değil
+    user.mustChangePassword = false;
+
+    // Placeholder email ise gerçek email ve telefon güncelle
+    if (isPlaceholderEmail && newEmail) {
+      const oldEmail = user.email;
+      user.email = newEmail.trim().toLowerCase();
+
+      // Employee kaydını güncelle
+      if (user.employee) {
+        const employee = await Employee.findById(user.employee);
+        if (employee) {
+          employee.email = newEmail.trim().toLowerCase();
+          if (newPhone) employee.phone = newPhone.trim();
+          if (!employee.isActivated) {
+            employee.isActivated = true;
+            employee.activatedAt = new Date();
+          }
+          await employee.save();
+        }
+      }
+
+      // Company admin ise şirket bilgilerini güncelle
+      if (user.role && user.role.name === 'company_admin' && user.company) {
+        const company = await Company.findById(user.company);
+        if (company) {
+          if (company.contactEmail === oldEmail || !company.contactEmail) {
+            company.contactEmail = newEmail.trim().toLowerCase();
+          }
+          if (company.authorizedPerson && company.authorizedPerson.email === oldEmail) {
+            company.authorizedPerson.email = newEmail.trim().toLowerCase();
+          }
+          await company.save();
+        }
+      }
+    } else if (newPhone && user.employee) {
+      // Sadece telefon güncelleme (email değişmeden)
+      const employee = await Employee.findById(user.employee);
+      if (employee) {
+        employee.phone = newPhone.trim();
+        await employee.save();
+      }
+    }
+
     await user.save();
 
     // If employee, also activate the employee record
-    if (user.role.name === 'employee') {
-      const Employee = require('../models/Employee');
-      const employee = await Employee.findOne({ email: user.email });
+    if (user.role.name === 'employee' && user.employee) {
+      const employee = await Employee.findById(user.employee);
       if (employee && !employee.isActivated) {
         employee.isActivated = true;
         employee.activatedAt = new Date();
@@ -325,7 +641,7 @@ router.post('/change-password', auth, async (req, res) => {
       }
     }
 
-    return successResponse(res, { message: 'Şifre başarıyla belirlendi' });
+    return successResponse(res, { message: 'Bilgileriniz başarıyla güncellendi' });
   } catch (error) {
     return serverError(res, error);
   }
@@ -576,6 +892,266 @@ router.get('/verify-activation-token/:token', async (req, res) => {
       data: { valid: true, email: user.email },
     });
   } catch (error) {
+    return serverError(res, error);
+  }
+});
+
+/**
+ * POST /forgot-password
+ * Şifre sıfırlama talebi - Email gönder
+ */
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Validation
+    if (!email) {
+      return errorResponse(res, { message: 'Email adresi zorunludur' });
+    }
+
+    // Email formatı kontrolü
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return errorResponse(res, { message: 'Geçerli bir email adresi giriniz' });
+    }
+
+    // Email normalizasyonu (Türkçe karakterler için)
+    const normalizedEmail = email
+      .replace(/İ/g, 'i')  // Türkçe İ -> i
+      .replace(/I/g, 'i')  // İngilizce I -> i (email'lerde hep i olmalı)
+      .toLowerCase()
+      .trim();
+
+    // Kullanıcıyı bul
+    const user = await User.findOne({ email: normalizedEmail });
+
+    // Security: Her zaman başarılı yanıt döndür (user enumeration saldırısını önle)
+    if (!user) {
+      return res.json({
+        success: true,
+        message: 'Eğer bu email adresi sistemde kayıtlıysa, şifre sıfırlama linki gönderildi'
+      });
+    }
+
+    // Reset token oluştur (crypto.randomBytes)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    // Token'ı veritabanına kaydet (1 saat geçerli)
+    user.resetPasswordToken = resetTokenHash;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    await user.save();
+
+    // Email gönder
+    const emailService = require('../services/emailService');
+    const userName = user.firstName || user.fullName || 'Kullanıcı';
+    await emailService.sendForgotPasswordEmail(user.email, userName, resetToken);
+
+    // Başarılı yanıt
+    res.json({
+      success: true,
+      message: 'Eğer bu email adresi sistemde kayıtlıysa, şifre sıfırlama linki gönderildi'
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return serverError(res, error, 'Şifre sıfırlama talebi gönderilirken hata oluştu');
+  }
+});
+
+/**
+ * GET /verify-reset-token/:token
+ * Şifre sıfırlama token'ının geçerliliğini kontrol et
+ */
+router.get('/verify-reset-token/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return errorResponse(res, {
+        message: 'Geçersiz veya süresi dolmuş şifre sıfırlama linki',
+      });
+    }
+
+    return successResponse(res, {
+      data: { valid: true, email: user.email },
+    });
+  } catch (error) {
+    return serverError(res, error);
+  }
+});
+
+/**
+ * POST /reset-password
+ * Token ile şifre sıfırlama
+ */
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return errorResponse(res, { message: 'Token ve yeni şifre gereklidir' });
+    }
+
+    if (password.length < 6) {
+      return errorResponse(res, { message: 'Şifre en az 6 karakter olmalıdır' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return errorResponse(res, {
+        message: 'Geçersiz veya süresi dolmuş şifre sıfırlama linki',
+        statusCode: 400,
+      });
+    }
+
+    // Şifreyi güncelle ve token'ı temizle
+    user.password = await bcrypt.hash(password, 10);
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    user.mustChangePassword = false;
+    await user.save();
+
+    return successResponse(res, {
+      message: 'Şifreniz başarıyla değiştirildi. Artık yeni şifrenizle giriş yapabilirsiniz.',
+    });
+  } catch (error) {
+    console.error('Şifre sıfırlama hatası:', error);
+    return serverError(res, error);
+  }
+});
+
+/**
+ * POST /notify-admin
+ * Manuel onay bekleyen kullanıcı admin'e bildirim gönderir
+ */
+router.post('/notify-admin', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      return errorResponse(res, { message: 'Email adresi gereklidir' });
+    }
+
+    const normalizedEmail = email
+      .replace(/İ/g, 'i')
+      .replace(/I/g, 'i')
+      .toLowerCase()
+      .trim();
+
+    // Kullanıcıyı bul
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return errorResponse(res, { message: 'Kullanıcı bulunamadı', statusCode: 404 });
+    }
+
+    // Kullanıcı zaten aktif mi?
+    if (user.isActive) {
+      return errorResponse(res, { message: 'Hesabınız zaten aktif', statusCode: 400 });
+    }
+
+    // Kayıt talebini bul
+    const registrationRequest = await RegistrationRequest.findOne({ user: user._id }).sort({ createdAt: -1 });
+    if (!registrationRequest) {
+      return errorResponse(res, { message: 'Kayıt talebi bulunamadı', statusCode: 404 });
+    }
+
+    // Eğer kayıt talebi pending değilse (zaten approved veya rejected)
+    if (registrationRequest.status !== 'pending') {
+      return errorResponse(res, {
+        message: `Kayıt talebiniz "${registrationRequest.status}" durumunda. Bildirim gönderilemez.`,
+        statusCode: 400
+      });
+    }
+
+    // Rate limiting: Son bildirim zamanını kontrol et (1 saatte 1 kez)
+    const lastNotificationField = 'lastAdminNotificationSent';
+    const ONE_HOUR = 60 * 60 * 1000;
+
+    if (registrationRequest[lastNotificationField]) {
+      const timeSinceLastNotification = Date.now() - new Date(registrationRequest[lastNotificationField]).getTime();
+      if (timeSinceLastNotification < ONE_HOUR) {
+        const remainingMinutes = Math.ceil((ONE_HOUR - timeSinceLastNotification) / 60000);
+        return errorResponse(res, {
+          message: `Bildirim zaten gönderildi. ${remainingMinutes} dakika sonra tekrar deneyebilirsiniz.`,
+          statusCode: 429
+        });
+      }
+    }
+
+    // Admin kullanıcıları bul (super_admin rolü)
+    const superAdminRole = await Role.findOne({ name: 'super_admin' });
+    if (!superAdminRole) {
+      return errorResponse(res, { message: 'Admin rolü bulunamadı', statusCode: 500 });
+    }
+
+    const adminUsers = await User.find({
+      role: superAdminRole._id,
+      isActive: true
+    }).select('email');
+
+    if (adminUsers.length === 0) {
+      return errorResponse(res, {
+        message: 'Aktif admin bulunamadı. Lütfen daha sonra tekrar deneyin.',
+        statusCode: 503
+      });
+    }
+
+    // Tüm admin'lere sistem içi bildirim oluştur
+    const notificationPromises = adminUsers.map(async admin => {
+      try {
+        const notification = new Notification({
+          recipient: admin._id,
+          recipientType: 'super_admin',
+          company: null, // System-wide notification
+          title: 'Yeni Kayıt Onay Talebi',
+          body: `${registrationRequest.fullName} (${registrationRequest.companyName}) kayıt onayı bekliyor. Kullanıcı bildirim gönderdi.`,
+          type: 'SYSTEM',
+          relatedModel: 'RegistrationRequest',
+          relatedId: registrationRequest._id,
+          data: {
+            fullName: registrationRequest.fullName,
+            email: user.email,
+            phone: registrationRequest.phone,
+            companyName: registrationRequest.companyName,
+            referralCode: registrationRequest.referralCode,
+            createdAt: registrationRequest.createdAt,
+          },
+          isRead: false,
+          readAt: null,
+        });
+        await notification.save();
+      } catch (err) {
+        console.error(`Bildirim oluşturma hatası (${admin.email}):`, err);
+      }
+    });
+
+    await Promise.allSettled(notificationPromises);
+
+    // Son bildirim zamanını kaydet
+    registrationRequest[lastNotificationField] = new Date();
+    await registrationRequest.save();
+
+    return successResponse(res, {
+      message: 'Admin\'e bildirim gönderildi. En kısa sürede talebiniz incelenecektir.',
+      data: {
+        notifiedAdmins: adminUsers.length
+      }
+    });
+  } catch (error) {
+    console.error('Admin bildirim hatası:', error);
     return serverError(res, error);
   }
 });

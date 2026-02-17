@@ -357,8 +357,60 @@ async function updateWorkplaceSectionEmployeesApprovalChain(sectionId) {
   }
 }
 
+/**
+ * Şirketin approvalMode ayarına göre onay zincirini hesaplar.
+ * - chain_with_admin: Zincirin sonuna company admin eklenir
+ * - chain_managers_only: Sadece yöneticiler, ama zincir boşsa admin fallback
+ * - auto_approve: Boş chain döner (caller auto-approve yapar)
+ *
+ * @param {ObjectId} employeeId - Çalışan ID
+ * @param {ObjectId} companyId - Şirket ID
+ * @returns {Object} { chain: [], mode: string, adminEmployee: Employee|null }
+ */
+async function calculateApprovalChainWithAdminMode(employeeId, companyId) {
+  const Company = require('../models/Company');
+  const company = await Company.findById(companyId);
+
+  const approvalMode = company?.approvalMode || 'chain_with_admin';
+
+  // auto_approve modunda zincir hesaplanmaz
+  if (approvalMode === 'auto_approve') {
+    const adminEmployee = await getCompanyAdmin(companyId);
+    return { chain: [], mode: 'auto_approve', adminEmployee };
+  }
+
+  // Normal zinciri hesapla
+  const chain = await calculateApprovalChain(employeeId);
+  const adminEmployee = await getCompanyAdmin(companyId);
+
+  if (approvalMode === 'chain_with_admin') {
+    // Admin'i zincirin sonuna ekle (eğer zaten yoksa)
+    if (adminEmployee) {
+      const adminId = adminEmployee._id.toString();
+      const alreadyInChain = chain.some((id) => id.toString() === adminId);
+      if (!alreadyInChain) {
+        chain.push(adminEmployee._id);
+      }
+    }
+  } else if (approvalMode === 'chain_managers_only') {
+    // Admin eklenmez, AMA zincir boşsa admin fallback olur
+    if (chain.length === 0 && adminEmployee) {
+      chain.push(adminEmployee._id);
+    }
+  }
+
+  // Her durumda: zincir boşsa ve admin varsa, admin fallback (güvenceli)
+  if (chain.length === 0 && adminEmployee) {
+    chain.push(adminEmployee._id);
+  }
+
+  return { chain, mode: approvalMode, adminEmployee };
+}
+
 module.exports = {
   calculateApprovalChain,
+  calculateApprovalChainWithAdminMode,
+  getCompanyAdmin,
   updateDepartmentEmployeesApprovalChain,
   updateEmployeeApprovalChain,
   updateWorkplaceEmployeesApprovalChain,

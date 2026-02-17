@@ -75,31 +75,24 @@ const loadHolidays = async () => {
     loading.value = true
     error.value = null
 
-    const apiKey = import.meta.env.VITE_GOOGLE_API_HOLIDAY_KEY
-
-    if (!apiKey) {
-      error.value = 'Google API anahtarı bulunamadı. Lütfen .env dosyasında VITE_GOOGLE_API_HOLIDAY_KEY değerini ayarlayın.'
-      loading.value = false
-      return
-    }
-
-    const url = `https://www.googleapis.com/calendar/v3/calendars/turkish__tr%40holiday.calendar.google.com/events?key=${apiKey}`
+    // Backend API'den tüm resmi tatilleri çek (mevcut yıl)
+    const currentYear = new Date().getFullYear()
+    const url = `${import.meta.env.VITE_API_URL}/official-holidays/${currentYear}`
 
     const response = await axios.get(url)
 
-    if (response.data && response.data.items) {
-      // Filter and map holidays
-      const holidayList = response.data.items
-        .filter(item => item.summary && item.start && item.start.date)
-        .map(item => ({
-          id: item.id,
-          name: item.summary,
-          date: item.start.date
-        }))
-        .sort((a, b) => {
-          // Sort by date
-          return new Date(a.date) - new Date(b.date)
+    if (response.data && response.data.data) {
+      // Backend'den gelen veri formatı
+      const holidayList = response.data.data
+        .map(item => {
+          const dateStr = item.date.split('T')[0] // YYYY-MM-DD formatına çevir
+          return {
+            id: item._id,
+            name: item.name,
+            date: dateStr
+          }
         })
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
 
       holidays.value = holidayList
     } else {
@@ -107,19 +100,11 @@ const loadHolidays = async () => {
     }
   } catch (err) {
     console.error('Resmi tatiller yüklenirken hata:', err)
-    
-    if (err.response) {
-      if (err.response.status === 403) {
-        error.value = 'Google API anahtarı geçersiz veya yetkisiz. Lütfen API anahtarınızı kontrol edin.'
-      } else if (err.response.status === 400) {
-        error.value = 'API isteği geçersiz. Lütfen API anahtarınızı kontrol edin.'
-      } else {
-        error.value = `API hatası: ${err.response.status} - ${err.response.statusText}`
-      }
-    } else if (err.request) {
-      error.value = 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.'
+
+    if (err.response?.status === 404) {
+      error.value = 'Resmi tatil verisi bulunamadı.'
     } else {
-      error.value = 'Beklenmeyen bir hata oluştu: ' + err.message
+      error.value = 'Resmi tatiller yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.'
     }
   } finally {
     loading.value = false

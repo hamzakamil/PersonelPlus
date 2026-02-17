@@ -365,49 +365,38 @@ const loadGoogleHolidays = async () => {
     loadingGoogleHolidays.value = true
     error.value = null
 
-    const apiKey = import.meta.env.VITE_GOOGLE_API_HOLIDAY_KEY
-
-    if (!apiKey) {
-      error.value = 'Google API anahtarı bulunamadı. Lütfen sistem yöneticinize başvurun.'
-      return
-    }
-
-    // Yılın tüm tatillerini çek
-    const url = `https://www.googleapis.com/calendar/v3/calendars/turkish__tr%40holiday.calendar.google.com/events?key=${apiKey}&timeMin=${selectedYear.value}-01-01T00:00:00Z&timeMax=${selectedYear.value}-12-31T23:59:59Z`
-
+    // Backend API'den resmi tatilleri çek
+    const url = `${import.meta.env.VITE_API_URL}/official-holidays/${selectedYear.value}`
     const response = await axios.get(url)
 
-    if (response.data && response.data.items) {
-      const holidayList = response.data.items
-        .filter(item => item.summary && item.start && item.start.date)
+    if (response.data && response.data.data) {
+      const holidayList = response.data.data
         .map(item => {
-          const name = item.summary
-          // Yarım gün tatili kontrolü
-          const isHalfDay = halfDayKeywords.some(keyword => 
-            name.toLowerCase().includes(keyword)
-          )
-          
-          // Tatil türünü belirle
-          const holidayType = detectHolidayType(name)
-          
+          // Backend'den gelen veri formatı
+          const dateStr = item.date.split('T')[0] // YYYY-MM-DD formatına çevir
+
           return {
-            id: item.id,
-            name: name,
-            date: item.start.date,
-            isHalfDay: isHalfDay,
-            holidayType: isHalfDay ? holidayTypes.HALF_DAY : holidayType
+            id: item._id,
+            name: item.name,
+            date: dateStr,
+            isHalfDay: item.isHalfDay || false,
+            holidayType: item.type || holidayTypes.IMPORTANT
           }
         })
         .sort((a, b) => new Date(a.date) - new Date(b.date))
 
       googleHolidays.value = holidayList
     } else {
-      console.warn('Google Calendar tatil verileri bulunamadı.')
+      console.warn('Resmi tatil verileri bulunamadı.')
       googleHolidays.value = []
     }
   } catch (err) {
-    console.error('Google Calendar tatilleri yüklenemedi:', err)
-    error.value = 'Resmi tatiller yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.'
+    console.error('Resmi tatiller yüklenemedi:', err)
+    if (err.response?.status === 404) {
+      error.value = `${selectedYear.value} yılı için resmi tatil verisi bulunamadı.`
+    } else {
+      error.value = 'Resmi tatiller yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.'
+    }
     googleHolidays.value = []
   } finally {
     loadingGoogleHolidays.value = false

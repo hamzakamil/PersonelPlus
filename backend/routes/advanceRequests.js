@@ -5,7 +5,9 @@ const AdvancePayment = require('../models/AdvancePayment');
 const EmployeePuantaj = require('../models/EmployeePuantaj');
 const Employee = require('../models/Employee');
 const Company = require('../models/Company');
+const User = require('../models/User');
 const advanceService = require('../services/advanceService');
+const { calculateApprovalChainWithAdminMode } = require('../services/approvalChainService');
 const { auth } = require('../middleware/auth');
 const { errorResponse, notFound, forbidden, serverError } = require('../utils/responseHelper');
 
@@ -62,51 +64,114 @@ router.post('/', auth, async (req, res) => {
     const advanceApprovalSettings = company.advanceApprovalSettings || {
       enabled: true,
       useLeaveApprovalChain: true,
-      requireApproval: true,
-      autoApproveIfNoApprover: false,
       approvalLevels: 0,
       allowSelfApproval: false,
     };
 
     let approvalChain = [];
     let initialStatus = 'PENDING';
+    let currentApprover = null;
 
     // Onay sistemi aktif mi?
     if (advanceApprovalSettings.enabled) {
-      // İzin onay zincirini mi yoksa özel avans zincirini mi kullanacağız?
       if (advanceApprovalSettings.useLeaveApprovalChain) {
-        // İzin onay zincirini kullan (approvalChainService ile)
-        const { calculateApprovalChain } = require('../services/approvalChainService');
-        approvalChain = await calculateApprovalChain(employee._id);
-      } else {
-        // Özel avans onay zinciri
-        approvalChain = await advanceService.createApprovalChain(employee._id, employee.company);
-      }
+        // Genel onay zincirini kullan (approvalMode dahil: admin, auto_approve vb.)
+        const { chain, mode } = await calculateApprovalChainWithAdminMode(
+          employee._id,
+          employee.company
+        );
 
-      // Approval levels kısıtlaması
-      if (
-        advanceApprovalSettings.approvalLevels > 0 &&
-        approvalChain.length > advanceApprovalSettings.approvalLevels
-      ) {
-        approvalChain = approvalChain.slice(0, advanceApprovalSettings.approvalLevels);
-      }
-
-      // Onaylayıcı var mı?
-      if (approvalChain.length > 0) {
-        initialStatus = 'PENDING'; // Onay bekliyor
-      } else {
-        // Onay zinciri boş
-        if (
-          advanceApprovalSettings.requireApproval &&
-          !advanceApprovalSettings.autoApproveIfNoApprover
-        ) {
-          // Onay gerekli ama onaylayıcı yok - PENDING'de bekle
-          initialStatus = 'PENDING';
-        } else if (advanceApprovalSettings.autoApproveIfNoApprover) {
-          // Onaylayıcı yoksa otomatik onayla
+        if (mode === 'auto_approve') {
           initialStatus = 'APPROVED';
         } else {
-          initialStatus = 'APPROVED';
+          let employeeChain = chain;
+
+          // Approval levels kısıtlaması
+          if (
+            advanceApprovalSettings.approvalLevels > 0 &&
+            employeeChain.length > advanceApprovalSettings.approvalLevels
+          ) {
+            employeeChain = employeeChain.slice(0, advanceApprovalSettings.approvalLevels);
+          }
+
+          if (employeeChain.length > 0) {
+            // Employee ID'leri → approvalChain formatına dönüştür (User ID'leri ile)
+            for (const empId of employeeChain) {
+              const approverUser = await User.findOne({ employee: empId, isActive: true });
+              if (approverUser) {
+                const roleName =
+                  typeof approverUser.role === 'object'
+                    ? approverUser.role.name
+                    : approverUser.role;
+                approvalChain.push({
+                  approver: approverUser._id,
+                  role: roleName || 'manager',
+                  status: 'PENDING',
+                });
+              }
+            }
+
+            if (approvalChain.length > 0) {
+              currentApprover = employeeChain[0]; // Employee ID
+              initialStatus = 'PENDING';
+            } else {
+              // User bulunamadı - otomatik onayla
+              initialStatus = 'APPROVED';
+            }
+          } else {
+            // Zincir boş (normalde calculateApprovalChainWithAdminMode admin fallback yapar)
+            initialStatus = 'APPROVED';
+          }
+        }
+      } else {
+        // Özel avans onay zinciri (advanceService)
+        approvalChain = await advanceService.createApprovalChain(employee._id, employee.company);
+
+        // Approval levels kısıtlaması
+        if (
+          advanceApprovalSettings.approvalLevels > 0 &&
+          approvalChain.length > advanceApprovalSettings.approvalLevels
+        ) {
+          approvalChain = approvalChain.slice(0, advanceApprovalSettings.approvalLevels);
+        }
+
+        if (approvalChain.length > 0) {
+          initialStatus = 'PENDING';
+          // İlk onaylayıcının Employee karşılığını bul
+          const firstApproverEmployee = await Employee.findOne({
+            email: (await User.findById(approvalChain[0].approver))?.email,
+            company: employee.company,
+          });
+          currentApprover = firstApproverEmployee?._id || null;
+        } else {
+          // Zincir boş - approvalMode'a göre admin fallback
+          const approvalMode = company.approvalMode || 'chain_with_admin';
+          if (approvalMode === 'auto_approve') {
+            initialStatus = 'APPROVED';
+          } else {
+            // Admin'i ekle
+            const { getCompanyAdmin } = require('../services/approvalChainService');
+            const adminEmployee = await getCompanyAdmin(employee.company);
+            if (adminEmployee) {
+              const adminUser = await User.findOne({
+                employee: adminEmployee._id,
+                isActive: true,
+              });
+              if (adminUser) {
+                approvalChain.push({
+                  approver: adminUser._id,
+                  role: 'company_admin',
+                  status: 'PENDING',
+                });
+                currentApprover = adminEmployee._id;
+                initialStatus = 'PENDING';
+              } else {
+                initialStatus = 'APPROVED';
+              }
+            } else {
+              initialStatus = 'APPROVED';
+            }
+          }
         }
       }
     } else {
@@ -117,11 +182,13 @@ router.post('/', auth, async (req, res) => {
     // Ödeme planı oluştur
     const paymentSchedule = advanceService.createPaymentSchedule(amount, installments);
 
-    // İlk onaylayıcıyı belirle
-    let currentApprover = null;
-    if (approvalChain.length > 0 && initialStatus === 'PENDING') {
-      // approvalChain Employee ID'leri içerir
-      currentApprover = approvalChain[0];
+    // Admin oluşturuyorsa direkt onayla
+    const roleName = req.user.role?.name || req.user.role;
+    const isAdminCreator = ['company_admin', 'bayi_admin', 'super_admin'].includes(roleName);
+    if (isAdminCreator && employee.email !== req.user.email) {
+      initialStatus = 'APPROVED';
+      approvalChain = [];
+      currentApprover = null;
     }
 
     // Avans talebi oluştur
@@ -137,7 +204,27 @@ router.post('/', auth, async (req, res) => {
       status: initialStatus,
     });
 
+    if (initialStatus === 'APPROVED') {
+      advanceRequest.approvedBy = req.user._id;
+      advanceRequest.approvedAt = new Date();
+    }
+
     await advanceRequest.save();
+
+    // Otomatik onay ise ödeme kayıtlarını da oluştur
+    if (initialStatus === 'APPROVED') {
+      for (const scheduleItem of paymentSchedule) {
+        const payment = new AdvancePayment({
+          advanceRequest: advanceRequest._id,
+          employee: employee._id,
+          company: employee.company,
+          month: scheduleItem.month,
+          amount: scheduleItem.amount,
+          paid: false,
+        });
+        await payment.save();
+      }
+    }
 
     // Populate ile döndür
     const populatedRequest = await AdvanceRequest.findById(advanceRequest._id)
@@ -147,7 +234,10 @@ router.post('/', auth, async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Avans talebiniz başarıyla oluşturuldu',
+      message:
+        initialStatus === 'APPROVED'
+          ? 'Avans talebiniz onaylandı'
+          : 'Avans talebiniz oluşturuldu, onay bekliyor',
       data: populatedRequest,
     });
   } catch (error) {
@@ -368,7 +458,15 @@ router.post('/:id/approve', auth, async (req, res) => {
         (a, i) => i > approverIndex && a.status === 'PENDING'
       );
       if (nextPendingIndex !== -1 && advanceRequest.approvalChain[nextPendingIndex].approver) {
-        advanceRequest.currentApprover = advanceRequest.approvalChain[nextPendingIndex].approver;
+        // approver User ID, currentApprover Employee ref - dönüşüm yap
+        const nextApproverUserId = advanceRequest.approvalChain[nextPendingIndex].approver;
+        const nextApproverUser = await User.findById(nextApproverUserId);
+        if (nextApproverUser?.employee) {
+          advanceRequest.currentApprover = nextApproverUser.employee;
+        } else {
+          // Employee bulunamazsa User ID'yi dene (eski format uyumluluğu)
+          advanceRequest.currentApprover = nextApproverUserId;
+        }
       }
     }
 

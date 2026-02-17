@@ -43,6 +43,17 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'Kullanıcı bulunamadı' });
     }
 
+    // Pasif bayi kontrolü (bayi_admin için)
+    if (user.role && user.role.name === 'bayi_admin' && user.dealer) {
+      // dealer populate edilmiş bir obje
+      if (!user.dealer.isActive) {
+        return res.status(403).json({
+          success: false,
+          message: 'Hesabınız pasif durumdadır. Lütfen sistem yöneticisiyle iletişime geçin.',
+        });
+      }
+    }
+
     req.user = user;
     next();
   } catch (error) {

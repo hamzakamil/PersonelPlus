@@ -82,18 +82,18 @@
               {{ formatDateTime(payment.createdAt) }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm font-medium text-gray-900">{{ payment.dealer?.name || '-' }}</div>
-              <div class="text-xs text-gray-500">{{ payment.dealer?.contactEmail }}</div>
+              <div class="text-sm font-medium text-gray-900 dealer-name">{{ payment.dealer?.name || '-' }}</div>
+              <div class="text-xs text-gray-500 email-text">{{ payment.dealer?.contactEmail }}</div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-              {{ payment.package?.name || '-' }}
-              <div class="text-xs text-gray-500">{{ payment.billingType === 'yearly' ? 'Yillik' : 'Aylik' }}</div>
+              <span class="package-name">{{ payment.package?.name || '-' }}</span>
+              <div class="text-xs text-gray-500 no-uppercase">{{ payment.billingType === 'yearly' ? 'Yıllık' : 'Aylık' }}</div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm font-medium text-gray-900">{{ formatCurrency(payment.amount) }}</div>
-              <div v-if="payment.cardLastFour" class="text-xs text-gray-500">**** {{ payment.cardLastFour }}</div>
+              <div class="text-sm font-medium text-gray-900 preserve-case">{{ formatCurrency(payment.amount) }}</div>
+              <div v-if="payment.cardLastFour" class="text-xs text-gray-500 preserve-case">**** {{ payment.cardLastFour }}</div>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 no-uppercase">
               {{ paymentMethodText(payment.paymentMethod) }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
@@ -105,7 +105,7 @@
                   'bg-purple-100 text-purple-800': payment.status === 'refunded',
                   'bg-gray-100 text-gray-800': payment.status === 'cancelled'
                 }"
-                class="px-2 py-1 text-xs font-semibold rounded-full"
+                class="px-2 py-1 text-xs font-semibold rounded-full status-badge"
               >
                 {{ statusText(payment.status) }}
               </span>
@@ -155,34 +155,34 @@
 
     <!-- Detay Modal -->
     <div v-if="showDetailModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-full max-w-lg">
-        <h2 class="text-xl font-bold mb-4">Odeme Detayi</h2>
+      <div class="bg-white rounded-lg p-6 w-full max-w-lg modal-content">
+        <h2 class="text-xl font-bold mb-4 no-uppercase">Ödeme Detayı</h2>
 
         <div v-if="selectedPayment" class="space-y-4">
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span class="text-gray-500">Bayi:</span>
-              <div class="font-medium">{{ selectedPayment.dealer?.name }}</div>
+              <span class="text-gray-500 no-uppercase">Bayi:</span>
+              <div class="font-medium dealer-name">{{ selectedPayment.dealer?.name }}</div>
             </div>
             <div>
-              <span class="text-gray-500">Paket:</span>
-              <div class="font-medium">{{ selectedPayment.package?.name }}</div>
+              <span class="text-gray-500 no-uppercase">Paket:</span>
+              <div class="font-medium package-name">{{ selectedPayment.package?.name }}</div>
             </div>
             <div>
-              <span class="text-gray-500">Tutar:</span>
-              <div class="font-medium text-green-600">{{ formatCurrency(selectedPayment.amount) }}</div>
+              <span class="text-gray-500 no-uppercase">Tutar:</span>
+              <div class="font-medium text-green-600 preserve-case">{{ formatCurrency(selectedPayment.amount) }}</div>
             </div>
             <div>
-              <span class="text-gray-500">Fatura Tipi:</span>
-              <div class="font-medium">{{ selectedPayment.billingType === 'yearly' ? 'Yillik' : 'Aylik' }}</div>
+              <span class="text-gray-500 no-uppercase">Fatura Tipi:</span>
+              <div class="font-medium no-uppercase">{{ selectedPayment.billingType === 'yearly' ? 'Yıllık' : 'Aylık' }}</div>
             </div>
             <div>
-              <span class="text-gray-500">Odeme Yontemi:</span>
-              <div class="font-medium">{{ paymentMethodText(selectedPayment.paymentMethod) }}</div>
+              <span class="text-gray-500 no-uppercase">Ödeme Yöntemi:</span>
+              <div class="font-medium no-uppercase">{{ paymentMethodText(selectedPayment.paymentMethod) }}</div>
             </div>
             <div>
-              <span class="text-gray-500">Durum:</span>
-              <div class="font-medium">{{ statusText(selectedPayment.status) }}</div>
+              <span class="text-gray-500 no-uppercase">Durum:</span>
+              <div class="font-medium status-badge">{{ statusText(selectedPayment.status) }}</div>
             </div>
             <div v-if="selectedPayment.cardLastFour">
               <span class="text-gray-500">Kart:</span>
@@ -217,7 +217,7 @@
         </div>
 
         <div class="flex justify-end mt-4">
-          <Button variant="secondary" @click="showDetailModal = false">Kapat</Button>
+          <Button variant="secondary" @click="showDetailModal = false" class="no-uppercase">Kapat</Button>
         </div>
       </div>
     </div>
@@ -273,17 +273,17 @@ const formatDateTime = (date) => {
 const statusText = (status) => {
   const texts = {
     pending: 'Bekliyor',
-    completed: 'Tamamlandi',
-    failed: 'Basarisiz',
-    refunded: 'Iade Edildi',
-    cancelled: 'Iptal'
+    completed: 'Tamamlandı',
+    failed: 'Başarısız',
+    refunded: 'İade Edildi',
+    cancelled: 'İptal'
   }
   return texts[status] || status
 }
 
 const paymentMethodText = (method) => {
   const texts = {
-    credit_card: 'Kredi Karti',
+    credit_card: 'Kredi Kartı',
     bank_transfer: 'Banka Havale',
     manual: 'Manuel'
   }

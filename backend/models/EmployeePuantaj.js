@@ -109,6 +109,14 @@ const employeePuantajSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    sgkGunManuallyEdited: {
+      type: Boolean,
+      default: false,
+    },
+    sgkGunEditedAt: {
+      type: Date,
+      default: null,
+    },
     status: {
       type: String,
       enum: ['draft', 'finalized', 'approved'],

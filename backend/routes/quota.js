@@ -213,4 +213,39 @@ router.post('/sync', auth, requireRole('bayi_admin', 'super_admin'), async (req,
   }
 });
 
+/**
+ * POST /api/quota/auto-allocate - Mevcut çalışan sayısına göre otomatik kota dağıt
+ * Bayi admin: Kendi şirketlerine dağıtır
+ * Super admin: dealerId ile belirtilen bayiye dağıtır
+ */
+router.post('/auto-allocate', auth, requireRole('bayi_admin', 'super_admin'), async (req, res) => {
+  try {
+    let dealerId;
+
+    if (req.user.role.name === 'bayi_admin') {
+      dealerId = req.user.dealer;
+      if (!dealerId) {
+        return errorResponse(res, { message: 'Bayi bilgisi bulunamadı' });
+      }
+    } else if (req.user.role.name === 'super_admin') {
+      dealerId = req.body.dealerId;
+      if (!dealerId) {
+        return errorResponse(res, { message: 'dealerId gerekli' });
+      }
+    } else {
+      return forbidden(res, 'Bu işlem için yetkiniz yok');
+    }
+
+    const result = await quotaService.autoAllocateQuotaBasedOnEmployees(dealerId);
+
+    return successResponse(res, {
+      data: result,
+      message: `Kota otomatik dağıtıldı: ${result.totalAllocated}/${result.totalQuota}`
+    });
+  } catch (error) {
+    console.error('Otomatik kota dağıtım hatası:', error);
+    return serverError(res, error, 'Kota dağıtımı başarısız');
+  }
+});
+
 module.exports = router;

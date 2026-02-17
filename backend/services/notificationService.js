@@ -403,6 +403,77 @@ class NotificationService {
   }
 
   /**
+   * Fazla Mesai Talebi Bildirimi (onaylayıcıya)
+   */
+  async sendOvertimeRequestNotification(overtimeRequest, employee, approver) {
+    const dateStr = new Date(overtimeRequest.date).toLocaleDateString('tr-TR');
+    const typeStr = overtimeRequest.overtimeType === 'DAY' ? 'Gündüz' : 'Gece';
+
+    return this.send({
+      recipient: approver.user || approver._id,
+      recipientType: approver.role?.name || 'company_admin',
+      company: overtimeRequest.company,
+      type: 'OVERTIME_REQUEST',
+      title: 'Yeni Fazla Mesai Talebi',
+      body: `${employee.firstName} ${employee.lastName} ${dateStr} için ${overtimeRequest.requestedHours} saat ${typeStr} mesai talebi oluşturdu.`,
+      data: {
+        overtimeRequestId: overtimeRequest._id,
+        employeeId: employee._id,
+        date: dateStr
+      },
+      relatedModel: 'OvertimeRequest',
+      relatedId: overtimeRequest._id
+    });
+  }
+
+  /**
+   * Fazla Mesai Onay Bildirimi (çalışana)
+   */
+  async sendOvertimeApprovedNotification(overtimeRequest, employee) {
+    const dateStr = new Date(overtimeRequest.date).toLocaleDateString('tr-TR');
+
+    return this.send({
+      recipient: employee.user || employee._id,
+      recipientType: 'employee',
+      company: overtimeRequest.company,
+      type: 'OVERTIME_APPROVED',
+      title: 'Fazla Mesai Talebiniz Onaylandı',
+      body: `${dateStr} tarihli ${overtimeRequest.approvedHours || overtimeRequest.requestedHours} saatlik fazla mesai talebiniz onaylandı.`,
+      data: {
+        overtimeRequestId: overtimeRequest._id,
+        date: dateStr
+      },
+      relatedModel: 'OvertimeRequest',
+      relatedId: overtimeRequest._id,
+      priority: 'high'
+    });
+  }
+
+  /**
+   * Fazla Mesai Red Bildirimi (çalışana)
+   */
+  async sendOvertimeRejectedNotification(overtimeRequest, employee, reason) {
+    const dateStr = new Date(overtimeRequest.date).toLocaleDateString('tr-TR');
+
+    return this.send({
+      recipient: employee.user || employee._id,
+      recipientType: 'employee',
+      company: overtimeRequest.company,
+      type: 'OVERTIME_REJECTED',
+      title: 'Fazla Mesai Talebiniz Reddedildi',
+      body: `${dateStr} tarihli fazla mesai talebiniz reddedildi.${reason ? ` Neden: ${reason}` : ''}`,
+      data: {
+        overtimeRequestId: overtimeRequest._id,
+        date: dateStr,
+        reason
+      },
+      relatedModel: 'OvertimeRequest',
+      relatedId: overtimeRequest._id,
+      priority: 'high'
+    });
+  }
+
+  /**
    * Yeni Mesaj Bildirimi
    */
   async sendMessageNotification(message, recipient) {

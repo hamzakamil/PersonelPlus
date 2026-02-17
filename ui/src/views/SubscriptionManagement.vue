@@ -78,10 +78,10 @@
         <tbody class="bg-white divide-y divide-gray-200">
           <tr v-for="sub in subscriptions" :key="sub._id">
             <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm font-medium text-gray-900">{{ sub.dealer?.name || '-' }}</div>
-              <div class="text-xs text-gray-500">{{ sub.dealer?.contactEmail }}</div>
+              <div class="text-sm font-medium text-gray-900 dealer-name">{{ sub.dealer?.name || '-' }}</div>
+              <div class="text-xs text-gray-500 email-text">{{ sub.dealer?.contactEmail }}</div>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 package-name">
               {{ sub.package?.name || '-' }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
@@ -102,8 +102,8 @@
               </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {{ sub.billingType === 'yearly' ? 'Yillik' : 'Aylik' }}
-              <div class="text-xs">{{ formatCurrency(sub.price) }}</div>
+              <span class="no-uppercase">{{ sub.billingType === 'yearly' ? 'Yıllık' : 'Aylık' }}</span>
+              <div class="text-xs preserve-case">{{ formatCurrency(sub.price) }}</div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {{ formatDate(sub.startDate) }}
@@ -124,7 +124,7 @@
                   'bg-yellow-100 text-yellow-800': sub.status === 'suspended',
                   'bg-gray-100 text-gray-800': sub.status === 'cancelled'
                 }"
-                class="px-2 py-1 text-xs font-semibold rounded-full"
+                class="px-2 py-1 text-xs font-semibold rounded-full status-badge"
               >
                 {{ statusText(sub.status) }}
               </span>
@@ -188,37 +188,37 @@
 
     <!-- Detay Modal -->
     <div v-if="showDetailModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <h2 class="text-xl font-bold mb-4">Abonelik Detayi</h2>
+      <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto modal-content">
+        <h2 class="text-xl font-bold mb-4 no-uppercase">Abonelik Detayı</h2>
 
         <div v-if="selectedSubscription" class="space-y-4">
           <!-- Bayi Bilgileri -->
           <div class="bg-gray-50 rounded-lg p-4">
-            <h3 class="font-semibold text-gray-700 mb-2">Bayi Bilgileri</h3>
+            <h3 class="font-semibold text-gray-700 mb-2 no-uppercase">Bayi Bilgileri</h3>
             <div class="grid grid-cols-2 gap-2 text-sm">
-              <div><span class="text-gray-500">Ad:</span> {{ selectedSubscription.dealer?.name }}</div>
-              <div><span class="text-gray-500">Email:</span> {{ selectedSubscription.dealer?.contactEmail }}</div>
+              <div><span class="text-gray-500 no-uppercase">Ad:</span> <span class="dealer-name">{{ selectedSubscription.dealer?.name }}</span></div>
+              <div><span class="text-gray-500 no-uppercase">Email:</span> <span class="email-text">{{ selectedSubscription.dealer?.contactEmail }}</span></div>
             </div>
           </div>
 
           <!-- Abonelik Bilgileri -->
           <div class="bg-blue-50 rounded-lg p-4">
-            <h3 class="font-semibold text-blue-700 mb-2">Abonelik Bilgileri</h3>
+            <h3 class="font-semibold text-blue-700 mb-2 no-uppercase">Abonelik Bilgileri</h3>
             <div class="grid grid-cols-2 gap-2 text-sm">
-              <div><span class="text-blue-500">Paket:</span> {{ selectedSubscription.package?.name }}</div>
-              <div><span class="text-blue-500">Fatura:</span> {{ selectedSubscription.billingType === 'yearly' ? 'Yillik' : 'Aylik' }}</div>
-              <div><span class="text-blue-500">Fiyat:</span> {{ formatCurrency(selectedSubscription.price) }}</div>
-              <div><span class="text-blue-500">Kota:</span> {{ selectedSubscription.usedQuota }} / {{ selectedSubscription.employeeQuota }}</div>
-              <div><span class="text-blue-500">Baslangic:</span> {{ formatDate(selectedSubscription.startDate) }}</div>
-              <div><span class="text-blue-500">Bitis:</span> {{ formatDate(selectedSubscription.endDate) }}</div>
-              <div><span class="text-blue-500">Otomatik Yenileme:</span> {{ selectedSubscription.autoRenew ? 'Evet' : 'Hayir' }}</div>
-              <div><span class="text-blue-500">Odendi:</span> {{ selectedSubscription.isPaid ? 'Evet' : 'Hayir' }}</div>
+              <div><span class="text-blue-500 no-uppercase">Paket:</span> <span class="package-name">{{ selectedSubscription.package?.name }}</span></div>
+              <div><span class="text-blue-500 no-uppercase">Fatura:</span> <span class="no-uppercase">{{ selectedSubscription.billingType === 'yearly' ? 'Yıllık' : 'Aylık' }}</span></div>
+              <div><span class="text-blue-500 no-uppercase">Fiyat:</span> <span class="preserve-case">{{ formatCurrency(selectedSubscription.price) }}</span></div>
+              <div><span class="text-blue-500 no-uppercase">Kota:</span> <span class="preserve-case">{{ selectedSubscription.usedQuota }} / {{ selectedSubscription.employeeQuota }}</span></div>
+              <div><span class="text-blue-500 no-uppercase">Başlangıç:</span> <span class="preserve-case">{{ formatDate(selectedSubscription.startDate) }}</span></div>
+              <div><span class="text-blue-500 no-uppercase">Bitiş:</span> <span class="preserve-case">{{ formatDate(selectedSubscription.endDate) }}</span></div>
+              <div><span class="text-blue-500 no-uppercase">Otomatik Yenileme:</span> <span class="no-uppercase">{{ selectedSubscription.autoRenew ? 'Evet' : 'Hayır' }}</span></div>
+              <div><span class="text-blue-500 no-uppercase">Ödendi:</span> <span class="no-uppercase">{{ selectedSubscription.isPaid ? 'Evet' : 'Hayır' }}</span></div>
             </div>
           </div>
 
           <!-- Gecmis -->
           <div class="bg-gray-50 rounded-lg p-4">
-            <h3 class="font-semibold text-gray-700 mb-2">Islem Gecmisi</h3>
+            <h3 class="font-semibold text-gray-700 mb-2 no-uppercase">İşlem Geçmişi</h3>
             <div class="space-y-2 max-h-48 overflow-y-auto">
               <div
                 v-for="(item, index) in selectedSubscription.history"
@@ -232,7 +232,7 @@
                     'bg-yellow-100 text-yellow-800': item.action === 'suspended',
                     'bg-red-100 text-red-800': item.action === 'cancelled' || item.action === 'expired'
                   }"
-                  class="px-2 py-1 text-xs rounded mr-3"
+                  class="px-2 py-1 text-xs rounded mr-3 status-badge"
                 >
                   {{ actionText(item.action) }}
                 </span>
@@ -374,22 +374,22 @@ const formatDateTime = (date) => {
 const statusText = (status) => {
   const texts = {
     active: 'Aktif',
-    expired: 'Suresi Dolmus',
-    suspended: 'Askida',
-    cancelled: 'Iptal'
+    expired: 'Süresi Dolmuş',
+    suspended: 'Askıda',
+    cancelled: 'İptal'
   }
   return texts[status] || status
 }
 
 const actionText = (action) => {
   const texts = {
-    created: 'Olusturuldu',
+    created: 'Oluşturuldu',
     renewed: 'Yenilendi',
-    upgraded: 'Yukseltildi',
-    expired: 'Suresi Doldu',
-    cancelled: 'Iptal Edildi',
-    suspended: 'Askiya Alindi',
-    activated: 'Aktiflestirildi'
+    upgraded: 'Yükseltildi',
+    expired: 'Süresi Doldu',
+    cancelled: 'İptal Edildi',
+    suspended: 'Askıya Alındı',
+    activated: 'Aktifleştirildi'
   }
   return texts[action] || action
 }

@@ -7,6 +7,7 @@ const Employee = require('../models/Employee');
 const Company = require('../models/Company');
 const Department = require('../models/Department');
 const CompanyHolidayCalendar = require('../models/CompanyHolidayCalendar');
+const OfficialHoliday = require('../models/OfficialHoliday');
 const LeaveRequest = require('../models/LeaveRequest');
 const { auth, requireRole } = require('../middleware/auth');
 const { errorResponse, notFound, forbidden, serverError } = require('../utils/responseHelper');
@@ -710,6 +711,8 @@ router.put(
       }
 
       puantaj.sgkGun = sgkGun;
+      puantaj.sgkGunManuallyEdited = true;
+      puantaj.sgkGunEditedAt = new Date();
       await puantaj.save();
 
       res.json({ success: true, data: puantaj, message: 'SGK günü güncellendi' });
@@ -738,6 +741,26 @@ router.get('/company/:companyId/:year/:month', auth, async (req, res) => {
     const template = await getActiveTemplate(companyId);
 
     const codes = await PuantajCode.find({ template: template._id }).sort({ sortOrder: 1 });
+
+    // Önceki ay hesapla (satır renklendirme için)
+    const prevMonth = parseInt(month) === 1 ? 12 : parseInt(month) - 1;
+    const prevYear = parseInt(month) === 1 ? parseInt(year) - 1 : parseInt(year);
+
+    const prevMonthPuantajList = await EmployeePuantaj.find({
+      company: companyId,
+      year: prevYear,
+      month: prevMonth,
+    }).select('employee sgkGun sgkGunManuallyEdited summary.normalDays');
+
+    const prevMonthMap = {};
+    prevMonthPuantajList.forEach(p => {
+      prevMonthMap[p.employee.toString()] = {
+        sgkGun: p.sgkGun,
+        sgkGunManuallyEdited: p.sgkGunManuallyEdited || false,
+        normalDays: p.summary?.normalDays || 0,
+        effectiveSgkGun: p.sgkGun !== null && p.sgkGun !== undefined ? p.sgkGun : (p.summary?.normalDays || 0),
+      };
+    });
 
     // Her çalışan için puantaj kayıtlarını al veya oluştur
     const puantajList = [];
@@ -769,6 +792,7 @@ router.get('/company/:companyId/:year/:month', auth, async (req, res) => {
             hireDate: employee.hireDate,
             isRetired: employee.isRetired,
             tcKimlik: employee.tcKimlik,
+            prevMonthSgk: prevMonthMap[employee._id.toString()] || null,
           },
           puantaj,
         });
@@ -957,7 +981,7 @@ async function generatePuantaj(employee, template, year, month) {
   const daysInMonth = new Date(year, month, 0).getDate();
   const days = [];
 
-  // Resmi tatilleri al
+  // Resmi tatilleri al (CompanyHolidayCalendar + OfficialHoliday fallback)
   const holidayCalendar = await CompanyHolidayCalendar.findOne({
     companyId: companyId,
     year,
@@ -979,6 +1003,25 @@ async function generatePuantaj(employee, template, year, month) {
         halfDayPeriod: h.halfDayPeriod,
       };
     });
+  }
+
+  // OfficialHoliday fallback: CompanyHolidayCalendar'da olmayan resmi tatilleri ekle
+  const officialHolidays = await OfficialHoliday.find({
+    date: {
+      $gte: new Date(year, month - 1, 1),
+      $lte: new Date(year, month, 0)
+    }
+  });
+  for (const oh of officialHolidays) {
+    const dateStr = oh.date.toISOString().split('T')[0];
+    if (!holidays.includes(dateStr) && !holidayDetails[dateStr]) {
+      holidays.push(dateStr);
+      holidayDetails[dateStr] = {
+        name: oh.name,
+        isHalfDay: oh.isHalfDay || false,
+        halfDayPeriod: oh.halfDayPeriod || null,
+      };
+    }
   }
 
   // Çalışanın hafta tatili günlerini al (hiyerarşi: Çalışan > Departman > Şirket)

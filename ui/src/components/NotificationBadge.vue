@@ -20,11 +20,18 @@
       </span>
     </button>
 
+    <!-- Overlay (önce render edilmeli) -->
+    <div
+      v-if="isOpen"
+      @click="isOpen = false"
+      class="fixed inset-0 z-[9998] bg-black bg-opacity-10"
+    ></div>
+
     <!-- Dropdown -->
     <Transition name="dropdown">
       <div
         v-if="isOpen"
-        class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border z-50 overflow-hidden"
+        class="absolute right-0 mt-2 w-80 bg-white bg-opacity-100 rounded-xl shadow-2xl border z-[9999] overflow-hidden"
         :style="{ borderColor: 'var(--header-border)' }"
       >
         <!-- Header -->
@@ -113,13 +120,6 @@
         </div>
       </div>
     </Transition>
-
-    <!-- Overlay -->
-    <div
-      v-if="isOpen"
-      @click="isOpen = false"
-      class="fixed inset-0 z-40"
-    ></div>
   </div>
 </template>
 

@@ -134,4 +134,8 @@ dealerSchema.pre('save', async function (next) {
   next();
 });
 
+// Performance için index'ler
+dealerSchema.index({ isActive: 1 });
+dealerSchema.index({ isActive: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Dealer', dealerSchema);

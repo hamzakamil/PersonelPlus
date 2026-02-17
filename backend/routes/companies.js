@@ -318,7 +318,8 @@ router.put('/:id', auth, requireRole('super_admin', 'bayi_admin', 'company_admin
     }
 
     const { name, address, taxOffice, taxNumber, mersisNo, foundingDate, authorizedPersonFullName, authorizedPersonPhone,
-            authorizedPersonEmail, advanceSettings, leaveApprovalSettings, advanceApprovalSettings } = req.body;
+            authorizedPersonEmail, advanceSettings, leaveApprovalSettings, advanceApprovalSettings,
+            overtimeApprovalSettings, approvalMode } = req.body;
 
     if (name !== undefined) company.name = name;
     if (address !== undefined) company.address = address;
@@ -380,6 +381,14 @@ router.put('/:id', auth, requireRole('super_admin', 'bayi_admin', 'company_admin
 
     if (advanceApprovalSettings !== undefined) {
       company.advanceApprovalSettings = advanceApprovalSettings;
+    }
+
+    if (overtimeApprovalSettings !== undefined) {
+      company.overtimeApprovalSettings = overtimeApprovalSettings;
+    }
+
+    if (approvalMode !== undefined) {
+      company.approvalMode = approvalMode;
     }
 
     await company.save();
@@ -513,7 +522,7 @@ router.put('/:id/reset-password', auth, requireRole('super_admin', 'bayi_admin')
       let userEmail = companyEmail;
       if (!userEmail || userEmail.includes('@placeholder.com')) {
         if (company.taxNumber) {
-          userEmail = `${company.taxNumber.trim()}@firma.local`;
+          userEmail = `${company.taxNumber.trim()}@personelplus.com`;
         } else {
           return errorResponse(res, {
             message: 'Şirketin email adresi veya vergi numarası tanımlı değil.'
@@ -615,7 +624,7 @@ router.post('/bulk', auth, requireRole('super_admin', 'bayi_admin'), async (req,
       }
     }
 
-    const userEmail = taxNumber ? `${taxNumber.trim()}@firma.local` : `bulk-${Date.now()}@placeholder.com`;
+    const userEmail = taxNumber ? `${taxNumber.trim()}@personelplus.com` : `bulk-${Date.now()}@placeholder.com`;
     const defaultPassword = '123456';
 
     const existingUser = await User.findOne({ email: userEmail.toLowerCase() });

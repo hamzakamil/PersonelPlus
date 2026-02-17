@@ -31,7 +31,10 @@ const {
 } = require('../utils/leaveCalculator');
 
 // Approval Logic: Yeni servis kullanılıyor
-const { calculateApprovalChain } = require('../services/approvalChainService');
+const { calculateApprovalChain, calculateApprovalChainWithAdminMode, getCompanyAdmin } = require('../services/approvalChainService');
+const notificationService = require('../services/notificationService');
+const User = require('../models/User');
+const { createAttendanceFromLeave } = require('../services/attendanceService');
 
 // SMS Doğrulama Servisi
 const smsService = require('../services/smsService');
@@ -737,62 +740,62 @@ router.post('/', auth, upload.single('document'), async (req, res) => {
       allowSelfApproval: false,
     };
 
-    // Approval chain hesapla (yeni servis ile) - sadece çalışan tarafından oluşturuluyorsa
+    // Approval chain hesapla (approvalMode destekli) - sadece çalışan tarafından oluşturuluyorsa
     let approvalChain = [];
     let currentApprover = null;
     let initialStatus = 'PENDING';
 
     if (!isAdminCreated && leaveApprovalSettings.enabled) {
-      approvalChain = await calculateApprovalChain(employee._id);
+      // Şirketin approvalMode ayarına göre zincir hesapla (admin fallback dahil)
+      const { chain: fullChain, mode: approvalMode } = await calculateApprovalChainWithAdminMode(
+        employee._id,
+        company._id
+      );
 
-      // approvalConfig'e göre onay zincirini filtrele
-      const approvalConfig = workingPermit.approvalConfig || { levels: 1 };
-
-      // Gün sayısına göre onay seviyesi belirle
-      let requiredLevels = approvalConfig.levels || 1;
-      if (
-        approvalConfig.minDaysForMultiApproval &&
-        totalDays >= approvalConfig.minDaysForMultiApproval
-      ) {
-        requiredLevels = Math.max(requiredLevels, 2);
-      }
-
-      // Şirket ayarlarındaki approval levels kullan (0 değilse)
-      if (leaveApprovalSettings.approvalLevels > 0) {
-        requiredLevels = leaveApprovalSettings.approvalLevels;
-      }
-
-      // Onay zincirini kısıtla
-      let filteredChain = approvalChain;
-      if (requiredLevels < approvalChain.length && requiredLevels > 0) {
-        filteredChain = approvalChain.slice(0, requiredLevels);
-      }
-
-      // Tek onay yeterli ise
-      if (approvalConfig.singleApprovalSufficient && filteredChain.length > 0) {
-        filteredChain = [filteredChain[0]]; // Sadece ilk onaylayıcı
-      }
-
-      // Filtrelenmiş chain'i kullan
-      approvalChain = filteredChain;
-
-      // İlk onaylayıcıyı belirle (alttan üste doğru - chain'in ilk elemanı en alt yönetici)
-      if (approvalChain.length > 0) {
-        currentApprover = approvalChain[0]; // İlk yönetici (en alt seviye)
-        initialStatus = 'IN_PROGRESS';
+      if (approvalMode === 'auto_approve') {
+        // Otomatik onay modu: direkt onayla
+        initialStatus = 'APPROVED';
+        approvalChain = [];
       } else {
-        // Onay zinciri boş
+        approvalChain = fullChain;
+
+        // approvalConfig'e göre onay zincirini filtrele
+        const approvalConfig = workingPermit.approvalConfig || { levels: 1 };
+
+        // Gün sayısına göre onay seviyesi belirle
+        let requiredLevels = approvalConfig.levels || 1;
         if (
-          leaveApprovalSettings.requireApproval &&
-          !leaveApprovalSettings.autoApproveIfNoApprover
+          approvalConfig.minDaysForMultiApproval &&
+          totalDays >= approvalConfig.minDaysForMultiApproval
         ) {
-          // Onay gerekli ama onaylayıcı yok - PENDING'de bekle
-          initialStatus = 'PENDING';
-        } else if (leaveApprovalSettings.autoApproveIfNoApprover) {
-          // Onaylayıcı yoksa otomatik onayla
-          initialStatus = 'APPROVED';
+          requiredLevels = Math.max(requiredLevels, 2);
+        }
+
+        // Şirket ayarlarındaki approval levels kullan (0 değilse)
+        if (leaveApprovalSettings.approvalLevels > 0) {
+          requiredLevels = leaveApprovalSettings.approvalLevels;
+        }
+
+        // Onay zincirini kısıtla
+        let filteredChain = approvalChain;
+        if (requiredLevels < approvalChain.length && requiredLevels > 0) {
+          filteredChain = approvalChain.slice(0, requiredLevels);
+        }
+
+        // Tek onay yeterli ise
+        if (approvalConfig.singleApprovalSufficient && filteredChain.length > 0) {
+          filteredChain = [filteredChain[0]]; // Sadece ilk onaylayıcı
+        }
+
+        // Filtrelenmiş chain'i kullan
+        approvalChain = filteredChain;
+
+        // İlk onaylayıcıyı belirle
+        if (approvalChain.length > 0) {
+          currentApprover = approvalChain[0];
+          initialStatus = 'IN_PROGRESS';
         } else {
-          // Onay gerekli değil - otomatik onayla
+          // Zincir boş (bu artık olmamalı çünkü admin fallback var)
           initialStatus = 'APPROVED';
         }
       }
@@ -880,6 +883,15 @@ router.post('/', auth, upload.single('document'), async (req, res) => {
       }
     }
 
+    // Direkt onaylanan izinler için puantaj kaydı oluştur (admin oluşturma veya auto_approve)
+    if (initialStatus === 'APPROVED') {
+      try {
+        await createAttendanceFromLeave(leaveRequest._id, req.user._id);
+      } catch (attendanceError) {
+        console.error('Puantaj kaydı oluşturulurken hata:', attendanceError);
+      }
+    }
+
     const populated = await LeaveRequest.findById(leaveRequest._id)
       .populate('employee', 'firstName lastName email employeeNumber')
       .populate('company', 'name')
@@ -896,6 +908,44 @@ router.post('/', auth, upload.single('document'), async (req, res) => {
       })
       .populate('currentApprover', 'firstName lastName email')
       .populate('history.approver', 'firstName lastName email');
+
+    // Bildirimler
+    try {
+      if (currentApprover && !isAdminCreated) {
+        // İlk onaylayıcıya bildirim gönder
+        const approverUser = await User.findOne({ employee: currentApprover });
+        if (approverUser) {
+          await notificationService.sendLeaveRequestNotification(
+            { ...leaveRequest.toObject(), employee },
+            approverUser
+          );
+        }
+      }
+
+      // Auto-approve modunda admin'e bilgilendirme bildirimi
+      if (initialStatus === 'APPROVED' && !isAdminCreated && company.approvalMode === 'auto_approve') {
+        const adminEmployee = await getCompanyAdmin(company._id);
+        if (adminEmployee) {
+          const adminUser = await User.findOne({ employee: adminEmployee._id });
+          if (adminUser) {
+            await notificationService.send({
+              recipient: adminUser._id,
+              recipientType: 'company_admin',
+              company: company._id,
+              type: 'LEAVE_REQUEST',
+              title: 'Otomatik Onaylanan İzin Talebi',
+              body: `${employee.firstName} ${employee.lastName} izin talebi otomatik onaylandı (bilgilendirme).`,
+              data: { leaveRequestId: leaveRequest._id },
+              relatedModel: 'LeaveRequest',
+              relatedId: leaveRequest._id,
+              priority: 'normal',
+            });
+          }
+        }
+      }
+    } catch (notifErr) {
+      console.error('İzin talebi bildirim hatası:', notifErr);
+    }
 
     return createdResponse(res, { data: populated, message: 'İzin talebi başarıyla oluşturuldu' });
   } catch (error) {
@@ -1052,8 +1102,16 @@ router.post('/:id/approve', auth, async (req, res) => {
 
     await leaveRequest.save();
 
-    // Eğer onaylandıysa ve yıllık izin ise balance güncelle
+    // Eğer onaylandıysa puantaj kayıtlarını oluştur ve balance güncelle
     if (leaveRequest.status === 'APPROVED') {
+      // Puantaj kayıtlarını oluştur (izin günlerini puantajda göster)
+      try {
+        await createAttendanceFromLeave(leaveRequest._id, req.user._id);
+      } catch (attendanceError) {
+        console.error('Puantaj kaydı oluşturulurken hata:', attendanceError);
+        // Puantaj hatası izin onayını engellemez
+      }
+
       const leaveTypeName = (
         leaveRequest.leaveSubType?.name ||
         leaveRequest.companyLeaveType?.name ||
@@ -1184,32 +1242,15 @@ router.post('/:id/reject', auth, async (req, res) => {
 
     await leaveRequest.save();
 
-    // Tüm önceki onaylayıcıları ve çalışanı bilgilendir
+    // Çalışana red bildirimi gönder
     try {
-      const User = require('../models/User');
-      const employee = await Employee.findById(leaveRequest.employee._id || leaveRequest.employee);
-
-      // Çalışanı bilgilendir
-      if (employee && employee.email) {
-        // Email gönderme işlemi burada yapılabilir
-        console.log(`Red bildirimi gönderiliyor: ${employee.email}`);
+      const populatedForNotif = await LeaveRequest.findById(leaveRequest._id)
+        .populate('employee', 'firstName lastName email user');
+      if (populatedForNotif) {
+        await notificationService.sendLeaveRejectedNotification(populatedForNotif, note.trim());
       }
-
-      // Önceki onaylayıcıları bilgilendir
-      const previousApprovers = leaveRequest.history
-        .filter(h => h.status === 'IN_PROGRESS' || h.status === 'APPROVED')
-        .map(h => h.approver);
-
-      for (const approverId of previousApprovers) {
-        const approver = await Employee.findById(approverId);
-        if (approver && approver.email) {
-          // Email gönderme işlemi burada yapılabilir
-          console.log(`Red bildirimi gönderiliyor (önceki onaylayıcı): ${approver.email}`);
-        }
-      }
-    } catch (emailError) {
-      console.error('Bildirim gönderme hatası:', emailError);
-      // Email hatası onay işlemini engellemez
+    } catch (notifErr) {
+      console.error('Red bildirim hatası:', notifErr);
     }
 
     const populated = await LeaveRequest.findById(leaveRequest._id)

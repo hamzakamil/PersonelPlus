@@ -6,12 +6,31 @@
       class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
     >
       <div class="bg-white rounded-lg p-4 w-full max-w-sm">
-        <h2 class="text-base font-bold mb-3">Şifre Değiştirme Zorunlu</h2>
+        <h2 class="text-base font-bold mb-3">{{ isPlaceholderEmail ? 'Hesap Bilgilerini Tamamla' : 'Şifre Değiştirme Zorunlu' }}</h2>
         <p class="text-xs text-gray-600 mb-3">
-          İlk girişinizde şifrenizi değiştirmeniz gerekmektedir.
+          {{ isPlaceholderEmail
+            ? 'İlk girişinizde email adresinizi, telefon numaranızı ve şifrenizi belirlemeniz gerekmektedir.'
+            : 'İlk girişinizde şifrenizi değiştirmeniz gerekmektedir.'
+          }}
         </p>
         <form @submit.prevent="changePassword">
           <div class="space-y-3">
+            <template v-if="isPlaceholderEmail">
+              <Input
+                v-model="passwordForm.newEmail"
+                type="email"
+                label="Email Adresi"
+                placeholder="ornek@email.com"
+                required
+              />
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Telefon Numarası</label>
+                <PhoneInput
+                  v-model="passwordForm.newPhone"
+                  required
+                />
+              </div>
+            </template>
             <Input
               v-model="passwordForm.newPassword"
               type="password"
@@ -41,10 +60,11 @@
                 size="sm"
                 :disabled="
                   passwordForm.newPassword !== passwordForm.confirmPassword ||
-                  passwordForm.newPassword.length < 6
+                  passwordForm.newPassword.length < 6 ||
+                  (isPlaceholderEmail && (!passwordForm.newEmail || !passwordForm.newPhone))
                 "
               >
-                Şifreyi Değiştir
+                {{ isPlaceholderEmail ? 'Kaydet' : 'Şifreyi Değiştir' }}
               </Button>
             </div>
           </div>
@@ -769,6 +789,62 @@
 
     <!-- İzin Onay Akışı -->
     <div v-show="activeTab === 'leave-approval'" class="bg-white rounded-lg shadow p-4">
+      <!-- Genel Onay Modu -->
+      <div class="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <h3 class="text-sm font-semibold mb-3 text-indigo-800">Genel Onay Modu</h3>
+        <p class="text-[10px] text-indigo-600 mb-3">Bu ayar tüm talepler (izin, fazla mesai) için geçerlidir.</p>
+        <div class="space-y-2">
+          <label
+            class="flex items-start p-3 border rounded cursor-pointer hover:bg-white transition-colors"
+            :class="form.approvalMode === 'chain_with_admin' ? 'bg-white border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200'"
+          >
+            <input
+              type="radio"
+              v-model="form.approvalMode"
+              value="chain_with_admin"
+              @change="saveApprovalMode"
+              class="mt-0.5 mr-3"
+            />
+            <div>
+              <span class="text-xs font-medium text-gray-800">Yöneticiler + Şirket Admini</span>
+              <p class="text-[10px] text-gray-500">Onay zincirindeki yöneticiler sırasıyla onaylar, şirket admini son onaylayıcı olarak eklenir.</p>
+            </div>
+          </label>
+          <label
+            class="flex items-start p-3 border rounded cursor-pointer hover:bg-white transition-colors"
+            :class="form.approvalMode === 'chain_managers_only' ? 'bg-white border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200'"
+          >
+            <input
+              type="radio"
+              v-model="form.approvalMode"
+              value="chain_managers_only"
+              @change="saveApprovalMode"
+              class="mt-0.5 mr-3"
+            />
+            <div>
+              <span class="text-xs font-medium text-gray-800">Sadece Yöneticiler</span>
+              <p class="text-[10px] text-gray-500">Sadece yöneticiler onaylar, şirket admini zincirde değildir. Yönetici yoksa admin devreye girer.</p>
+            </div>
+          </label>
+          <label
+            class="flex items-start p-3 border rounded cursor-pointer hover:bg-white transition-colors"
+            :class="form.approvalMode === 'auto_approve' ? 'bg-white border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200'"
+          >
+            <input
+              type="radio"
+              v-model="form.approvalMode"
+              value="auto_approve"
+              @change="saveApprovalMode"
+              class="mt-0.5 mr-3"
+            />
+            <div>
+              <span class="text-xs font-medium text-gray-800">Otomatik Onay</span>
+              <p class="text-[10px] text-gray-500">Tüm talepler otomatik onaylanır, şirket adminine bilgilendirme bildirimi gönderilir.</p>
+            </div>
+          </label>
+        </div>
+      </div>
+
       <h3 class="text-sm font-semibold mb-4 text-gray-800">İzin Onay Akışı Ayarları</h3>
       <div class="space-y-4">
         <!-- Onay Sistemini Aktifleştir -->
@@ -896,6 +972,97 @@
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fazla Mesai Onay Akışı -->
+    <div v-show="activeTab === 'overtime-approval'" class="bg-white rounded-lg shadow p-4">
+      <h3 class="text-sm font-semibold mb-4 text-gray-800">Fazla Mesai Onay Akışı Ayarları</h3>
+      <div class="space-y-4">
+        <!-- Onay Sistemini Aktifleştir -->
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
+          <div>
+            <label class="block text-xs font-medium text-gray-700">Onay Sistemini Kullan</label>
+            <p class="text-[10px] text-gray-500">Fazla mesai talepleri onay sürecinden geçsin</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              v-model="form.overtimeApprovalSettings.enabled"
+              @change="saveOvertimeApprovalSettings"
+              class="sr-only peer"
+            />
+            <div
+              class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"
+            ></div>
+          </label>
+        </div>
+
+        <div
+          v-if="form.overtimeApprovalSettings.enabled"
+          class="space-y-4 pl-4 border-l-2 border-gray-200"
+        >
+          <!-- İzin Onay Akışını Kullan -->
+          <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
+            <div>
+              <label class="block text-xs font-medium text-gray-700">İzin Onay Akışını Kullan</label>
+              <p class="text-[10px] text-gray-500">İzin talepleriyle aynı onay zincirini kullan</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                v-model="form.overtimeApprovalSettings.useLeaveApprovalChain"
+                @change="saveOvertimeApprovalSettings"
+                class="sr-only peer"
+              />
+              <div
+                class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"
+              ></div>
+            </label>
+          </div>
+
+          <!-- Onay Seviyesi -->
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Kaç Seviye Onay Gerekli</label>
+            <input
+              v-model.number="form.overtimeApprovalSettings.approvalLevels"
+              type="number"
+              min="0"
+              @blur="saveOvertimeApprovalSettings"
+              class="w-full px-3 py-2 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p class="text-[10px] text-gray-500 mt-1">
+              0 = Tüm onay zinciri, 1+ = Belirli sayıda onay yeterli
+            </p>
+          </div>
+
+          <!-- Kendi Kendine Onay -->
+          <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
+            <div>
+              <label class="block text-xs font-medium text-gray-700">Kendi Mesaisini Onaylama</label>
+              <p class="text-[10px] text-gray-500">Yönetici kendi fazla mesai talebini onaylayabilsin</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                v-model="form.overtimeApprovalSettings.allowSelfApproval"
+                @change="saveOvertimeApprovalSettings"
+                class="sr-only peer"
+              />
+              <div
+                class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"
+              ></div>
+            </label>
+          </div>
+
+          <!-- Bilgi Notu -->
+          <div class="bg-blue-50 border-l-4 border-blue-500 p-3">
+            <p class="text-[10px] text-blue-700">
+              Fazla mesai talepleri, "Genel Onay Modu" ayarına (İzin Onay Akışı sekmesinde) göre onay zincirine gönderilir.
+              Onaylanan fazla mesailer otomatik olarak puantaja aktarılır.
+            </p>
           </div>
         </div>
       </div>
@@ -2476,6 +2643,80 @@
         </form>
       </div>
     </div>
+    <!-- Bilgi Değişiklik Talepleri -->
+    <div v-show="activeTab === 'profile-requests'" class="bg-white rounded-lg shadow p-4">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-bold">Çalışan Bilgi Değişiklik Talepleri</h3>
+        <Button size="xs" variant="secondary" @click="loadProfileRequests">Yenile</Button>
+      </div>
+
+      <div v-if="profileRequestsLoading" class="text-center py-6">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
+      </div>
+
+      <div v-else-if="profileRequests.length === 0" class="text-center py-6 text-gray-500 text-sm">
+        Bekleyen bilgi değişiklik talebi yok
+      </div>
+
+      <div v-else class="space-y-3">
+        <div
+          v-for="pr in profileRequests"
+          :key="pr._id"
+          class="border border-gray-200 rounded-lg p-4"
+        >
+          <div class="flex items-start justify-between mb-2">
+            <div>
+              <p class="text-sm font-semibold text-gray-800">
+                {{ pr.employee?.firstName }} {{ pr.employee?.lastName }}
+              </p>
+              <p class="text-xs text-gray-500">
+                TC: {{ pr.employee?.tcKimlik }} | {{ formatProfileDate(pr.createdAt) }}
+              </p>
+            </div>
+            <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+              Bekliyor
+            </span>
+          </div>
+
+          <!-- Değişiklik detayları -->
+          <div class="bg-gray-50 rounded p-2 mb-3 space-y-1">
+            <div v-for="(change, field) in pr.changes" :key="field" class="flex items-center text-xs gap-2">
+              <span class="font-medium text-gray-700 w-28">{{ change.label || field }}:</span>
+              <span class="text-red-500 line-through">{{ change.old || '(boş)' }}</span>
+              <span class="text-gray-400">→</span>
+              <span class="text-green-600 font-medium">{{ change.new || '(boş)' }}</span>
+            </div>
+          </div>
+
+          <!-- Onay/Red butonları -->
+          <div class="flex gap-2 items-center">
+            <input
+              v-model="pr._reviewNote"
+              type="text"
+              placeholder="Not (opsiyonel)"
+              class="flex-1 text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <Button
+              size="xs"
+              variant="success"
+              :disabled="pr._processing"
+              @click="handleProfileRequest(pr, 'approve')"
+            >
+              Onayla
+            </Button>
+            <Button
+              size="xs"
+              variant="danger"
+              :disabled="pr._processing"
+              @click="handleProfileRequest(pr, 'reject')"
+            >
+              Reddet
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -2486,6 +2727,7 @@ import { useAuthStore } from '@/stores/auth';
 import api from '@/services/api';
 import Button from '@/components/Button.vue';
 import Input from '@/components/Input.vue';
+import PhoneInput from '@/components/PhoneInput.vue';
 import ThemeSelector from '@/components/ThemeSelector.vue';
 import { useToastStore } from '@/stores/toast';
 import { useConfirmStore } from '@/stores/confirm';
@@ -2540,6 +2782,8 @@ const tabIcons = {
     '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M20 12V8H6a2 2 0 01-2-2c0-1.1.9-2 2-2h12v4" /><path d="M4 6v12a2 2 0 002 2h14v-4" /><path d="M18 12a2 2 0 00-2 2v4h4v-4a2 2 0 00-2-2z" /></svg>',
   'advance-approval':
     '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" /><circle cx="12" cy="12" r="4" /></svg>',
+  'overtime-approval':
+    '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /><path d="M17 17l3 3" /></svg>',
   password:
     '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>',
   dealer:
@@ -2548,6 +2792,8 @@ const tabIcons = {
     '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41M12 8a4 4 0 100 8 4 4 0 000-8z" /><path d="M12 10v4m-2-2h4" /></svg>',
   'yearly-tax-limits':
     '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>',
+  'profile-requests':
+    '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="8.5" cy="7" r="4" /><path d="M17 11l2 2 4-4" /></svg>',
 };
 
 const tabs = computed(() => {
@@ -2562,6 +2808,7 @@ const tabs = computed(() => {
     { id: 'workinghours', name: 'Çalışma Saatleri', icon: tabIcons.workinghours },
     { id: 'puantaj', name: 'Puantaj', icon: tabIcons.puantaj },
     { id: 'leave-approval', name: 'İzin Onay Akışı', icon: tabIcons['leave-approval'] },
+    { id: 'overtime-approval', name: 'Mesai Onay Akışı', icon: tabIcons['overtime-approval'] },
     { id: 'advance', name: 'Avans Ayarları', icon: tabIcons.advance },
     { id: 'advance-approval', name: 'Avans Onay Akışı', icon: tabIcons['advance-approval'] },
     { id: 'additional-payments', name: 'Ek Ödemeler', icon: tabIcons['additional-payments'] },
@@ -2576,6 +2823,15 @@ const tabs = computed(() => {
   // Bayi Ayarları sekmesini sadece bayi_admin için göster
   if (authStore.isBayiAdmin) {
     baseTabs.unshift({ id: 'dealer', name: 'Bayi Ayarları', icon: tabIcons.dealer });
+  }
+
+  // Bilgi Değişiklik Talepleri sekmesini company_admin, super_admin, bayi_admin için göster
+  if (authStore.hasAnyRole('super_admin', 'bayi_admin', 'company_admin')) {
+    baseTabs.push({
+      id: 'profile-requests',
+      name: 'Bilgi Talepleri',
+      icon: tabIcons['profile-requests'],
+    });
   }
 
   // Yıllık Vergi Limitleri sekmesini super_admin ve bayi_admin için göster
@@ -2708,6 +2964,13 @@ const form = ref({
     approvalLevels: 0,
     allowSelfApproval: false,
   },
+  approvalMode: 'chain_with_admin',
+  overtimeApprovalSettings: {
+    enabled: true,
+    useLeaveApprovalChain: true,
+    approvalLevels: 0,
+    allowSelfApproval: false,
+  },
 });
 const file = ref(null);
 const loading = ref(false);
@@ -2717,7 +2980,13 @@ const attendanceTemplates = ref([]);
 // Password
 const showPasswordChangeModal = ref(false);
 const changingPassword = ref(false);
-const passwordForm = ref({ currentPassword: '', newPassword: '', confirmPassword: '' });
+const passwordForm = ref({ currentPassword: '', newPassword: '', confirmPassword: '', newEmail: '', newPhone: '' });
+
+// Placeholder email kontrolü (TC@personelplus.com veya vergi@personelplus.com gibi sistem tarafından atanmış email)
+const isPlaceholderEmail = computed(() => {
+  const email = authStore.user?.email || '';
+  return email.endsWith('@personelplus.com') || email.endsWith('@placeholder.com');
+});
 
 // Weekend Settings
 const weekendTab = ref('company');
@@ -3082,6 +3351,19 @@ const loadSettings = async () => {
           approvalLevels: companyResponse.data.advanceApprovalSettings.approvalLevels || 0,
           allowSelfApproval:
             companyResponse.data.advanceApprovalSettings.allowSelfApproval || false,
+        };
+      }
+      if (companyResponse.data.approvalMode) {
+        form.value.approvalMode = companyResponse.data.approvalMode;
+      }
+      if (companyResponse.data.overtimeApprovalSettings) {
+        form.value.overtimeApprovalSettings = {
+          enabled: companyResponse.data.overtimeApprovalSettings.enabled !== false,
+          useLeaveApprovalChain:
+            companyResponse.data.overtimeApprovalSettings.useLeaveApprovalChain !== false,
+          approvalLevels: companyResponse.data.overtimeApprovalSettings.approvalLevels || 0,
+          allowSelfApproval:
+            companyResponse.data.overtimeApprovalSettings.allowSelfApproval || false,
         };
       }
     }
@@ -3651,6 +3933,40 @@ const saveAdvanceApprovalSettings = async () => {
   }
 };
 
+const saveApprovalMode = async () => {
+  try {
+    const companyId = activeCompanyId.value;
+    if (!companyId) {
+      toast.error('Lütfen bir şirket seçin');
+      return;
+    }
+    await api.put(`/companies/${companyId}`, {
+      approvalMode: form.value.approvalMode,
+    });
+    toast.success('Onay modu kaydedildi');
+  } catch (error) {
+    console.error('Save approval mode error:', error.response?.data);
+    toast.error(error.response?.data?.message || error.message || 'Hata oluştu');
+  }
+};
+
+const saveOvertimeApprovalSettings = async () => {
+  try {
+    const companyId = activeCompanyId.value;
+    if (!companyId) {
+      toast.error('Lütfen bir şirket seçin');
+      return;
+    }
+    await api.put(`/companies/${companyId}`, {
+      overtimeApprovalSettings: form.value.overtimeApprovalSettings,
+    });
+    toast.success('Fazla mesai onay ayarları kaydedildi');
+  } catch (error) {
+    console.error('Save overtime approval settings error:', error.response?.data);
+    toast.error(error.response?.data?.message || error.message || 'Hata oluştu');
+  }
+};
+
 // Other Actions
 const MAX_LOGO_SIZE = 500 * 1024; // 500KB maksimum dosya boyutu
 
@@ -3712,21 +4028,29 @@ const changePassword = async () => {
     toast.warning('Şifre en az 6 karakter olmalıdır');
     return;
   }
+  if (isPlaceholderEmail.value && (!passwordForm.value.newEmail || !passwordForm.value.newPhone)) {
+    toast.warning('Email adresi ve telefon numarası gereklidir');
+    return;
+  }
   changingPassword.value = true;
   try {
-    await api.post('/auth/change-password', {
+    const payload = {
       currentPassword: passwordForm.value.currentPassword || undefined,
       newPassword: passwordForm.value.newPassword,
-    });
-    toast.success('Şifre başarıyla değiştirildi');
+    };
+    if (isPlaceholderEmail.value) {
+      payload.newEmail = passwordForm.value.newEmail;
+      payload.newPhone = passwordForm.value.newPhone;
+    }
+    await api.post('/auth/change-password', payload);
+    toast.success(isPlaceholderEmail.value ? 'Bilgileriniz başarıyla güncellendi' : 'Şifre başarıyla değiştirildi');
     if (authStore.user?.mustChangePassword) {
       showPasswordChangeModal.value = false;
-      const meResponse = await api.get('/auth/me');
-      authStore.setUser(meResponse.data);
+      await authStore.fetchCurrentUser();
     }
-    passwordForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' };
+    passwordForm.value = { currentPassword: '', newPassword: '', confirmPassword: '', newEmail: '', newPhone: '' };
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Şifre değiştirilemedi');
+    toast.error(error.response?.data?.message || 'İşlem başarısız');
   } finally {
     changingPassword.value = false;
   }
@@ -3813,6 +4137,42 @@ const deleteWorkingHours = async id => {
   }
 };
 
+// ===== Bilgi Değişiklik Talepleri =====
+const profileRequests = ref([]);
+const profileRequestsLoading = ref(false);
+
+const loadProfileRequests = async () => {
+  profileRequestsLoading.value = true;
+  try {
+    const res = await api.get('/employees/change-requests/pending');
+    const data = res.data?.data || res.data || [];
+    profileRequests.value = data.map(r => ({ ...r, _reviewNote: '', _processing: false }));
+  } catch (err) {
+    console.error('Bilgi talepleri yüklenemedi:', err);
+  }
+  profileRequestsLoading.value = false;
+};
+
+const handleProfileRequest = async (pr, action) => {
+  pr._processing = true;
+  try {
+    await api.put(`/employees/change-requests/${pr._id}`, {
+      action,
+      reviewNote: pr._reviewNote || undefined
+    });
+    toast.success(action === 'approve' ? 'Değişiklik onaylandı' : 'Değişiklik reddedildi');
+    await loadProfileRequests();
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'İşlem başarısız');
+  }
+  pr._processing = false;
+};
+
+const formatProfileDate = (date) => {
+  if (!date) return '';
+  return new Date(date).toLocaleString('tr-TR');
+};
+
 onMounted(async () => {
   // Bayi admin için önce şirketleri yükle
   if (isDealer.value) {
@@ -3836,6 +4196,11 @@ onMounted(async () => {
   // Super admin için yıllık limitleri yükle
   if (authStore.isSuperAdmin) {
     loadYearlyTaxLimits();
+  }
+
+  // Bilgi değişiklik taleplerini yükle
+  if (authStore.hasAnyRole('super_admin', 'bayi_admin', 'company_admin')) {
+    loadProfileRequests();
   }
 
   if (route.query.changePassword === 'true' || authStore.user?.mustChangePassword) {

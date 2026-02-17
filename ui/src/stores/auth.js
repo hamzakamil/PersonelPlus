@@ -33,9 +33,13 @@ export const useAuthStore = defineStore('auth', () => {
   const isBayiAdmin = computed(() => roleName.value === 'bayi_admin')
   const isCompanyAdmin = computed(() => roleName.value === 'company_admin')
 
-  async function login(email, password) {
+  async function login(email, password, captchaToken = null) {
     try {
-      const response = await api.post('/auth/login', { email, password: password || '' })
+      const payload = { email, password: password || '' }
+      if (captchaToken) {
+        payload.captchaToken = captchaToken
+      }
+      const response = await api.post('/auth/login', payload)
       const data = response.data?.data || response.data
       token.value = data.token
       user.value = data.user
@@ -48,7 +52,9 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Giriş başarısız'
+        message: error.response?.data?.message || 'Giriş başarısız',
+        errorCode: error.response?.data?.errorCode || null,
+        data: error.response?.data?.data || null
       }
     }
   }

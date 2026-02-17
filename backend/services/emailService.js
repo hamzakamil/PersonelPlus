@@ -1151,6 +1151,328 @@ const sendRegistrationVerificationEmail = async (email, fullName, verificationTo
   return sendEmail(email, subject, html);
 };
 
+// Şifre sıfırlama talebi emaili (Forgot Password)
+const sendForgotPasswordEmail = async (email, userName, resetToken) => {
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+  const subject = 'PersonelPlus - Şifre Sıfırlama Talebi';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          padding: 30px;
+          text-align: center;
+          border-radius: 10px 10px 0 0;
+        }
+        .content {
+          background-color: #ffffff;
+          padding: 30px;
+          border: 1px solid #e5e7eb;
+          border-top: none;
+          border-radius: 0 0 10px 10px;
+        }
+        .btn {
+          display: inline-block;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 14px 40px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: bold;
+          font-size: 16px;
+          box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+        }
+        .warning-box {
+          background-color: #fef3c7;
+          border-left: 4px solid #f59e0b;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 4px;
+        }
+        .footer { text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="color: white; margin: 0; font-size: 28px;">🔐 Şifre Sıfırlama</h1>
+        </div>
+
+        <div class="content">
+          <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
+            Merhaba <strong>${userName}</strong>,
+          </p>
+
+          <p style="font-size: 14px; color: #6b7280; line-height: 1.6;">
+            PersonelPlus hesabınız için şifre sıfırlama talebi aldık. Eğer bu talebi siz oluşturmadıysanız, bu emaili görmezden gelebilirsiniz.
+          </p>
+
+          <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin-bottom: 30px;">
+            Şifrenizi sıfırlamak için aşağıdaki butona tıklayın:
+          </p>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" class="btn">
+              Şifremi Sıfırla
+            </a>
+          </div>
+
+          <div class="warning-box">
+            <p style="margin: 0; font-size: 13px; color: #92400e;">
+              ⚠️ <strong>Önemli:</strong> Bu link <strong>1 saat</strong> süreyle geçerlidir.
+            </p>
+          </div>
+
+          <p style="font-size: 12px; color: #9ca3af; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            Buton çalışmıyorsa, aşağıdaki linki kopyalayıp tarayıcınıza yapıştırabilirsiniz:<br>
+            <a href="${resetUrl}" style="color: #667eea; word-break: break-all;">${resetUrl}</a>
+          </p>
+
+          <p style="font-size: 12px; color: #9ca3af; margin-top: 20px;">
+            Eğer bu talebi siz oluşturmadıysanız, hesabınızın güvenliği için hemen
+            <a href="mailto:destek@personelplus.com" style="color: #667eea;">destek ekibimizle</a> iletişime geçin.
+          </p>
+        </div>
+
+        <div class="footer">
+          <p>© ${new Date().getFullYear()} PersonelPlus - Tüm hakları saklıdır</p>
+          <p>Bu otomatik bir emaildir, lütfen yanıtlamayın.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(email, subject, html);
+};
+
+// Admin'e kayıt onay bildirimi (kullanıcı tarafından tetiklenir)
+const sendAdminRegistrationNotification = async (adminEmail, userInfo) => {
+  const subject = `Yeni Kayıt Onay Talebi - ${userInfo.fullName}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header {
+          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+          padding: 30px;
+          text-align: center;
+          border-radius: 10px 10px 0 0;
+        }
+        .header h1 { color: white; margin: 0; font-size: 24px; }
+        .content {
+          background-color: #ffffff;
+          padding: 30px;
+          border: 1px solid #e5e7eb;
+          border-top: none;
+          border-radius: 0 0 10px 10px;
+        }
+        .info-box {
+          background-color: #f0f9ff;
+          border-left: 4px solid #3b82f6;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 4px;
+        }
+        .user-details {
+          background-color: #f9fafb;
+          padding: 20px;
+          border-radius: 8px;
+          margin: 20px 0;
+        }
+        .user-details table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        .user-details td {
+          padding: 8px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .user-details td:first-child {
+          font-weight: bold;
+          color: #6b7280;
+          width: 40%;
+        }
+        .btn {
+          display: inline-block;
+          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+          color: white;
+          padding: 14px 40px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: bold;
+          font-size: 16px;
+          box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+          margin: 10px 0;
+        }
+        .footer { text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>📋 Yeni Kayıt Onay Talebi</h1>
+        </div>
+        <div class="content">
+          <div class="info-box">
+            <p style="margin: 0; font-weight: bold; color: #1e40af;">
+              🔔 Kullanıcı onay talebi için bildirim gönderdi
+            </p>
+          </div>
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            Merhaba,
+          </p>
+
+          <p style="font-size: 14px; color: #4b5563;">
+            Aşağıdaki kullanıcı kayıt onayı bekliyor ve size bildirim gönderdi. Lütfen kayıt talebini inceleyin.
+          </p>
+
+          <div class="user-details">
+            <table>
+              <tr>
+                <td>Ad Soyad:</td>
+                <td><strong>${userInfo.fullName}</strong></td>
+              </tr>
+              <tr>
+                <td>Email:</td>
+                <td>${userInfo.email}</td>
+              </tr>
+              ${userInfo.phone ? `
+              <tr>
+                <td>Telefon:</td>
+                <td>${userInfo.phone}</td>
+              </tr>
+              ` : ''}
+              <tr>
+                <td>Firma Adı:</td>
+                <td><strong>${userInfo.companyName}</strong></td>
+              </tr>
+              ${userInfo.referralCode ? `
+              <tr>
+                <td>Referans Kodu:</td>
+                <td><span style="background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">${userInfo.referralCode}</span></td>
+              </tr>
+              ` : ''}
+              <tr>
+                <td>Kayıt Tarihi:</td>
+                <td>${new Date(userInfo.createdAt).toLocaleDateString('tr-TR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</td>
+              </tr>
+              <tr>
+                <td>Bildirim Tarihi:</td>
+                <td>${new Date().toLocaleDateString('tr-TR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/registration-requests" class="btn">
+              📝 Kayıt Taleplerini İncele
+            </a>
+          </div>
+
+          <p style="font-size: 12px; color: #9ca3af; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            Bu email, kullanıcının manuel onay talebini hatırlatmak için gönderilmiştir.
+          </p>
+        </div>
+
+        <div class="footer">
+          <p>© ${new Date().getFullYear()} PersonelPlus - Tüm hakları saklıdır</p>
+          <p>Bu otomatik bir emaildir, lütfen yanıtlamayın.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(adminEmail, subject, html);
+};
+
+// Şifre risk uyarısı emaili (başarısız giriş denemelerinden sonra başarılı giriş)
+const sendPasswordAtRiskEmail = async (email, resetToken, failedAttempts, ip) => {
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+  const subject = 'Güvenlik Uyarısı - Şifreniz Risk Altında Olabilir';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #DC2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+        .warning-box { background: #FEE2E2; border: 1px solid #DC2626; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .info-box { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb; }
+        .btn { display: inline-block; background: #DC2626; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: bold; }
+        .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Güvenlik Uyarısı</h1>
+        </div>
+        <div class="content">
+          <div class="warning-box">
+            <p><strong>Dikkat!</strong> Hesabınıza giriş yapılmadan önce <strong>${failedAttempts} başarısız giriş denemesi</strong> tespit edilmiştir.</p>
+          </div>
+
+          <div class="info-box">
+            <p><strong>Giriş Zamanı:</strong> ${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}</p>
+            <p><strong>IP Adresi:</strong> ${ip || 'Bilinmiyor'}</p>
+            <p><strong>Başarısız Deneme Sayısı:</strong> ${failedAttempts}</p>
+          </div>
+
+          <p>Eğer bu giriş denemelerini siz yapmadıysanız, şifrenizi hemen değiştirmenizi öneririz:</p>
+
+          <center>
+            <a href="${resetUrl}" class="btn">Şifremi Değiştir</a>
+          </center>
+
+          <p style="color: #6B7280; font-size: 14px;">
+            Veya bu linki tarayıcınıza yapıştırın:<br>
+            <a href="${resetUrl}" style="color: #DC2626; word-break: break-all;">${resetUrl}</a>
+          </p>
+
+          <p style="color: #6B7280; font-size: 14px;">Bu link 24 saat geçerlidir.</p>
+        </div>
+        <div class="footer">
+          <p>Bu email otomatik olarak gönderilmiştir.</p>
+          <p>&copy; ${new Date().getFullYear()} PersonelPlus</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(email, subject, html);
+};
+
 module.exports = {
   createTransporter,
   sendEmail,
@@ -1172,4 +1494,7 @@ module.exports = {
   sendCompanySubscriptionExpiredEmail,
   sendCompanySubscriptionSuspendedEmail,
   sendCompanySubscriptionExpiringEmail,
+  sendPasswordAtRiskEmail,
+  sendForgotPasswordEmail,
+  sendAdminRegistrationNotification,
 };

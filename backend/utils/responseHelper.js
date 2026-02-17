@@ -35,10 +35,10 @@ const successResponse = (res, { data = null, message = 'Islem basarili', meta = 
  * @param {number} options.statusCode - HTTP status code (default: 400)
  * @param {string} options.errorCode - Ozel hata kodu (QUOTA_EXCEEDED vb.)
  */
-const errorResponse = (res, { message = 'Bir hata olustu', errors = null, statusCode = 400, errorCode = null } = {}) => {
+const errorResponse = (res, { message = 'Bir hata olustu', errors = null, statusCode = 400, errorCode = null, data = null } = {}) => {
   const response = {
     success: false,
-    data: null,
+    data,
     message
   };
 

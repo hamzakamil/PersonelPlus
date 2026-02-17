@@ -110,6 +110,51 @@
       </div>
     </div>
 
+    <!-- Destek İletişim Bilgileri -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-4">Destek İletişim Bilgileri</h2>
+      <p class="text-sm text-gray-500 mb-4">
+        Abonelik satın alma sayfasında görüntülenecek destek bilgilerini ayarlayın.
+      </p>
+
+      <div v-if="loadingSupportInfo" class="text-center py-4">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+      </div>
+      <form v-else @submit.prevent="saveSupportInfo" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Destek Email <span class="text-red-500">*</span>
+            </label>
+            <input
+              v-model="supportForm.supportEmail"
+              type="email"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="destek@personelplus.com"
+            />
+          </div>
+          <div>
+            <PhoneInput
+              v-model="supportForm.supportPhone"
+              label="Destek Telefon"
+              :required="true"
+              placeholder="05XX XXX XX XX"
+            />
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <button
+            type="submit"
+            :disabled="savingSupportInfo"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {{ savingSupportInfo ? 'Kaydediliyor...' : 'Kaydet' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
     <!-- Yıllık Asgari Ücret Yönetimi -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Yıllık Asgari Ücret Yönetimi</h2>
@@ -238,6 +283,7 @@ import { ref, onMounted } from 'vue';
 import api from '@/services/api';
 import { useToastStore } from '@/stores/toast';
 import { useConfirmStore } from '@/stores/confirm';
+import PhoneInput from '@/components/PhoneInput.vue';
 
 const toast = useToastStore();
 const confirmModal = useConfirmStore();
@@ -251,6 +297,14 @@ const wageForm = ref({
   year: new Date().getFullYear(),
   net: null,
   brut: null,
+});
+
+// Destek bilgileri
+const loadingSupportInfo = ref(false);
+const savingSupportInfo = ref(false);
+const supportForm = ref({
+  supportEmail: '',
+  supportPhone: '',
 });
 
 const loadRegistrationMode = async () => {
@@ -373,8 +427,47 @@ const formatDate = date => {
   return d.toLocaleDateString('tr-TR');
 };
 
+const loadSupportInfo = async () => {
+  try {
+    loadingSupportInfo.value = true;
+    const response = await api.get('/global-settings/support-info');
+    if (response.data.success) {
+      supportForm.value = {
+        supportEmail: response.data.data.supportEmail,
+        supportPhone: response.data.data.supportPhone,
+      };
+    }
+  } catch (error) {
+    console.error('Destek bilgileri yüklenemedi:', error);
+    toast.error('Destek bilgileri yüklenirken bir hata oluştu');
+  } finally {
+    loadingSupportInfo.value = false;
+  }
+};
+
+const saveSupportInfo = async () => {
+  if (!supportForm.value.supportEmail || !supportForm.value.supportPhone) {
+    toast.warning('Lütfen tüm alanları doldurunuz');
+    return;
+  }
+
+  try {
+    savingSupportInfo.value = true;
+    const response = await api.put('/global-settings/support-info', supportForm.value);
+    if (response.data.success) {
+      toast.success(response.data.message || 'Destek bilgileri güncellendi');
+    }
+  } catch (error) {
+    console.error('Destek bilgileri kaydedilemedi:', error);
+    toast.error(error.response?.data?.message || 'Destek bilgileri güncellenirken bir hata oluştu');
+  } finally {
+    savingSupportInfo.value = false;
+  }
+};
+
 onMounted(() => {
   loadRegistrationMode();
   loadMinimumWages();
+  loadSupportInfo();
 });
 </script>

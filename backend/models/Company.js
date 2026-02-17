@@ -221,6 +221,37 @@ const companySchema = new mongoose.Schema(
       },
     },
 
+    // Genel Onay Modu (izin ve fazla mesai talepleri için geçerli)
+    approvalMode: {
+      type: String,
+      enum: ['chain_with_admin', 'chain_managers_only', 'auto_approve'],
+      default: 'chain_with_admin',
+      // chain_with_admin: Zincirlerin sonuna company_admin eklenir
+      // chain_managers_only: Sadece yöneticiler onaylar (zincir boşsa admin devreye girer)
+      // auto_approve: Tüm talepler otomatik onaylanır, admin'e bildirim gider
+    },
+
+    // Fazla Mesai Onay Akışı Ayarları
+    overtimeApprovalSettings: {
+      enabled: {
+        type: Boolean,
+        default: true, // Onay sistemi aktif mi?
+      },
+      useLeaveApprovalChain: {
+        type: Boolean,
+        default: true, // İzin onay akışıyla aynı zincir mi kullanılsın?
+      },
+      approvalLevels: {
+        type: Number,
+        default: 0, // 0 = Tüm chain, 1+ = Belirli sayıda onay
+        min: 0,
+      },
+      allowSelfApproval: {
+        type: Boolean,
+        default: false, // Yönetici kendi fazla mesai talebini onaylayabilir mi?
+      },
+    },
+
     // Şirket kota bilgileri
     quota: {
       allocated: {

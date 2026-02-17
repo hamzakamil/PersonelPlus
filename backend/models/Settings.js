@@ -35,6 +35,15 @@ const settingsSchema = new mongoose.Schema(
       enum: ['email_verification', 'manual_approval'],
       default: 'manual_approval',
     },
+    // Destek İletişim Bilgileri
+    supportEmail: {
+      type: String,
+      default: 'destek@personelplus.com',
+    },
+    supportPhone: {
+      type: String,
+      default: '0555 123 45 67',
+    },
   },
   {
     timestamps: true,

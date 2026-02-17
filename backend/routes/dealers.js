@@ -380,11 +380,273 @@ router.post('/promote-from-company', auth, requireRole('super_admin'), async (re
   }
 });
 
+// Deactivate dealer (pasife al) - only super_admin
+router.patch('/:id/deactivate', auth, requireRole('super_admin'), async (req, res) => {
+  try {
+    const dealer = await Dealer.findById(req.params.id);
+    if (!dealer) {
+      return notFound(res, 'Bayi bulunamadı');
+    }
+
+    // Aktif şirket kontrolü
+    const activeCompaniesCount = await Company.countDocuments({
+      dealer: req.params.id,
+      isActive: true,
+    });
+
+    if (activeCompaniesCount > 0) {
+      return errorResponse(res, {
+        message: `Bu bayinin ${activeCompaniesCount} aktif şirketi var. Önce şirketleri transfer edin veya pasife alın.`,
+        statusCode: 400,
+        activeCompaniesCount,
+      });
+    }
+
+    dealer.isActive = false;
+    await dealer.save();
+
+    return successResponse(res, { data: dealer, message: 'Bayi pasife alındı' });
+  } catch (error) {
+    return serverError(res, error);
+  }
+});
+
+// Activate dealer (aktifleştir) - only super_admin
+router.patch('/:id/activate', auth, requireRole('super_admin'), async (req, res) => {
+  try {
+    const dealer = await Dealer.findById(req.params.id);
+    if (!dealer) {
+      return notFound(res, 'Bayi bulunamadı');
+    }
+
+    dealer.isActive = true;
+    await dealer.save();
+
+    return successResponse(res, { data: dealer, message: 'Bayi aktifleştirildi' });
+  } catch (error) {
+    return serverError(res, error);
+  }
+});
+
+// Transfer companies to another dealer - only super_admin
+router.post('/:id/transfer-companies', auth, requireRole('super_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { companyIds, targetDealerId } = req.body;
+
+    // Validation
+    if (!companyIds || !Array.isArray(companyIds) || companyIds.length === 0) {
+      return errorResponse(res, {
+        message: 'En az bir şirket seçmelisiniz',
+        statusCode: 400,
+      });
+    }
+
+    if (!targetDealerId) {
+      return errorResponse(res, {
+        message: 'Hedef bayi seçmelisiniz',
+        statusCode: 400,
+      });
+    }
+
+    // Source dealer kontrolü
+    const sourceDealer = await Dealer.findById(id);
+    if (!sourceDealer) {
+      return notFound(res, 'Kaynak bayi bulunamadı');
+    }
+
+    // Target dealer kontrolü
+    const targetDealer = await Dealer.findById(targetDealerId);
+    if (!targetDealer) {
+      return notFound(res, 'Hedef bayi bulunamadı');
+    }
+
+    if (!targetDealer.isActive) {
+      return errorResponse(res, {
+        message: 'Hedef bayi pasif durumda. Lütfen aktif bir bayi seçin.',
+        statusCode: 400,
+      });
+    }
+
+    // Şirketleri kontrol et
+    const companies = await Company.find({
+      _id: { $in: companyIds },
+      dealer: id,
+    });
+
+    if (companies.length !== companyIds.length) {
+      return errorResponse(res, {
+        message: 'Seçili şirketlerden bazıları bulunamadı veya bu bayiye ait değil',
+        statusCode: 400,
+      });
+    }
+
+    // selfCompany kontrolü (transfer edilemez)
+    const selfCompany = companies.find(c => c.isDealerSelfCompany);
+    if (selfCompany) {
+      return errorResponse(res, {
+        message: 'Bayinin kendi şirketi (selfCompany) transfer edilemez',
+        statusCode: 400,
+      });
+    }
+
+    // maxCompanies limit kontrolü (target dealer için)
+    if (targetDealer.maxCompanies !== null && targetDealer.maxCompanies !== undefined) {
+      const targetCurrentCompaniesCount = await Company.countDocuments({
+        dealer: targetDealerId,
+        isActive: true,
+      });
+
+      const totalAfterTransfer = targetCurrentCompaniesCount + companies.length;
+
+      if (totalAfterTransfer > targetDealer.maxCompanies) {
+        return errorResponse(res, {
+          message: `Hedef bayinin şirket limiti aşılacak. Mevcut: ${targetCurrentCompaniesCount}, Limit: ${targetDealer.maxCompanies}, Transfer: ${companies.length}`,
+          statusCode: 400,
+        });
+      }
+    }
+
+    // Quota yeterlilik kontrolü (target dealer için)
+    const totalQuotaNeeded = companies.reduce((sum, company) => {
+      return sum + (company.quota?.allocated || 0);
+    }, 0);
+
+    if (targetDealer.maxCompanies !== null) {
+      const targetQuotaSummary = await quotaService.getDealerQuotaSummary(targetDealerId);
+      const availableQuota = targetQuotaSummary.total - targetQuotaSummary.allocated;
+
+      if (totalQuotaNeeded > availableQuota) {
+        return errorResponse(res, {
+          message: `Hedef bayinin kullanılabilir kotası yetersiz. Gerekli: ${totalQuotaNeeded}, Mevcut: ${availableQuota}`,
+          statusCode: 400,
+        });
+      }
+    }
+
+    // Transfer işlemi (rollback capability ile)
+    const transferredCompanyIds = [];
+    const updatedUserIds = [];
+    let sourceDealerUpdated = false;
+    let targetDealerUpdated = false;
+
+    try {
+      // 1. Şirketleri transfer et
+      for (const company of companies) {
+        const oldDealerId = company.dealer;
+        company.dealer = targetDealerId;
+        await company.save();
+        transferredCompanyIds.push(company._id);
+      }
+
+      // 2. company_admin kullanıcılarını güncelle (dealer field)
+      const companyAdminRole = await Role.findOne({ name: 'company_admin' });
+      if (companyAdminRole) {
+        const usersToUpdate = await User.find({
+          company: { $in: companyIds },
+          role: companyAdminRole._id,
+        });
+
+        for (const user of usersToUpdate) {
+          user.dealer = targetDealerId;
+          await user.save();
+          updatedUserIds.push(user._id);
+        }
+      }
+
+      // 3. Source dealer quota güncelle (azalt)
+      if (sourceDealer.quota?.allocated) {
+        sourceDealer.quota.allocated -= totalQuotaNeeded;
+        if (sourceDealer.quota.allocated < 0) sourceDealer.quota.allocated = 0;
+        await sourceDealer.save();
+        sourceDealerUpdated = true;
+      }
+
+      // 4. Target dealer quota güncelle (artır)
+      if (targetDealer.quota && totalQuotaNeeded > 0) {
+        if (!targetDealer.quota.allocated) targetDealer.quota.allocated = 0;
+        targetDealer.quota.allocated += totalQuotaNeeded;
+        await targetDealer.save();
+        targetDealerUpdated = true;
+      }
+
+      return successResponse(res, {
+        data: {
+          transferredCount: companies.length,
+          updatedUsersCount: updatedUserIds.length,
+          sourceDealer: { _id: sourceDealer._id, name: sourceDealer.name },
+          targetDealer: { _id: targetDealer._id, name: targetDealer.name },
+        },
+        message: `${companies.length} şirket başarıyla transfer edildi`,
+      });
+    } catch (innerError) {
+      // Rollback: Transfer edilen kayıtları geri al
+      console.error('Transfer hatası, rollback yapılıyor:', innerError);
+      try {
+        // Şirketleri eski dealer'a geri al
+        for (const companyId of transferredCompanyIds) {
+          await Company.findByIdAndUpdate(companyId, { dealer: id });
+        }
+
+        // Kullanıcıları eski dealer'a geri al
+        for (const userId of updatedUserIds) {
+          await User.findByIdAndUpdate(userId, { dealer: id });
+        }
+
+        // Quota'ları geri al
+        if (sourceDealerUpdated) {
+          sourceDealer.quota.allocated += totalQuotaNeeded;
+          await sourceDealer.save();
+        }
+
+        if (targetDealerUpdated) {
+          targetDealer.quota.allocated -= totalQuotaNeeded;
+          await targetDealer.save();
+        }
+      } catch (rollbackError) {
+        console.error('Rollback hatası:', rollbackError);
+      }
+      throw innerError;
+    }
+  } catch (error) {
+    return serverError(res, error, 'Şirket transferi sırasında bir hata oluştu');
+  }
+});
+
 // Delete dealer (only super_admin)
 router.delete('/:id', auth, requireRole('super_admin'), async (req, res) => {
   try {
+    const dealer = await Dealer.findById(req.params.id);
+    if (!dealer) {
+      return notFound(res, 'Bayi bulunamadı');
+    }
+
+    // Aktif şirket kontrolü
+    const activeCompaniesCount = await Company.countDocuments({
+      dealer: req.params.id,
+      isActive: true,
+    });
+
+    if (activeCompaniesCount > 0) {
+      return errorResponse(res, {
+        message: `Bu bayinin ${activeCompaniesCount} aktif şirketi var. Kalıcı silme için önce bayiyi pasife alın ve tüm şirketleri transfer edin.`,
+        statusCode: 400,
+        activeCompaniesCount,
+      });
+    }
+
+    // Kullanıcı kontrolü (güvenlik için)
+    const userCount = await User.countDocuments({ dealer: req.params.id });
+    if (userCount > 0) {
+      return errorResponse(res, {
+        message: `Bu bayinin ${userCount} kullanıcısı var. Güvenlik nedeniyle silme işlemi engellenmiştir.`,
+        statusCode: 400,
+        userCount,
+      });
+    }
+
     await Dealer.findByIdAndDelete(req.params.id);
-    return successResponse(res, { message: 'Bayi silindi' });
+    return successResponse(res, { message: 'Bayi kalıcı olarak silindi' });
   } catch (error) {
     return serverError(res, error);
   }

@@ -230,7 +230,8 @@
                     :class="{
                       'bg-blue-100 text-blue-800': request.type === 'leave_request',
                       'bg-green-100 text-green-800': request.type === 'hire_request',
-                      'bg-red-100 text-red-800': request.type === 'termination_request'
+                      'bg-red-100 text-red-800': request.type === 'termination_request',
+                      'bg-purple-100 text-purple-800': request.type === 'profile_change'
                     }"
                     class="px-2 py-1 text-xs font-semibold rounded"
                   >
@@ -239,10 +240,28 @@
                 </div>
                 <h3 class="text-lg font-semibold text-gray-900 mb-1">{{ request.title }}</h3>
                 <p class="text-sm text-gray-600 mb-2">{{ request.subtitle }}</p>
+
+                <!-- Bilgi Değişikliği Detayları -->
+                <div v-if="request.type === 'profile_change' && request.data?.changes" class="mt-3 mb-2 bg-purple-50 rounded-lg p-3 border border-purple-200">
+                  <p class="text-xs font-semibold text-purple-700 mb-2">Değişiklik Detayları:</p>
+                  <div
+                    v-for="(change, field) in request.data.changes"
+                    :key="field"
+                    class="flex items-start gap-2 text-sm mb-1.5 last:mb-0"
+                  >
+                    <span class="font-medium text-gray-700 min-w-[100px]">{{ change.label || field }}:</span>
+                    <span class="text-red-600 line-through">{{ formatChangeValue(change.old, field) || '(boş)' }}</span>
+                    <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                    <span class="text-green-700 font-medium">{{ formatChangeValue(change.new, field) || '(boş)' }}</span>
+                  </div>
+                </div>
+
                 <p class="text-xs text-gray-500">
-                  {{ new Date(request.date).toLocaleDateString('tr-TR', { 
-                    year: 'numeric', 
-                    month: 'long', 
+                  {{ new Date(request.date).toLocaleDateString('tr-TR', {
+                    year: 'numeric',
+                    month: 'long',
                     day: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
@@ -702,11 +721,23 @@ const rejectRequest = async () => {
   }
 }
 
+const formatChangeValue = (value, field) => {
+  if (!value && value !== 0) return ''
+  // Tarih alanları
+  if (field === 'birthDate' || field === 'hireDate' || field === 'terminationDate') {
+    try {
+      return new Date(value).toLocaleDateString('tr-TR')
+    } catch { return value }
+  }
+  return String(value)
+}
+
 const getRequestTypeLabel = (type) => {
   const labels = {
     'leave_request': 'İzin Talebi',
     'hire_request': 'İşe Giriş',
-    'termination_request': 'İşten Çıkış'
+    'termination_request': 'İşten Çıkış',
+    'profile_change': 'Bilgi Değişikliği'
   }
   return labels[type] || type
 }

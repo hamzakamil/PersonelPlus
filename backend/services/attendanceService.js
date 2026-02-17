@@ -5,6 +5,7 @@ const CompanyLeaveType = require('../models/CompanyLeaveType');
 const Employee = require('../models/Employee');
 const WorkingHours = require('../models/WorkingHours');
 const CompanyHolidayCalendar = require('../models/CompanyHolidayCalendar');
+const OfficialHoliday = require('../models/OfficialHoliday');
 const Company = require('../models/Company');
 const AttendanceTemplate = require('../models/AttendanceTemplate');
 const AttendanceTemplateItem = require('../models/AttendanceTemplateItem');
@@ -213,6 +214,20 @@ async function generateMonthlyAttendance(companyId, month, year, userId) {
     });
     const holidayDates = new Set(holidays.map(h => h.date.toISOString().split('T')[0]));
 
+    // Resmi tatilleri fallback olarak al (CompanyHolidayCalendar'da yoksa kullanılır)
+    const officialHolidays = await OfficialHoliday.find({
+      date: {
+        $gte: new Date(year, month - 1, 1),
+        $lte: new Date(year, month, 0)
+      }
+    });
+    for (const oh of officialHolidays) {
+      const dateStr = oh.date.toISOString().split('T')[0];
+      if (!holidayDates.has(dateStr)) {
+        holidayDates.add(dateStr);
+      }
+    }
+
     // Ayın günlerini hesapla
     const daysInMonth = new Date(year, month, 0).getDate();
     let totalRecords = 0;
@@ -387,7 +402,7 @@ async function getAttendanceCalendar(companyId, month, year, employeeId = null) 
         populate: { path: 'leaveType' }
       });
 
-    // Tatil günlerini al
+    // Tatil günlerini al (CompanyHolidayCalendar + OfficialHoliday fallback)
     const holidays = await CompanyHolidayCalendar.find({
       company: companyId,
       date: { $gte: startDate, $lte: endDate }
@@ -396,6 +411,22 @@ async function getAttendanceCalendar(companyId, month, year, employeeId = null) 
     holidays.forEach(h => {
       holidayMap[h.date.toISOString().split('T')[0]] = h;
     });
+
+    // Resmi tatilleri fallback olarak ekle (CompanyHolidayCalendar'da yoksa)
+    const officialHolidays = await OfficialHoliday.find({
+      date: { $gte: startDate, $lte: endDate }
+    });
+    for (const oh of officialHolidays) {
+      const dateStr = oh.date.toISOString().split('T')[0];
+      if (!holidayMap[dateStr]) {
+        holidayMap[dateStr] = {
+          date: oh.date,
+          name: oh.name,
+          isHalfDay: oh.isHalfDay || false,
+          halfDayPeriod: oh.halfDayPeriod || null,
+        };
+      }
+    }
 
     // Sonuç objesi
     const calendar = {};
@@ -419,6 +450,7 @@ async function getAttendanceCalendar(companyId, month, year, employeeId = null) 
           firstName: employee.firstName,
           lastName: employee.lastName,
           employeeNumber: employee.employeeNumber,
+          tcKimlik: employee.tcKimlik,
           hireDate: employee.hireDate,
           exitDate: employee.exitDate,
           isActive: employee.isActive

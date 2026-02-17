@@ -56,6 +56,10 @@ const employeeSchema = new mongoose.Schema({
   exitReasonCode: {
     type: String // İşten ayrılış nedeni kodu
   },
+  profilePhoto: {
+    type: String,
+    default: null
+  },
   status: {
     type: String,
     enum: ['active', 'separated'],

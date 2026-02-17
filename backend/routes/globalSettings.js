@@ -156,4 +156,47 @@ router.put('/registration-mode', auth, requireRole('super_admin'), async (req, r
   }
 });
 
+// GET /api/global-settings/support-info - Destek bilgilerini getir (public - auth gerekmez)
+router.get('/support-info', async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+    return successResponse(res, {
+      data: {
+        supportEmail: settings.supportEmail || 'destek@personelplus.com',
+        supportPhone: settings.supportPhone || '0555 123 45 67',
+      },
+    });
+  } catch (error) {
+    console.error('Destek bilgileri getirme hatası:', error);
+    return serverError(res, error);
+  }
+});
+
+// PUT /api/global-settings/support-info - Destek bilgilerini güncelle
+router.put('/support-info', auth, requireRole('super_admin'), async (req, res) => {
+  try {
+    const { supportEmail, supportPhone } = req.body;
+
+    if (!supportEmail || !supportPhone) {
+      return errorResponse(res, { message: 'Email ve telefon bilgileri zorunludur' });
+    }
+
+    const settings = await Settings.getSettings();
+    settings.supportEmail = supportEmail;
+    settings.supportPhone = supportPhone;
+    await settings.save();
+
+    return successResponse(res, {
+      data: {
+        supportEmail: settings.supportEmail,
+        supportPhone: settings.supportPhone,
+      },
+      message: 'Destek bilgileri güncellendi',
+    });
+  } catch (error) {
+    console.error('Destek bilgileri güncelleme hatası:', error);
+    return serverError(res, error);
+  }
+});
+
 module.exports = router;

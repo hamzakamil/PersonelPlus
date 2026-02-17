@@ -25,8 +25,6 @@ const paymentService = {
    * @returns {Object} iyzico checkout form response
    */
   async createCheckoutForm(dealer, pkg, billingType, callbackUrl, clientIp = '127.0.0.1') {
-    const iyzipay = getIyzipay();
-
     const price = billingType === 'yearly'
       ? pkg.yearlyPrice
       : pkg.monthlyPrice;
@@ -43,6 +41,84 @@ const paymentService = {
       status: 'pending'
     });
     await payment.save();
+
+    // MOCK MODE - Geliştirme için fake ödeme formu
+    if (process.env.PAYMENT_MOCK === 'true') {
+      console.log('🧪 MOCK PAYMENT MODE - Fake checkout form oluşturuluyor');
+
+      const mockToken = `MOCK_${payment._id}_${Date.now()}`;
+      payment.iyzicoToken = mockToken;
+      await payment.save();
+
+      const mockCheckoutForm = `
+        <div style="max-width: 500px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
+          <div style="background: #f0f9ff; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+            <h3 style="color: #1e40af; margin: 0 0 10px 0;">🧪 TEST ÖDEME MODU</h3>
+            <p style="color: #3b82f6; margin: 0; font-size: 14px;">Bu geliştirme ortamıdır. Gerçek ödeme yapılmayacak.</p>
+          </div>
+
+          <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 15px 0; color: #374151;">Ödeme Detayları</h4>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+              <span style="color: #6b7280;">Paket:</span>
+              <strong>${pkg.name}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+              <span style="color: #6b7280;">Ödeme Tipi:</span>
+              <strong>${billingType === 'yearly' ? 'Yıllık' : 'Aylık'}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-top: 10px; border-top: 2px solid #e5e7eb;">
+              <span style="color: #374151; font-size: 18px;">Toplam:</span>
+              <strong style="color: #3b82f6; font-size: 22px;">${price.toFixed(2)} TL</strong>
+            </div>
+          </div>
+
+          <form method="POST" action="${callbackUrl || (process.env.API_URL || 'http://localhost:3000') + '/api/payments/callback'}">
+            <input type="hidden" name="token" value="${mockToken}" />
+
+            <button
+              type="submit"
+              style="
+                width: 100%;
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: white;
+                border: none;
+                padding: 16px;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                transition: all 0.2s;
+              "
+              onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 8px rgba(0, 0, 0, 0.15)'"
+              onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0, 0, 0, 0.1)'"
+            >
+              ✅ Test Ödemeyi Tamamla (Ücretsiz)
+            </button>
+          </form>
+
+          <p style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 15px;">
+            ℹ️ Gerçek kredi kartı bilgisi girmenize gerek yok
+          </p>
+        </div>
+      `;
+
+      return {
+        status: 'success',
+        locale: 'tr',
+        systemTime: Date.now(),
+        conversationId,
+        token: mockToken,
+        checkoutFormContent: mockCheckoutForm,
+        paymentPageUrl: '#mock-payment',
+        paymentId: payment._id,
+        isMockMode: true
+      };
+    }
+
+    // GERÇEK IYZICO ENTEGRASYONU
+    const iyzipay = getIyzipay();
 
     const request = {
       locale: Iyzipay.LOCALE.TR,
@@ -118,6 +194,37 @@ const paymentService = {
    * @returns {Object} Ödeme sonucu
    */
   async verifyPayment(token) {
+    // MOCK MODE - Fake ödeme doğrulama
+    if (process.env.PAYMENT_MOCK === 'true' && token.startsWith('MOCK_')) {
+      console.log('🧪 MOCK PAYMENT MODE - Fake payment verification');
+      return {
+        status: 'success',
+        locale: 'tr',
+        systemTime: Date.now(),
+        conversationId: `CONV_${Date.now()}`,
+        token: token,
+        paymentId: `MOCK_PAY_${Date.now()}`,
+        paymentStatus: 'SUCCESS',
+        price: '100.00',
+        paidPrice: '100.00',
+        currency: 'TRY',
+        basketId: 'MOCK_BASKET',
+        cardType: 'CREDIT_CARD',
+        cardAssociation: 'VISA',
+        cardFamily: 'Bonus',
+        lastFourDigits: '0000',
+        installment: 1,
+        fraudStatus: 0,
+        merchantCommissionRate: '0.00',
+        merchantCommissionRateAmount: '0.00',
+        iyziCommissionRateAmount: '0.00',
+        iyziCommissionFee: '0.00',
+        cardUserKey: 'MOCK_CARD_USER',
+        cardToken: 'MOCK_CARD_TOKEN'
+      };
+    }
+
+    // GERÇEK IYZICO DOĞRULAMA
     const iyzipay = getIyzipay();
 
     return new Promise((resolve, reject) => {
@@ -169,6 +276,17 @@ const paymentService = {
 
       // Abonelik oluştur
       const subscription = await this.createSubscriptionFromPayment(payment);
+
+      // Fatura oluştur ve email gönder
+      try {
+        const invoiceService = require('./invoiceService');
+        const invoice = await invoiceService.generateInvoice(payment._id);
+        await invoiceService.sendInvoiceEmail(invoice._id);
+        console.log(`✓ Invoice generated and sent: ${invoice.invoiceNumber}`);
+      } catch (invoiceError) {
+        console.error('Invoice generation/email error:', invoiceError);
+        // Fatura hatası ödeme başarısını etkilemez
+      }
 
       return {
         success: true,
@@ -243,6 +361,24 @@ const paymentService = {
       employeeQuota: payment.package.employeeLimit,
       quotaExpiresAt: endDate
     });
+
+    // *** YENİ: Otomatik kota dağıt ***
+    try {
+      const quotaService = require('./quotaService');
+      const allocationResult = await quotaService.autoAllocateQuotaBasedOnEmployees(payment.dealer._id);
+      console.log('✓ Otomatik kota dağıtıldı:', allocationResult);
+
+      // Abonelik history'ye ekle
+      subscription.history.push({
+        action: 'quota_allocated',
+        date: new Date(),
+        note: `Otomatik kota dağıtımı: ${allocationResult.totalAllocated}/${allocationResult.totalQuota}`
+      });
+      await subscription.save();
+    } catch (quotaError) {
+      console.error('❌ Kota dağıtım hatası:', quotaError.message);
+      // Hata ödeme başarısını etkilemez, devam et
+    }
 
     // Komisyon oluştur
     try {

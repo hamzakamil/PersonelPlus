@@ -1,7 +1,49 @@
 <template>
   <div>
-    <div class="mb-6">
-      <p class="text-gray-600 mt-1">Isletmeniz icin en uygun paketi secin</p>
+    <!-- Sayfa Başlığı -->
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 no-uppercase">Abonelik Paketleri</h1>
+      <p class="text-gray-600 mt-2 no-uppercase">İşletmeniz için en uygun paketi seçin ve hemen kullanmaya başlayın</p>
+    </div>
+
+    <!-- Güvenlik & Ödeme Yöntemleri Badge'leri -->
+    <div class="flex flex-wrap items-center justify-center gap-6 mb-8 text-sm text-gray-600">
+      <div class="flex items-center gap-2">
+        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+        </svg>
+        <span class="font-medium">256-bit SSL Güvenli Ödeme</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span>Kabul Edilen Kartlar:</span>
+        <span class="font-semibold">Visa, Mastercard, Troy</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="font-medium">3D Secure Güvencesi</span>
+      </div>
+    </div>
+
+    <!-- Adım Göstergesi -->
+    <div class="flex items-center justify-center mb-8">
+      <div class="flex items-center">
+        <div class="flex items-center">
+          <div :class="currentStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'" class="rounded-full w-10 h-10 flex items-center justify-center font-semibold">1</div>
+          <span :class="currentStep >= 1 ? 'font-semibold text-gray-900' : 'text-gray-500'" class="ml-2">Paket Seçimi</span>
+        </div>
+        <div :class="currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-300'" class="w-20 h-1 mx-4"></div>
+        <div class="flex items-center">
+          <div :class="currentStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'" class="rounded-full w-10 h-10 flex items-center justify-center font-semibold">2</div>
+          <span :class="currentStep >= 2 ? 'font-semibold text-gray-900' : 'text-gray-500'" class="ml-2">Ödeme</span>
+        </div>
+        <div :class="currentStep >= 3 ? 'bg-blue-600' : 'bg-gray-300'" class="w-20 h-1 mx-4"></div>
+        <div class="flex items-center">
+          <div :class="currentStep >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'" class="rounded-full w-10 h-10 flex items-center justify-center font-semibold">3</div>
+          <span :class="currentStep >= 3 ? 'font-semibold text-gray-900' : 'text-gray-500'" class="ml-2">Tamamlandı</span>
+        </div>
+      </div>
     </div>
 
     <!-- Mevcut Abonelik Bilgisi -->
@@ -95,26 +137,31 @@
         </div>
 
         <div class="p-6">
-          <h3 class="text-xl font-bold text-gray-800">{{ pkg.name }}</h3>
-          <p class="text-gray-500 text-sm mt-1">{{ pkg.description }}</p>
+          <h3 class="text-xl font-bold text-gray-800 package-name">{{ pkg.name }}</h3>
+          <p class="text-gray-500 text-sm mt-1 no-uppercase">{{ pkg.description }}</p>
 
           <!-- Fiyat -->
           <div class="mt-4">
-            <span class="text-3xl font-bold text-gray-900">
+            <span class="text-3xl font-bold text-gray-900 preserve-case">
               {{ formatCurrency(billingType === 'yearly' ? pkg.yearlyPrice : pkg.monthlyPrice) }}
             </span>
-            <span class="text-gray-500">/{{ billingType === 'yearly' ? 'yil' : 'ay' }}</span>
+            <span class="text-gray-500 no-uppercase">/{{ billingType === 'yearly' ? 'yıl' : 'ay' }}</span>
           </div>
 
-          <div class="text-sm text-gray-500 mt-1">
-            {{ pkg.pricePerEmployee }} TL / calisan
+          <div class="text-sm text-gray-500 mt-1 no-uppercase">
+            {{ pkg.pricePerEmployee }} TL / çalışan
+          </div>
+
+          <!-- Taksit Bilgisi -->
+          <div class="mt-2 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded no-uppercase">
+            Taksit seçenekleri: 1-2-3-6 ay
           </div>
 
           <!-- Calisan Limiti -->
           <div class="mt-4 py-3 border-t border-b border-gray-100">
             <div class="flex items-center justify-center">
-              <span class="text-4xl font-bold text-blue-600">{{ pkg.employeeLimit }}</span>
-              <span class="text-gray-500 ml-2">Calisan</span>
+              <span class="text-4xl font-bold text-blue-600 preserve-case">{{ pkg.employeeLimit }}</span>
+              <span class="text-gray-500 ml-2 no-uppercase">Çalışan</span>
             </div>
           </div>
 
@@ -133,7 +180,7 @@
               <svg v-else class="w-5 h-5 text-gray-300 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
-              <span :class="feature.enabled ? 'text-gray-700' : 'text-gray-400'">{{ feature.name }}</span>
+              <span :class="feature.enabled ? 'text-gray-700 no-uppercase' : 'text-gray-400 no-uppercase'">{{ feature.name }}</span>
             </li>
           </ul>
 
@@ -141,13 +188,13 @@
           <button
             @click.stop="selectPackage(pkg)"
             :class="[
-              'w-full mt-6 py-3 rounded-lg font-medium transition-all',
+              'w-full mt-6 py-3 rounded-lg font-medium transition-all no-uppercase',
               selectedPackage?._id === pkg._id
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             ]"
           >
-            {{ selectedPackage?._id === pkg._id ? 'Secildi' : 'Sec' }}
+            {{ selectedPackage?._id === pkg._id ? 'Seçildi' : 'Seç' }}
           </button>
         </div>
       </div>
@@ -157,20 +204,20 @@
     <div v-if="selectedPackage" class="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4">
       <div class="max-w-4xl mx-auto flex items-center justify-between gap-4">
         <div class="flex-1">
-          <p class="font-semibold text-gray-800">{{ selectedPackage.name }}</p>
+          <p class="font-semibold text-gray-800 package-name">{{ selectedPackage.name }}</p>
           <div class="flex items-center gap-2">
-            <p v-if="!appliedCampaign" class="text-gray-500">
+            <p v-if="!appliedCampaign" class="text-gray-500 preserve-case">
               {{ formatCurrency(billingType === 'yearly' ? selectedPackage.yearlyPrice : selectedPackage.monthlyPrice) }}
-              / {{ billingType === 'yearly' ? 'yil' : 'ay' }}
+              / {{ billingType === 'yearly' ? 'yıl' : 'ay' }}
             </p>
             <template v-else>
-              <p class="text-gray-400 line-through text-sm">
+              <p class="text-gray-400 line-through text-sm preserve-case">
                 {{ formatCurrency(appliedCampaign.originalAmount) }}
               </p>
-              <p class="text-green-600 font-semibold">
+              <p class="text-green-600 font-semibold preserve-case">
                 {{ formatCurrency(appliedCampaign.finalAmount) }}
               </p>
-              <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+              <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded uppercase-text">
                 {{ appliedCampaign.campaign.code }}
               </span>
             </template>
@@ -205,40 +252,55 @@
         <button
           @click="proceedToPayment"
           :disabled="processing"
-          class="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed no-uppercase"
         >
-          {{ processing ? 'Isleniyor...' : 'Satin Al' }}
+          {{ processing ? 'İşleniyor...' : 'Satın Al' }}
         </button>
       </div>
     </div>
 
     <!-- Odeme Modal -->
     <div v-if="showPaymentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-full max-w-lg">
-        <h2 class="text-xl font-bold mb-4">Odeme</h2>
+      <div class="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2 no-uppercase">
+          <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+          </svg>
+          Güvenli Kredi Kartı Ödemesi
+        </h2>
+
+        <!-- 3D Secure Açıklaması -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <p class="text-sm text-blue-800 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
+            <span><strong>3D Secure:</strong> Ödemeniz bankınız tarafından güvenli bir şekilde onaylanacaktır</span>
+          </p>
+        </div>
 
         <div class="bg-gray-50 rounded-lg p-4 mb-4">
           <div class="flex justify-between mb-2">
-            <span>Paket:</span>
-            <span class="font-medium">{{ selectedPackage?.name }}</span>
+            <span class="no-uppercase">Paket:</span>
+            <span class="font-medium package-name">{{ selectedPackage?.name }}</span>
           </div>
           <div class="flex justify-between mb-2">
-            <span>Odeme Tipi:</span>
-            <span class="font-medium">{{ billingType === 'yearly' ? 'Yillik' : 'Aylik' }}</span>
+            <span class="no-uppercase">Ödeme Tipi:</span>
+            <span class="font-medium no-uppercase">{{ billingType === 'yearly' ? 'Yıllık' : 'Aylık' }}</span>
           </div>
           <template v-if="appliedCampaign">
             <div class="flex justify-between mb-2">
-              <span>Ara Toplam:</span>
-              <span class="text-gray-500">{{ formatCurrency(appliedCampaign.originalAmount) }}</span>
+              <span class="no-uppercase">Ara Toplam:</span>
+              <span class="text-gray-500 preserve-case">{{ formatCurrency(appliedCampaign.originalAmount) }}</span>
             </div>
             <div class="flex justify-between mb-2 text-green-600">
-              <span>Indirim ({{ appliedCampaign.campaign.code }}):</span>
-              <span>-{{ formatCurrency(appliedCampaign.discount) }}</span>
+              <span class="no-uppercase">İndirim ({{ appliedCampaign.campaign.code }}):</span>
+              <span class="preserve-case">-{{ formatCurrency(appliedCampaign.discount) }}</span>
             </div>
           </template>
           <div class="flex justify-between text-lg font-bold border-t pt-2 mt-2">
-            <span>Toplam:</span>
-            <span class="text-blue-600">
+            <span class="no-uppercase">Toplam:</span>
+            <span class="text-blue-600 preserve-case">
               {{ formatCurrency(appliedCampaign ? appliedCampaign.finalAmount : (billingType === 'yearly' ? selectedPackage?.yearlyPrice : selectedPackage?.monthlyPrice)) }}
             </span>
           </div>
@@ -252,11 +314,68 @@
           <p class="text-gray-500 mt-2">Odeme formu yukleniyor...</p>
         </div>
 
+        <!-- Fatura Bilgisi -->
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mt-4">
+          <p class="text-xs text-gray-600 text-center flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+            </svg>
+            <span>Faturanız ödeme sonrası e-posta adresinize gönderilecektir</span>
+          </p>
+        </div>
+
         <button
           @click="closePaymentModal"
-          class="w-full mt-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
+          class="w-full mt-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 no-uppercase"
         >
-          Iptal
+          İptal
+        </button>
+      </div>
+    </div>
+
+    <!-- Yardım Butonu -->
+    <button
+      @click="showHelpDialog"
+      class="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full p-4 shadow-lg hover:bg-blue-700 transition-all z-40"
+      title="Yardım"
+    >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+    </button>
+
+    <!-- Yardım Dialogu -->
+    <div v-if="showHelp" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-full max-w-md modal-content">
+        <h3 class="text-xl font-bold mb-4 no-uppercase">Yardıma mı İhtiyacınız Var?</h3>
+        <p class="text-gray-600 mb-4 no-uppercase">
+          Paket seçimi veya ödeme konusunda sorularınız için bizimle iletişime geçebilirsiniz:
+        </p>
+        <div class="space-y-3">
+          <a :href="`mailto:${supportInfo.supportEmail}`" class="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+            </svg>
+            <div>
+              <div class="font-medium no-uppercase">E-posta</div>
+              <div class="text-sm text-gray-500 email-text">{{ supportInfo.supportEmail }}</div>
+            </div>
+          </a>
+          <a :href="`tel:+90${supportInfo.supportPhone.replace(/\s/g, '')}`" class="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+            </svg>
+            <div>
+              <div class="font-medium no-uppercase">Telefon</div>
+              <div class="text-sm text-gray-500 preserve-case">{{ formatPhone(supportInfo.supportPhone) }}</div>
+            </div>
+          </a>
+        </div>
+        <button
+          @click="showHelp = false"
+          class="w-full mt-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 no-uppercase"
+        >
+          Kapat
         </button>
       </div>
     </div>
@@ -267,6 +386,7 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '@/services/api'
 import { useToastStore } from '@/stores/toast'
+import { formatPhone } from '@/utils/formatters'
 
 const toast = useToastStore()
 const packages = ref([])
@@ -277,11 +397,19 @@ const billingType = ref('monthly')
 const processing = ref(false)
 const showPaymentModal = ref(false)
 const checkoutFormLoaded = ref(false)
+const currentStep = ref(1) // Adım göstergesi için
 
 // Kampanya
 const campaignCode = ref('')
 const appliedCampaign = ref(null)
 const validatingCampaign = ref(false)
+
+// Yardım
+const showHelp = ref(false)
+const supportInfo = ref({
+  supportEmail: 'destek@personelplus.com',
+  supportPhone: '0544 742 74 42'
+})
 
 const daysRemaining = computed(() => {
   if (!currentSubscription.value?.endDate) return 0
@@ -387,11 +515,12 @@ const proceedToPayment = async () => {
   if (!selectedPackage.value) return
 
   processing.value = true
+  currentStep.value = 2 // Ödeme adımına geç
   try {
     const payload = {
       packageId: selectedPackage.value._id,
-      billingType: billingType.value,
-      callbackUrl: `${window.location.origin}/subscription/callback`
+      billingType: billingType.value
+      // callbackUrl backend tarafından belirlenir
     }
 
     // Kampanya varsa ekle
@@ -418,6 +547,7 @@ const proceedToPayment = async () => {
   } catch (error) {
     console.error('Ödeme formu oluşturma hatası:', error)
     toast.error(error.response?.data?.message || 'Ödeme formu oluşturulamadı')
+    currentStep.value = 1 // Hata durumunda geri dön
   } finally {
     processing.value = false
   }
@@ -426,11 +556,29 @@ const proceedToPayment = async () => {
 const closePaymentModal = () => {
   showPaymentModal.value = false
   checkoutFormLoaded.value = false
+  currentStep.value = 1 // Paket seçimine geri dön
+}
+
+const showHelpDialog = () => {
+  showHelp.value = true
+}
+
+const fetchSupportInfo = async () => {
+  try {
+    const response = await api.get('/global-settings/support-info')
+    if (response.data.success) {
+      supportInfo.value = response.data.data
+    }
+  } catch (error) {
+    console.error('Destek bilgileri yuklenirken hata:', error)
+    // Hata durumunda varsayılan değerler kullanılacak
+  }
 }
 
 onMounted(() => {
   fetchPackages()
   fetchCurrentSubscription()
+  fetchSupportInfo()
 })
 </script>
 

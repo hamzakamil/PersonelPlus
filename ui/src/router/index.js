@@ -41,6 +41,18 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
+      path: '/forgot-password',
+      name: 'ForgotPassword',
+      component: () => import('@/views/ForgotPassword.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
+      path: '/reset-password/:token',
+      name: 'ResetPassword',
+      component: () => import('@/views/ResetPassword.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
       path: '/',
       component: () => import('@/layouts/DashboardLayout.vue'),
       meta: { requiresAuth: true },
@@ -199,10 +211,6 @@ const router = createRouter({
               'company_admin',
               'resmi_muhasebe_ik',
               'employee',
-              'SIRKET_ADMIN',
-              'BAYI_ADMIN',
-              'SUPER_ADMIN',
-              'IK_OPERASYON',
             ],
           },
         },
@@ -216,10 +224,6 @@ const router = createRouter({
               'bayi_admin',
               'company_admin',
               'resmi_muhasebe_ik',
-              'SIRKET_ADMIN',
-              'BAYI_ADMIN',
-              'SUPER_ADMIN',
-              'IK_OPERASYON',
             ],
           },
         },
@@ -288,10 +292,6 @@ const router = createRouter({
               'bayi_admin',
               'company_admin',
               'resmi_muhasebe_ik',
-              'SIRKET_ADMIN',
-              'BAYI_ADMIN',
-              'SUPER_ADMIN',
-              'IK_OPERASYON',
             ],
           },
         },
@@ -299,6 +299,12 @@ const router = createRouter({
           path: 'my-leaves',
           name: 'MyLeaves',
           component: () => import('@/views/MyLeaves.vue'),
+          meta: { roles: ['employee'] },
+        },
+        {
+          path: 'my-account',
+          name: 'MyAccount',
+          component: () => import('@/views/MyAccount.vue'),
           meta: { roles: ['employee'] },
         },
         {
@@ -406,7 +412,7 @@ const router = createRouter({
           path: 'bordro-approval',
           name: 'BordroApproval',
           component: () => import('@/views/bordro/BordroApproval.vue'),
-          meta: { roles: ['company_admin', 'resmi_muhasebe_ik', 'SIRKET_ADMIN', 'IK_OPERASYON'] },
+          meta: { roles: ['company_admin', 'resmi_muhasebe_ik'] },
         },
         {
           path: 'bordro/:id',
@@ -424,8 +430,6 @@ const router = createRouter({
               'bayi_admin',
               'company_admin',
               'resmi_muhasebe_ik',
-              'SIRKET_ADMIN',
-              'IK_OPERASYON',
             ],
           },
         },
@@ -439,8 +443,6 @@ const router = createRouter({
               'bayi_admin',
               'company_admin',
               'resmi_muhasebe_ik',
-              'SIRKET_ADMIN',
-              'IK_OPERASYON',
             ],
           },
         },
@@ -454,8 +456,6 @@ const router = createRouter({
               'bayi_admin',
               'company_admin',
               'resmi_muhasebe_ik',
-              'SIRKET_ADMIN',
-              'IK_OPERASYON',
             ],
           },
         },
@@ -553,7 +553,8 @@ router.beforeEach((to, from, next) => {
     to.name === 'ActivateEmployee' ||
     to.name === 'ActivateAccount' ||
     to.name === 'Register' ||
-    to.name === 'VerifyEmail'
+    to.name === 'VerifyEmail' ||
+    to.name === 'ResetPassword'
   ) {
     next();
     return;

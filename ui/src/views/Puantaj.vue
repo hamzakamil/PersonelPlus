@@ -59,34 +59,32 @@
           Yükle
         </button>
         <button
-          @click="downloadExcel"
-          :disabled="excelLoading"
+          @click="downloadFile('xls')"
+          :disabled="xlsLoading"
           class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          <svg v-if="excelLoading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-            <circle
-              class="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            ></circle>
-            <path
-              class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
+          <svg v-if="xlsLoading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          Excel İndir
+          XLS İndir
+        </button>
+        <button
+          @click="downloadFile('csv')"
+          :disabled="csvLoading"
+          class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <svg v-if="csvLoading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          CSV İndir
         </button>
         <button
           @click="regenerateAll"
@@ -474,9 +472,11 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
-            <tr v-for="item in puantajList" :key="item.employee._id" class="hover:bg-gray-50">
+            <tr v-for="item in puantajList" :key="item.employee._id"
+                :class="getRowClass(item)"
+                :title="getRowTooltip(item)">
               <td
-                class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10"
+                :class="['px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 z-10', getRowBgClass(item)]"
               >
                 <div>{{ item.employee.firstName }} {{ item.employee.lastName }}</div>
                 <div class="text-xs text-gray-500">
@@ -1631,7 +1631,8 @@ const isSettingsPanelOpen = ref(false);
 const isLegendCollapsed = ref(true);
 
 const loading = ref(false);
-const excelLoading = ref(false);
+const xlsLoading = ref(false);
+const csvLoading = ref(false);
 const regenerateLoading = ref(false);
 const selectedYear = ref(new Date().getFullYear());
 const selectedMonth = ref(new Date().getMonth() + 1);
@@ -1715,6 +1716,45 @@ const formatDays = value => {
   if (!value && value !== 0) return '0';
   // Tam sayı ise virgülsüz, değilse bir ondalık basamakla göster
   return Number.isInteger(value) ? value : value.toFixed(1);
+};
+
+// ==================== SATIR RENKLENDİRME ====================
+const getRowClass = (item) => {
+  if (item.employee.isRetired) {
+    return 'bg-amber-100 hover:bg-amber-200';
+  }
+  const prev = item.employee.prevMonthSgk;
+  if (prev && prev.sgkGunManuallyEdited) {
+    return 'bg-blue-50 hover:bg-blue-100';
+  }
+  if (prev && prev.effectiveSgkGun < 30) {
+    return 'bg-rose-50 hover:bg-rose-100';
+  }
+  return 'hover:bg-gray-50';
+};
+
+const getRowBgClass = (item) => {
+  if (item.employee.isRetired) return 'bg-amber-100';
+  const prev = item.employee.prevMonthSgk;
+  if (prev && prev.sgkGunManuallyEdited) return 'bg-blue-50';
+  if (prev && prev.effectiveSgkGun < 30) return 'bg-rose-50';
+  return 'bg-white';
+};
+
+const getRowTooltip = (item) => {
+  const parts = [];
+  if (item.employee.isRetired) {
+    parts.push('Emekli');
+  }
+  const prev = item.employee.prevMonthSgk;
+  if (prev) {
+    if (prev.sgkGunManuallyEdited) {
+      parts.push(`Önceki ay SGK gün ${prev.effectiveSgkGun} olarak düzenlenmiştir`);
+    } else if (prev.effectiveSgkGun < 30) {
+      parts.push(`Önceki ay SGK gün ${prev.effectiveSgkGun} olarak düzenlenmiştir`);
+    }
+  }
+  return parts.join(' | ');
 };
 
 // ==================== SGK GÜNÜ ====================
@@ -1945,38 +1985,38 @@ const saveDayChange = async () => {
   }
 };
 
-const downloadExcel = async () => {
-  excelLoading.value = true;
+const downloadFile = async (format = 'xls') => {
+  const loadingRef = format === 'csv' ? csvLoading : xlsLoading;
+  loadingRef.value = true;
   try {
     let companyId = null;
 
     if (isBayiAdmin.value) {
       if (!selectedCompanyId.value) {
         toast.warning('Lütfen bir şirket seçiniz');
-        excelLoading.value = false;
+        loadingRef.value = false;
         return;
       }
       companyId = selectedCompanyId.value;
     } else {
-      // company object veya string olabilir
       const company = authStore.user?.company;
       companyId = typeof company === 'object' ? company?._id : company;
     }
 
     if (!companyId) {
       toast.error('Şirket bilgisi bulunamadı');
-      excelLoading.value = false;
+      loadingRef.value = false;
       return;
     }
 
     const response = await api.get(
-      `/attendances/export-excel?month=${selectedMonth.value}&year=${selectedYear.value}&company=${companyId}`,
+      `/attendances/export-excel?month=${selectedMonth.value}&year=${selectedYear.value}&company=${companyId}&format=${format}`,
       { responseType: 'blob' }
     );
 
-    // Dosya adını response header'dan al veya oluştur
+    const ext = format === 'csv' ? 'csv' : 'xls';
     const contentDisposition = response.headers['content-disposition'];
-    let fileName = `Puantaj_${selectedMonth.value}_${selectedYear.value}.xlsx`;
+    let fileName = `Puantaj_${selectedMonth.value}_${selectedYear.value}.${ext}`;
     if (contentDisposition) {
       const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
       if (fileNameMatch && fileNameMatch[1]) {
@@ -1984,7 +2024,6 @@ const downloadExcel = async () => {
       }
     }
 
-    // Blob'u indir
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
@@ -1994,10 +2033,10 @@ const downloadExcel = async () => {
     link.remove();
     window.URL.revokeObjectURL(url);
   } catch (error) {
-    console.error('Excel indirme hatası:', error);
-    toast.error(error.response?.data?.message || 'Excel indirilemedi');
+    console.error('Dosya indirme hatası:', error);
+    toast.error(error.response?.data?.message || 'Dosya indirilemedi');
   } finally {
-    excelLoading.value = false;
+    loadingRef.value = false;
   }
 };
 

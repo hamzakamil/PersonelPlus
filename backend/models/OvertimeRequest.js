@@ -66,7 +66,7 @@ const overtimeRequestSchema = new mongoose.Schema({
   // Durum
   status: {
     type: String,
-    enum: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    enum: ['PENDING', 'IN_PROGRESS', 'APPROVED', 'REJECTED', 'CANCELLED'],
     default: 'PENDING'
   },
 
@@ -100,6 +100,39 @@ const overtimeRequestSchema = new mongoose.Schema({
     default: null
   },
 
+  // Çok seviyeli onay zinciri
+  currentApprover: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee',
+    default: null, // Sıradaki onaylayıcı
+  },
+  history: [
+    {
+      approver: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Employee',
+        default: null,
+      },
+      approverUser: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+      },
+      status: {
+        type: String,
+        enum: ['PENDING', 'IN_PROGRESS', 'APPROVED', 'REJECTED', 'CANCELLED'],
+        required: true,
+      },
+      note: {
+        type: String,
+      },
+      date: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
+
   // Puantaj'a aktarıldı mı?
   isTransferredToPuantaj: {
     type: Boolean,
@@ -125,11 +158,13 @@ overtimeRequestSchema.index({ employee: 1, date: 1 });
 overtimeRequestSchema.index({ company: 1, status: 1 });
 overtimeRequestSchema.index({ company: 1, date: 1 });
 overtimeRequestSchema.index({ status: 1, date: 1 });
+overtimeRequestSchema.index({ currentApprover: 1, status: 1 });
 
 // Virtual: Durum adı
 overtimeRequestSchema.virtual('statusName').get(function() {
   const statusNames = {
     'PENDING': 'Onay Bekliyor',
+    'IN_PROGRESS': 'Onay Sürecinde',
     'APPROVED': 'Onaylandı',
     'REJECTED': 'Reddedildi',
     'CANCELLED': 'İptal Edildi'

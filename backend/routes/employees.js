@@ -17,6 +17,8 @@ const Role = require('../models/Role');
 const { auth, requireRole } = require('../middleware/auth');
 const { normalizePhone } = require('../utils/phoneUtils');
 const { successResponse, errorResponse, notFound, forbidden, serverError, createdResponse } = require('../utils/responseHelper');
+const ProfileChangeRequest = require('../models/ProfileChangeRequest');
+const notificationService = require('../services/notificationService');
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -175,19 +177,18 @@ router.get('/template', auth, requireRole('super_admin', 'bayi_admin', 'company_
   try {
     // Zorunlu alanlar
     const requiredFields = [
-      'Adı',
-      'Soyadı',
+      'Adı Soyadı',
       'TC Kimlik No',
       'İşe Giriş Tarihi',
-      'Doğum Tarihi',
-      'Görevi',
-      'Email Adresi',
-      'Telefon Numarası'
+      'Görevi'
     ];
 
-    // Tüm personel alanları (zorunlu alanlar + diğerleri)
+    // Tüm personel alanları (zorunlu alanlar + opsiyonel)
     const allFields = [
       ...requiredFields,
+      'Doğum Tarihi',
+      'Email Adresi',
+      'Telefon Numarası',
       'Personel Numarası',
       'Departman',
       'SGK İşyeri',
@@ -208,8 +209,7 @@ router.get('/template', auth, requireRole('super_admin', 'bayi_admin', 'company_
       allFields, // Başlık satırı
       // Örnek satır (örnek verilerle)
       [
-        'Ahmet', // Adı
-        'Yılmaz', // Soyadı
+        'Ahmet Yılmaz', // Adı Soyadı
         '12345678901', // TC Kimlik No
         '15.01.2024', // İşe Giriş Tarihi (GG.AA.YYYY formatı)
         '20.05.1990', // Doğum Tarihi (GG.AA.YYYY formatı)
@@ -253,7 +253,463 @@ router.get('/template', auth, requireRole('super_admin', 'bayi_admin', 'company_
   }
 });
 
-// Bulk import from Excel - MUST be before /:id route
+// İsim ayırma helper fonksiyonu
+const splitFullName = (fullName) => {
+  if (!fullName || !fullName.trim()) return { error: 'Adı Soyadı boş' };
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return { error: 'Soyadı eksik - en az ad ve soyad girilmelidir' };
+  }
+  if (parts.length === 2) {
+    return { firstName: parts[0], lastName: parts[1], ambiguous: false };
+  }
+  // 3+ kelime: iki alternatif sun
+  return {
+    fullName: fullName.trim(),
+    ambiguous: true,
+    optionA: {
+      firstName: parts.slice(0, -1).join(' '),
+      lastName: parts[parts.length - 1]
+    },
+    optionB: {
+      firstName: parts.slice(0, -2).join(' '),
+      lastName: parts.slice(-2).join(' ')
+    }
+  };
+};
+
+// Excel import helper: bir satırdan alan değeri oku
+const getFieldValue = (row, possibleKeys) => {
+  for (const key of possibleKeys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+      return String(row[key]);
+    }
+  }
+  return null;
+};
+
+// Excel tarih parse helper
+const parseExcelDate = (value) => {
+  if (!value) return null;
+  const numValue = Number(value);
+  if (!isNaN(numValue) && numValue > 0 && numValue < 100000) {
+    const EXCEL_EPOCH_DIFF = 25569;
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    return new Date((numValue - EXCEL_EPOCH_DIFF) * MS_PER_DAY);
+  }
+  const strValue = String(value).trim();
+  const dotMatch = strValue.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (dotMatch) {
+    const [, day, month, year] = dotMatch;
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  }
+  const slashMatch = strValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const [, day, month, year] = slashMatch;
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  }
+  const isoMatch = strValue.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  }
+  const parsed = new Date(strValue);
+  if (!isNaN(parsed.getTime())) return parsed;
+  return null;
+};
+
+// Ortak alan haritası
+const buildRequiredFieldsMap = () => ({
+  'Adı Soyadı': ['Adı Soyadı', 'adı soyadı', 'Ad Soyad', 'ad soyad', 'fullName', 'full_name', 'Ad Soyadı', 'ad soyadı'],
+  'TC Kimlik No': ['TC Kimlik No', 'tcKimlik', 'tc_kimlik', 'tc', 'tckimlik', 'tc kimlik no'],
+  'İşe Giriş Tarihi': ['İşe Giriş Tarihi', 'işe giriş tarihi', 'işeGirişTarihi', 'hireDate', 'hire_date', 'ise_giris_tarihi', 'işeGiriş', 'iseGiris'],
+  'Doğum Tarihi': ['Doğum Tarihi', 'doğum tarihi', 'doğumTarihi', 'birthDate', 'birth_date', 'dogum_tarihi', 'doğumTarih', 'dogumTarih'],
+  'Görevi': ['Görevi', 'görevi', 'görev', 'position', 'gorev', 'gorevi'],
+  'Email Adresi': ['Email Adresi', 'email', 'email adresi', 'e-mail', 'e_mail'],
+  'Telefon Numarası': ['Telefon Numarası', 'telefon', 'telefon numarası', 'phone', 'telefon_numarası', 'tel']
+});
+
+// Geriye uyumluluk: Ayrı Adı/Soyadı sütunlarını da destekle
+const getNameFromRow = (row, requiredFieldsMap) => {
+  // Önce birleşik "Adı Soyadı" alanını dene
+  const fullName = getFieldValue(row, requiredFieldsMap['Adı Soyadı']);
+  if (fullName) return { fullName, source: 'combined' };
+
+  // Geriye uyumluluk: ayrı Adı ve Soyadı sütunları
+  const firstName = getFieldValue(row, ['Adı', 'ad', 'adı', 'firstName', 'first_name', 'firstname']);
+  const lastName = getFieldValue(row, ['Soyadı', 'soyad', 'soyadı', 'lastName', 'last_name', 'lastname']);
+  if (firstName && lastName) return { fullName: `${firstName} ${lastName}`, source: 'separate' };
+  if (firstName) return { fullName: firstName, source: 'separate' };
+
+  return { fullName: null, source: 'none' };
+};
+
+// Ortak import mantığı
+const processImportRows = async (data, companyId, nameResolutions = {}) => {
+  const requiredFieldsMap = buildRequiredFieldsMap();
+  const employeesList = [];
+  const errors = [];
+
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    const rowErrors = [];
+
+    // İsim al
+    const nameResult = getNameFromRow(row, requiredFieldsMap);
+    const fullNameRaw = nameResult.fullName;
+
+    // Diğer zorunlu alanlar
+    const tcKimlik = getFieldValue(row, requiredFieldsMap['TC Kimlik No']);
+    const hireDate = getFieldValue(row, requiredFieldsMap['İşe Giriş Tarihi']);
+    const birthDate = getFieldValue(row, requiredFieldsMap['Doğum Tarihi']);
+    const position = getFieldValue(row, requiredFieldsMap['Görevi']);
+    const email = getFieldValue(row, requiredFieldsMap['Email Adresi']);
+    const phone = getFieldValue(row, requiredFieldsMap['Telefon Numarası']);
+
+    if (!fullNameRaw || fullNameRaw.trim() === '') rowErrors.push('Adı Soyadı');
+    if (!tcKimlik || tcKimlik.trim() === '') rowErrors.push('TC Kimlik No');
+    if (!hireDate || hireDate.trim() === '') rowErrors.push('İşe Giriş Tarihi');
+    if (!position || position.trim() === '') rowErrors.push('Görevi');
+    // Email ve telefon artık opsiyonel
+
+    if (rowErrors.length > 0) {
+      errors.push(`Satır ${i + 2}: Eksik zorunlu alanlar - ${rowErrors.join(', ')}. Lütfen bu alanları doldurun.`);
+      continue;
+    }
+
+    // Email yoksa TC Kimlik ile placeholder email oluştur
+    const finalEmail = (email && email.trim()) ? email.trim() : `${tcKimlik.trim()}@personelplus.com`;
+    const isPlaceholderEmail = !email || !email.trim();
+    const finalPhone = (phone && phone.trim()) ? phone.trim() : undefined;
+
+    // İsim ayırma
+    let firstName, lastName;
+    const nameSplit = splitFullName(fullNameRaw);
+    if (nameSplit.error) {
+      errors.push(`Satır ${i + 2}: ${nameSplit.error}`);
+      continue;
+    }
+    if (nameSplit.ambiguous) {
+      const resolution = nameResolutions[String(i + 2)]; // satır numarası ile eşleş
+      if (resolution === 'B') {
+        firstName = nameSplit.optionB.firstName;
+        lastName = nameSplit.optionB.lastName;
+      } else {
+        // Varsayılan: Seçenek A (son kelime = soyadı)
+        firstName = nameSplit.optionA.firstName;
+        lastName = nameSplit.optionA.lastName;
+      }
+    } else {
+      firstName = nameSplit.firstName;
+      lastName = nameSplit.lastName;
+    }
+
+    try {
+      // Workplace kontrolü
+      const workplaceName = row['SGK İşyeri'] || row['İşyeri'] || row.workplace || row['SGK İşyeri Dosyası'];
+      let workplaceDoc = null;
+      if (workplaceName) {
+        workplaceDoc = await Workplace.findOne({ name: workplaceName, company: companyId });
+        if (!workplaceDoc) {
+          errors.push(`Satır ${i + 2}: SGK İşyeri bulunamadı - ${workplaceName}`);
+          continue;
+        }
+      } else {
+        workplaceDoc = await Workplace.findOne({ company: companyId });
+        if (!workplaceDoc) {
+          errors.push(`Satır ${i + 2}: Şirket için varsayılan işyeri bulunamadı`);
+          continue;
+        }
+      }
+
+      // WorkplaceSection kontrolü
+      let workplaceSectionDoc = null;
+      const sectionName = row['İşyeri Bölümü'] || row['Bölüm'] || row.workplaceSection;
+      if (sectionName) {
+        workplaceSectionDoc = await WorkplaceSection.findOne({ name: sectionName, workplace: workplaceDoc._id });
+        if (!workplaceSectionDoc) {
+          errors.push(`Satır ${i + 2}: İşyeri bölümü bulunamadı - ${sectionName}`);
+          continue;
+        }
+      }
+
+      // Departman kontrolü
+      let departmentDoc = null;
+      const departmentName = row['Departman'] || row.departman || row.department;
+      if (departmentName) {
+        departmentDoc = await Department.findOne({ name: departmentName, company: companyId });
+        if (!departmentDoc) {
+          errors.push(`Satır ${i + 2}: Departman bulunamadı - ${departmentName}`);
+          continue;
+        }
+      }
+
+      // Tarih parse
+      const parsedHireDate = parseExcelDate(hireDate);
+      if (!parsedHireDate || isNaN(parsedHireDate.getTime())) {
+        errors.push(`Satır ${i + 2}: İşe Giriş Tarihi geçersiz format - ${hireDate}`);
+        continue;
+      }
+      let parsedBirthDate = null;
+      if (birthDate && birthDate.trim() !== '') {
+        parsedBirthDate = parseExcelDate(birthDate);
+        if (!parsedBirthDate || isNaN(parsedBirthDate.getTime())) {
+          errors.push(`Satır ${i + 2}: Doğum Tarihi geçersiz format - ${birthDate}`);
+          continue;
+        }
+      }
+
+      // Email kontrolü (sadece gerçek email varsa)
+      if (!isPlaceholderEmail) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(finalEmail)) {
+          errors.push(`Satır ${i + 2}: Geçersiz email formatı - ${finalEmail}`);
+          continue;
+        }
+      }
+
+      // TC Kimlik tekrar kontrolü
+      const existingEmployee = await Employee.findOne({ tcKimlik: tcKimlik.trim(), company: companyId });
+      if (existingEmployee) {
+        errors.push(`Satır ${i + 2}: Bu TC Kimlik No ile kayıtlı bir çalışan zaten mevcut - ${tcKimlik}`);
+        continue;
+      }
+
+      // Diğer alanlar
+      const personelNumarasi = row['Personel Numarası'] || row.personelNumarasi || row.personel_numarasi;
+      const birthPlace = row['Doğum Yeri'] || row.doğumYeri || row.birthPlace || row.birth_place;
+      const passportNumber = row['Pasaport No'] || row.pasaportNo || row.passportNumber || row.passport_number;
+      const bloodType = row['Kan Grubu'] || row.kanGrubu || row.bloodType || row.blood_type;
+      const militaryStatus = row['Askerlik Durumu'] || row.askerlikDurumu || row.militaryStatus || row.military_status;
+      const hasCriminalRecord = row['Sabıka Kaydı Var mı?'] === 'Evet' || row['Sabıka Kaydı Var mı?'] === 'evet' || row['Sabıka Kaydı Var mı?'] === true || row.hasCriminalRecord === true;
+      const hasDrivingLicense = row['Ehliyet Var mı?'] === 'Evet' || row['Ehliyet Var mı?'] === 'evet' || row['Ehliyet Var mı?'] === true || row.hasDrivingLicense === true;
+      const isRetired = row['Emekli Mi?'] === 'Evet' || row['Emekli Mi?'] === 'evet' || row['Emekli Mi?'] === true || row.isRetired === true;
+
+      // Otomatik sıra numarası
+      const allExistingEmployees = await Employee.find({ company: companyId }).select('employeeNumber').lean();
+      let maxNum = 0;
+      for (const emp of allExistingEmployees) {
+        if (emp && emp.employeeNumber) {
+          const num = parseInt(emp.employeeNumber);
+          if (!isNaN(num) && num > maxNum) maxNum = num;
+        }
+      }
+      const finalEmployeeNumber = String(maxNum + 1 + employeesList.length);
+
+      const employee = new Employee({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: isPlaceholderEmail ? undefined : finalEmail.toLowerCase(),
+        phone: finalPhone || undefined,
+        tcKimlik: tcKimlik.trim(),
+        position: position.trim(),
+        company: companyId,
+        workplace: workplaceDoc._id,
+        workplaceSection: workplaceSectionDoc ? workplaceSectionDoc._id : null,
+        department: departmentDoc ? departmentDoc._id : null,
+        employeeNumber: finalEmployeeNumber,
+        personelNumarasi: personelNumarasi?.trim() || undefined,
+        hireDate: parsedHireDate,
+        birthDate: parsedBirthDate || undefined,
+        birthPlace: birthPlace?.trim() || undefined,
+        passportNumber: passportNumber?.trim() || undefined,
+        bloodType: bloodType?.trim() || undefined,
+        militaryStatus: militaryStatus?.trim() || undefined,
+        hasCriminalRecord: hasCriminalRecord || false,
+        hasDrivingLicense: hasDrivingLicense || false,
+        isRetired: isRetired || false
+      });
+
+      await employee.save();
+
+      // User account oluştur
+      const role = await Role.findOne({ name: 'employee' });
+      if (role) {
+        const userEmail = finalEmail.toLowerCase();
+        let user = await User.findOne({ email: userEmail });
+        if (!user) {
+          const userData = {
+            email: userEmail,
+            role: role._id,
+            company: companyId,
+            employee: employee._id,
+            isActive: true,
+            mustChangePassword: true
+          };
+          if (isPlaceholderEmail) {
+            // Placeholder email: TC ile giriş yapılacak, varsayılan şifre 123456
+            userData.password = await bcrypt.hash('123456', 10);
+          } else {
+            userData.password = null;
+          }
+          user = new User(userData);
+          await user.save();
+        } else if (!user.employee) {
+          user.employee = employee._id;
+          await user.save();
+        }
+      }
+
+      employeesList.push(employee);
+    } catch (error) {
+      let friendlyError = error.message;
+      if (error.code === 11000 || error.message.includes('E11000')) {
+        const duplicateField = error.message.match(/index: (\w+)_/)?.[1];
+        const duplicateValue = error.message.match(/dup key: \{ \w+: "?([^"}\s]+)"? \}/)?.[1];
+        const fieldNames = { 'employeeNumber': 'Personel Numarası', 'tcKimlik': 'TC Kimlik No', 'email': 'Email Adresi', 'personelNumarasi': 'Personel Numarası' };
+        const fieldName = fieldNames[duplicateField] || duplicateField;
+        friendlyError = `${fieldName} "${duplicateValue}" zaten sistemde kayıtlı. Farklı bir değer kullanın.`;
+      } else if (error.name === 'ValidationError') {
+        const validationErrors = Object.values(error.errors).map(e => e.message);
+        friendlyError = validationErrors.join(', ');
+      } else if (error.message.includes('TC Kimlik')) {
+        friendlyError = error.message;
+      } else if (error.message.includes('Cast to ObjectId failed')) {
+        friendlyError = 'Geçersiz referans değeri (Departman, İşyeri vb. kontrol edin)';
+      }
+      errors.push(`Satır ${i + 2}: ${friendlyError}`);
+    }
+  }
+
+  return { employeesList, errors };
+};
+
+// Bulk import preview - MUST be before /:id route
+router.post('/bulk-import-preview', auth, requireRole('super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik'), upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return errorResponse(res, { message: 'Dosya yüklenmedi' });
+    }
+
+    let companyId = req.body.company;
+    if (['company_admin', 'resmi_muhasebe_ik'].includes(req.user.role.name)) {
+      companyId = req.user.company?._id || req.user.company;
+    }
+
+    const workbook = xlsx.readFile(req.file.path);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(worksheet);
+
+    const requiredFieldsMap = buildRequiredFieldsMap();
+    const ambiguousNames = [];
+    let autoResolvedCount = 0;
+
+    // Boş/footer satırları filtrele
+    const validData = data.filter(row => {
+      const values = Object.values(row).filter(v => v !== undefined && v !== null && String(v).trim() !== '');
+      return values.length > 1; // En az 2 dolu alan
+    });
+
+    for (let i = 0; i < validData.length; i++) {
+      const row = validData[i];
+      const nameResult = getNameFromRow(row, requiredFieldsMap);
+      const fullName = nameResult.fullName;
+
+      if (!fullName || !fullName.trim()) continue;
+
+      const nameSplit = splitFullName(fullName);
+      if (nameSplit.error) continue; // Hatalar import sırasında yakalanacak
+      if (nameSplit.ambiguous) {
+        ambiguousNames.push({
+          row: i + 2, // Excel satır numarası (1-based + header)
+          fullName: nameSplit.fullName,
+          optionA: nameSplit.optionA,
+          optionB: nameSplit.optionB
+        });
+      } else {
+        autoResolvedCount++;
+      }
+    }
+
+    if (ambiguousNames.length === 0) {
+      // Tüm isimler otomatik çözüldü - direkt import yap
+      const { employeesList, errors } = await processImportRows(validData, companyId, {});
+
+      // Dosyayı temizle
+      fs.unlinkSync(req.file.path);
+
+      return successResponse(res, {
+        data: {
+          needsConfirmation: false,
+          added: employeesList.length,
+          errors: errors.length > 0 ? errors : undefined
+        },
+        message: `${employeesList.length} çalışan eklendi`
+      });
+    }
+
+    // Belirsiz isimler var - dosyayı sakla, preview dön
+    const previewId = crypto.randomBytes(16).toString('hex');
+    const previewPath = path.join(__dirname, '..', 'uploads', `preview_${previewId}.xlsx`);
+    fs.copyFileSync(req.file.path, previewPath);
+    fs.unlinkSync(req.file.path);
+
+    return successResponse(res, {
+      data: {
+        needsConfirmation: true,
+        previewId,
+        ambiguousNames,
+        totalRows: validData.length,
+        autoResolvedCount,
+        companyId
+      },
+      message: `${ambiguousNames.length} isim için onay gerekiyor`
+    });
+  } catch (error) {
+    // Dosya temizliği
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    return serverError(res, error);
+  }
+});
+
+// Bulk import confirm - MUST be before /:id route
+router.post('/bulk-import-confirm', auth, requireRole('super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik'), async (req, res) => {
+  try {
+    const { previewId, nameResolutions, company } = req.body;
+
+    if (!previewId) {
+      return errorResponse(res, { message: 'Preview ID gerekli' });
+    }
+
+    let companyId = company;
+    if (['company_admin', 'resmi_muhasebe_ik'].includes(req.user.role.name)) {
+      companyId = req.user.company?._id || req.user.company;
+    }
+
+    const previewPath = path.join(__dirname, '..', 'uploads', `preview_${previewId}.xlsx`);
+    if (!fs.existsSync(previewPath)) {
+      return errorResponse(res, { message: 'Preview dosyası bulunamadı veya süresi dolmuş', statusCode: 404 });
+    }
+
+    const workbook = xlsx.readFile(previewPath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(worksheet);
+
+    // Boş/footer satırları filtrele
+    const validData = data.filter(row => {
+      const values = Object.values(row).filter(v => v !== undefined && v !== null && String(v).trim() !== '');
+      return values.length > 1;
+    });
+
+    const { employeesList, errors } = await processImportRows(validData, companyId, nameResolutions || {});
+
+    // Preview dosyasını temizle
+    fs.unlinkSync(previewPath);
+
+    return successResponse(res, {
+      data: { added: employeesList.length, errors: errors.length > 0 ? errors : undefined },
+      message: `${employeesList.length} çalışan eklendi`
+    });
+  } catch (error) {
+    return serverError(res, error);
+  }
+});
+
+// Bulk import from Excel (geriye uyumluluk) - MUST be before /:id route
 router.post('/bulk-import', auth, requireRole('super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik'), upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -262,303 +718,23 @@ router.post('/bulk-import', auth, requireRole('super_admin', 'bayi_admin', 'comp
 
     let companyId = req.body.company;
     if (['company_admin', 'resmi_muhasebe_ik'].includes(req.user.role.name)) {
-      // req.user.company populated obje olabilir, _id'yi al
       companyId = req.user.company?._id || req.user.company;
     }
-
-    // Helper function to get field value from row
-    const getFieldValue = (row, possibleKeys) => {
-      for (const key of possibleKeys) {
-        if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
-          return String(row[key]);
-        }
-      }
-      return null;
-    };
-
-    // Helper function to parse Excel date (can be number or string)
-    const parseExcelDate = (value) => {
-      if (!value) return null;
-
-      // Eğer sayısal ise, Excel tarih formatıdır (1900'den itibaren gün sayısı)
-      const numValue = Number(value);
-      if (!isNaN(numValue) && numValue > 0 && numValue < 100000) {
-        // Excel tarihi: 1900-01-01 = 1, JavaScript: 1970-01-01 = 0
-        // Excel'de 25569 = 1970-01-01
-        const EXCEL_EPOCH_DIFF = 25569;
-        const MS_PER_DAY = 24 * 60 * 60 * 1000;
-        return new Date((numValue - EXCEL_EPOCH_DIFF) * MS_PER_DAY);
-      }
-
-      // String tarih formatları: "2024-01-15", "15.01.2024", "15/01/2024"
-      const strValue = String(value).trim();
-
-      // DD.MM.YYYY formatı
-      const dotMatch = strValue.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-      if (dotMatch) {
-        const [, day, month, year] = dotMatch;
-        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      }
-
-      // DD/MM/YYYY formatı
-      const slashMatch = strValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (slashMatch) {
-        const [, day, month, year] = slashMatch;
-        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      }
-
-      // YYYY-MM-DD formatı (ISO)
-      const isoMatch = strValue.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-      if (isoMatch) {
-        const [, year, month, day] = isoMatch;
-        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      }
-
-      // Diğer formatlar için Date.parse dene
-      const parsed = new Date(strValue);
-      if (!isNaN(parsed.getTime())) {
-        return parsed;
-      }
-
-      return null;
-    };
 
     const workbook = xlsx.readFile(req.file.path);
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const data = xlsx.utils.sheet_to_json(worksheet);
 
-    const employeesList = [];
-    const errors = [];
-    const requiredFieldsMap = {
-      'Adı': ['Adı', 'ad', 'adı', 'firstName', 'first_name', 'firstname'],
-      'Soyadı': ['Soyadı', 'soyad', 'soyadı', 'lastName', 'last_name', 'lastname'],
-      'TC Kimlik No': ['TC Kimlik No', 'tcKimlik', 'tc_kimlik', 'tc', 'tckimlik', 'tc kimlik no'],
-      'İşe Giriş Tarihi': ['İşe Giriş Tarihi', 'işe giriş tarihi', 'işeGirişTarihi', 'hireDate', 'hire_date', 'ise_giris_tarihi', 'işeGiriş', 'iseGiris'],
-      'Doğum Tarihi': ['Doğum Tarihi', 'doğum tarihi', 'doğumTarihi', 'birthDate', 'birth_date', 'dogum_tarihi', 'doğumTarih', 'dogumTarih'],
-      'Görevi': ['Görevi', 'görevi', 'görev', 'position', 'gorev', 'gorevi'],
-      'Email Adresi': ['Email Adresi', 'email', 'email adresi', 'e-mail', 'e_mail'],
-      'Telefon Numarası': ['Telefon Numarası', 'telefon', 'telefon numarası', 'phone', 'telefon_numarası', 'tel']
-    };
+    // Boş/footer satırları filtrele
+    const validData = data.filter(row => {
+      const values = Object.values(row).filter(v => v !== undefined && v !== null && String(v).trim() !== '');
+      return values.length > 1;
+    });
 
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      const rowErrors = [];
+    const { employeesList, errors } = await processImportRows(validData, companyId, {});
 
-      // Zorunlu alanları kontrol et
-      const firstName = getFieldValue(row, requiredFieldsMap['Adı']);
-      const lastName = getFieldValue(row, requiredFieldsMap['Soyadı']);
-      const tcKimlik = getFieldValue(row, requiredFieldsMap['TC Kimlik No']);
-      const hireDate = getFieldValue(row, requiredFieldsMap['İşe Giriş Tarihi']);
-      const birthDate = getFieldValue(row, requiredFieldsMap['Doğum Tarihi']);
-      const position = getFieldValue(row, requiredFieldsMap['Görevi']);
-      const email = getFieldValue(row, requiredFieldsMap['Email Adresi']);
-      const phone = getFieldValue(row, requiredFieldsMap['Telefon Numarası']);
-
-      if (!firstName || firstName.trim() === '') rowErrors.push('Adı');
-      if (!lastName || lastName.trim() === '') rowErrors.push('Soyadı');
-      if (!tcKimlik || tcKimlik.trim() === '') rowErrors.push('TC Kimlik No');
-      if (!hireDate || hireDate.trim() === '') rowErrors.push('İşe Giriş Tarihi');
-      if (!birthDate || birthDate.trim() === '') rowErrors.push('Doğum Tarihi');
-      if (!position || position.trim() === '') rowErrors.push('Görevi');
-      if (!email || email.trim() === '') rowErrors.push('Email Adresi');
-      if (!phone || phone.trim() === '') rowErrors.push('Telefon Numarası');
-
-      if (rowErrors.length > 0) {
-        errors.push(`Satır ${i + 2}: Eksik zorunlu alanlar - ${rowErrors.join(', ')}. Lütfen bu alanları doldurun.`);
-        continue;
-      }
-
-      try {
-        // Workplace kontrolü (zorunlu)
-        const workplaceName = row['SGK İşyeri'] || row['İşyeri'] || row.workplace || row['SGK İşyeri Dosyası'];
-        let workplaceDoc = null;
-        if (workplaceName) {
-          workplaceDoc = await Workplace.findOne({
-            name: workplaceName,
-            company: companyId
-          });
-          if (!workplaceDoc) {
-            errors.push(`Satır ${i + 2}: SGK İşyeri bulunamadı - ${workplaceName}`);
-            continue;
-          }
-        } else {
-          // Workplace belirtilmemişse, şirketin ilk işyerini kullan
-          workplaceDoc = await Workplace.findOne({ company: companyId });
-          if (!workplaceDoc) {
-            errors.push(`Satır ${i + 2}: Şirket için varsayılan işyeri bulunamadı`);
-            continue;
-          }
-        }
-
-        // WorkplaceSection kontrolü (opsiyonel)
-        let workplaceSectionDoc = null;
-        const sectionName = row['İşyeri Bölümü'] || row['Bölüm'] || row.workplaceSection;
-        if (sectionName) {
-          workplaceSectionDoc = await WorkplaceSection.findOne({
-            name: sectionName,
-            workplace: workplaceDoc._id
-          });
-          if (!workplaceSectionDoc) {
-            errors.push(`Satır ${i + 2}: İşyeri bölümü bulunamadı - ${sectionName}`);
-            continue;
-          }
-        }
-
-        // Departman kontrolü (opsiyonel)
-        let departmentDoc = null;
-        const departmentName = row['Departman'] || row.departman || row.department;
-        if (departmentName) {
-          departmentDoc = await Department.findOne({
-            name: departmentName,
-            company: companyId
-          });
-          if (!departmentDoc) {
-            errors.push(`Satır ${i + 2}: Departman bulunamadı - ${departmentName}`);
-            continue;
-          }
-        }
-
-        // Tarih formatlarını parse et (Excel sayısal format dahil)
-        const parsedHireDate = parseExcelDate(hireDate);
-        if (!parsedHireDate || isNaN(parsedHireDate.getTime())) {
-          errors.push(`Satır ${i + 2}: İşe Giriş Tarihi geçersiz format - ${hireDate}`);
-          continue;
-        }
-
-        const parsedBirthDate = parseExcelDate(birthDate);
-        if (!parsedBirthDate || isNaN(parsedBirthDate.getTime())) {
-          errors.push(`Satır ${i + 2}: Doğum Tarihi geçersiz format - ${birthDate}`);
-          continue;
-        }
-
-        // Email kontrolü
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email.trim())) {
-          errors.push(`Satır ${i + 2}: Geçersiz email formatı - ${email}`);
-          continue;
-        }
-
-        // TC Kimlik tekrar kontrolü
-        const existingEmployee = await Employee.findOne({
-          tcKimlik: tcKimlik.trim(),
-          company: companyId
-        });
-        if (existingEmployee) {
-          errors.push(`Satır ${i + 2}: Bu TC Kimlik No ile kayıtlı bir çalışan zaten mevcut - ${tcKimlik}`);
-          continue;
-        }
-
-        // Diğer alanlar
-        const personelNumarasi = row['Personel Numarası'] || row.personelNumarasi || row.personel_numarasi;
-        const birthPlace = row['Doğum Yeri'] || row.doğumYeri || row.birthPlace || row.birth_place;
-        const passportNumber = row['Pasaport No'] || row.pasaportNo || row.passportNumber || row.passport_number;
-        const bloodType = row['Kan Grubu'] || row.kanGrubu || row.bloodType || row.blood_type;
-        const militaryStatus = row['Askerlik Durumu'] || row.askerlikDurumu || row.militaryStatus || row.military_status;
-        const hasCriminalRecord = row['Sabıka Kaydı Var mı?'] === 'Evet' || row['Sabıka Kaydı Var mı?'] === 'evet' || row['Sabıka Kaydı Var mı?'] === true || row.hasCriminalRecord === true;
-        const hasDrivingLicense = row['Ehliyet Var mı?'] === 'Evet' || row['Ehliyet Var mı?'] === 'evet' || row['Ehliyet Var mı?'] === true || row.hasDrivingLicense === true;
-        const isRetired = row['Emekli Mi?'] === 'Evet' || row['Emekli Mi?'] === 'evet' || row['Emekli Mi?'] === true || row.isRetired === true;
-
-        // Otomatik sıra numarası atama - şirket bazında mevcut en yüksek numaradan devam et
-        const allExistingEmployees = await Employee.find({ company: companyId }).select('employeeNumber').lean();
-        let maxNum = 0;
-        for (const emp of allExistingEmployees) {
-          if (emp && emp.employeeNumber) {
-            const num = parseInt(emp.employeeNumber);
-            if (!isNaN(num) && num > maxNum) {
-              maxNum = num;
-            }
-          }
-        }
-        const finalEmployeeNumber = String(maxNum + 1 + employeesList.length);
-
-        const employee = new Employee({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.toLowerCase().trim(),
-          phone: phone.trim(),
-          tcKimlik: tcKimlik.trim(),
-          position: position.trim(),
-          company: companyId,
-          workplace: workplaceDoc._id,
-          workplaceSection: workplaceSectionDoc ? workplaceSectionDoc._id : null,
-          department: departmentDoc ? departmentDoc._id : null,
-          employeeNumber: finalEmployeeNumber,
-          personelNumarasi: personelNumarasi?.trim() || undefined,
-          hireDate: parsedHireDate,
-          birthDate: parsedBirthDate,
-          birthPlace: birthPlace?.trim() || undefined,
-          passportNumber: passportNumber?.trim() || undefined,
-          bloodType: bloodType?.trim() || undefined,
-          militaryStatus: militaryStatus?.trim() || undefined,
-          hasCriminalRecord: hasCriminalRecord || false,
-          hasDrivingLicense: hasDrivingLicense || false,
-          isRetired: isRetired || false
-        });
-
-        await employee.save();
-
-        // Create user account for employee (without password)
-        const role = await Role.findOne({ name: 'employee' });
-        if (role) {
-          let user = await User.findOne({ email: email.toLowerCase().trim() });
-          if (!user) {
-            user = new User({
-              email: email.toLowerCase().trim(),
-              password: null,
-              role: role._id,
-              company: companyId,
-              employee: employee._id,
-              isActive: true,
-              mustChangePassword: true
-            });
-            await user.save();
-          } else if (!user.employee) {
-            // Mevcut kullanıcıya employee referansı ekle
-            user.employee = employee._id;
-            await user.save();
-          }
-        }
-
-        employeesList.push(employee);
-      } catch (error) {
-        // Hata mesajını kullanıcı dostu hale getir
-        let friendlyError = error.message;
-
-        // MongoDB duplicate key hatası
-        if (error.code === 11000 || error.message.includes('E11000')) {
-          const duplicateField = error.message.match(/index: (\w+)_/)?.[1];
-          const duplicateValue = error.message.match(/dup key: \{ \w+: "?([^"}\s]+)"? \}/)?.[1];
-
-          const fieldNames = {
-            'employeeNumber': 'Personel Numarası',
-            'tcKimlik': 'TC Kimlik No',
-            'email': 'Email Adresi',
-            'personelNumarasi': 'Personel Numarası'
-          };
-
-          const fieldName = fieldNames[duplicateField] || duplicateField;
-          friendlyError = `${fieldName} "${duplicateValue}" zaten sistemde kayıtlı. Farklı bir değer kullanın.`;
-        }
-        // Validation hataları
-        else if (error.name === 'ValidationError') {
-          const validationErrors = Object.values(error.errors).map(e => e.message);
-          friendlyError = validationErrors.join(', ');
-        }
-        // TC Kimlik hatası
-        else if (error.message.includes('TC Kimlik')) {
-          friendlyError = error.message;
-        }
-        // Genel hatalar için daha açıklayıcı mesajlar
-        else if (error.message.includes('Cast to ObjectId failed')) {
-          friendlyError = 'Geçersiz referans değeri (Departman, İşyeri vb. kontrol edin)';
-        }
-
-        errors.push(`Satır ${i + 2}: ${friendlyError}`);
-      }
-    }
-
-    // Clean up uploaded file
+    // Dosya temizliği
     fs.unlinkSync(req.file.path);
 
     return successResponse(res, {
@@ -573,18 +749,371 @@ router.post('/bulk-import', auth, requireRole('super_admin', 'bayi_admin', 'comp
 // Get current logged-in employee's data
 router.get('/me', auth, async (req, res) => {
   try {
-    // Find employee by user's email
-    const employee = await Employee.findOne({ email: req.user.email })
-      .populate('company')
-      .populate('workplace', 'name sgkRegisterNumber')
-      .populate('workplaceSection', 'name')
-      .populate('department', 'name');
+    // Önce user.employee referansı ile ara, yoksa email ile dene
+    let employee = null;
+    if (req.user.employee) {
+      const empId = req.user.employee._id || req.user.employee;
+      employee = await Employee.findById(empId)
+        .populate('company')
+        .populate('workplace', 'name sgkRegisterNumber')
+        .populate('workplaceSection', 'name')
+        .populate('department', 'name');
+    }
+    if (!employee) {
+      employee = await Employee.findOne({ email: req.user.email })
+        .populate('company')
+        .populate('workplace', 'name sgkRegisterNumber')
+        .populate('workplaceSection', 'name')
+        .populate('department', 'name');
+    }
 
     if (!employee) {
       return notFound(res, 'Çalışan kaydınız bulunamadı');
     }
 
     return successResponse(res, { data: employee });
+  } catch (error) {
+    return serverError(res, error);
+  }
+});
+
+// Employee self-update - Bilgi değişiklik talebi oluştur (şirket admin onayı gerekir)
+router.put('/me', auth, async (req, res) => {
+  try {
+    let employee = null;
+    if (req.user.employee) {
+      const empId = req.user.employee._id || req.user.employee;
+      employee = await Employee.findById(empId);
+    }
+    if (!employee) {
+      employee = await Employee.findOne({ email: req.user.email });
+    }
+
+    if (!employee) {
+      return notFound(res, 'Çalışan kaydınız bulunamadı');
+    }
+
+    // Çalışanın değiştirebileceği alanlar
+    const allowedFields = ['phone', 'birthDate', 'birthPlace', 'bloodType', 'militaryStatus', 'passportNumber'];
+    const fieldLabels = {
+      phone: 'Telefon',
+      birthDate: 'Doğum Tarihi',
+      birthPlace: 'Doğum Yeri',
+      bloodType: 'Kan Grubu',
+      militaryStatus: 'Askerlik Durumu',
+      passportNumber: 'Pasaport No'
+    };
+
+    // Değişiklikleri tespit et
+    const changes = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        let newVal = req.body[field];
+        let oldVal = employee[field];
+
+        // Normalize
+        if (field === 'phone' && newVal) newVal = normalizePhone(newVal) || newVal;
+        if (field === 'birthDate' && newVal) newVal = new Date(newVal).toISOString().split('T')[0];
+        if (field === 'birthDate' && oldVal) oldVal = new Date(oldVal).toISOString().split('T')[0];
+        if (typeof newVal === 'string') newVal = newVal.trim();
+        if (typeof oldVal === 'string') oldVal = oldVal?.trim();
+
+        // Sadece gerçekten değişen alanları kaydet
+        if (String(newVal || '') !== String(oldVal || '')) {
+          changes[field] = { old: oldVal || null, new: newVal || null, label: fieldLabels[field] };
+        }
+      }
+    }
+
+    if (Object.keys(changes).length === 0) {
+      return errorResponse(res, { message: 'Değişiklik yapılmadı' });
+    }
+
+    // Bekleyen talep var mı kontrol et
+    const pendingRequest = await ProfileChangeRequest.findOne({
+      employee: employee._id,
+      status: 'pending'
+    });
+    if (pendingRequest) {
+      return errorResponse(res, { message: 'Zaten bekleyen bir bilgi değişiklik talebiniz var. Lütfen onaylanmasını veya reddedilmesini bekleyin.' });
+    }
+
+    // Değişiklik talebi oluştur
+    const changeRequest = new ProfileChangeRequest({
+      employee: employee._id,
+      user: req.user._id,
+      company: employee.company,
+      changes
+    });
+    await changeRequest.save();
+
+    // Şirket admin'lerine bildirim gönder
+    const companyAdminRole = await Role.findOne({ name: 'company_admin' });
+    if (companyAdminRole) {
+      const companyAdmins = await User.find({
+        company: employee.company,
+        role: companyAdminRole._id,
+        isActive: true
+      });
+
+      const changedFieldNames = Object.values(changes).map(c => c.label).join(', ');
+
+      for (const admin of companyAdmins) {
+        try {
+          await notificationService.send({
+            recipient: admin._id,
+            recipientType: 'company_admin',
+            company: employee.company,
+            type: 'PROFILE_CHANGE_REQUEST',
+            title: 'Bilgi Değişiklik Talebi',
+            body: `${employee.firstName} ${employee.lastName} bilgilerinde değişiklik talep etti: ${changedFieldNames}`,
+            data: { changeRequestId: changeRequest._id, employeeId: employee._id },
+            relatedModel: 'ProfileChangeRequest',
+            relatedId: changeRequest._id,
+            priority: 'normal'
+          });
+        } catch (err) {
+          console.error('Bildirim gönderilemedi:', err.message);
+        }
+      }
+    }
+
+    return successResponse(res, {
+      data: changeRequest,
+      message: 'Bilgi değişiklik talebiniz oluşturuldu. Şirket yöneticinizin onayı bekleniyor.'
+    });
+  } catch (error) {
+    return serverError(res, error);
+  }
+});
+
+// Çalışanın kendi bekleyen değişiklik taleplerini görüntüle
+router.get('/me/change-requests', auth, async (req, res) => {
+  try {
+    let employee = null;
+    if (req.user.employee) {
+      const empId = req.user.employee._id || req.user.employee;
+      employee = await Employee.findById(empId);
+    }
+    if (!employee) {
+      employee = await Employee.findOne({ email: req.user.email });
+    }
+    if (!employee) {
+      return notFound(res, 'Çalışan kaydınız bulunamadı');
+    }
+
+    const requests = await ProfileChangeRequest.find({ employee: employee._id })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    return successResponse(res, { data: requests });
+  } catch (error) {
+    return serverError(res, error);
+  }
+});
+
+// Şirket admin: Bilgi değişiklik taleplerini listele
+router.get('/change-requests/pending', auth, requireRole('company_admin', 'super_admin', 'bayi_admin'), async (req, res) => {
+  try {
+    const query = { status: 'pending' };
+
+    // Şirket admin sadece kendi şirketindeki talepleri görsün
+    if (req.user.role.name === 'company_admin') {
+      const companyId = req.user.company?._id || req.user.company;
+      query.company = companyId;
+    } else if (req.user.role.name === 'bayi_admin') {
+      // Bayi admin: kendi bayisindeki şirketlerin talepleri
+      const companies = await Company.find({ dealer: req.user.dealer?._id || req.user.dealer }).select('_id');
+      query.company = { $in: companies.map(c => c._id) };
+    }
+
+    const requests = await ProfileChangeRequest.find(query)
+      .populate('employee', 'firstName lastName tcKimlik')
+      .populate('company', 'name')
+      .sort({ createdAt: -1 });
+
+    return successResponse(res, { data: requests });
+  } catch (error) {
+    return serverError(res, error);
+  }
+});
+
+// Şirket admin: Bilgi değişiklik talebini onayla/reddet
+router.put('/change-requests/:id', auth, requireRole('company_admin', 'super_admin', 'bayi_admin'), async (req, res) => {
+  try {
+    const { action, reviewNote } = req.body; // action: 'approve' veya 'reject'
+
+    if (!['approve', 'reject'].includes(action)) {
+      return errorResponse(res, { message: 'Geçersiz işlem. approve veya reject olmalı.' });
+    }
+
+    const changeRequest = await ProfileChangeRequest.findById(req.params.id)
+      .populate('employee')
+      .populate('user');
+
+    if (!changeRequest) {
+      return notFound(res, 'Değişiklik talebi bulunamadı');
+    }
+
+    if (changeRequest.status !== 'pending') {
+      return errorResponse(res, { message: 'Bu talep zaten işlenmiş' });
+    }
+
+    // Yetki kontrolü
+    if (req.user.role.name === 'company_admin') {
+      const companyId = req.user.company?._id || req.user.company;
+      if (changeRequest.company.toString() !== companyId.toString()) {
+        return forbidden(res);
+      }
+    }
+
+    changeRequest.status = action === 'approve' ? 'approved' : 'rejected';
+    changeRequest.reviewedBy = req.user._id;
+    changeRequest.reviewedAt = new Date();
+    changeRequest.reviewNote = reviewNote || null;
+
+    // Onaylandıysa değişiklikleri uygula
+    if (action === 'approve') {
+      const employee = await Employee.findById(changeRequest.employee._id);
+      if (employee) {
+        for (const [field, change] of Object.entries(changeRequest.changes)) {
+          if (field === 'birthDate' && change.new) {
+            employee[field] = new Date(change.new);
+          } else if (field === 'phone' && change.new) {
+            employee[field] = normalizePhone(change.new) || change.new;
+          } else {
+            employee[field] = change.new || undefined;
+          }
+        }
+        await employee.save();
+      }
+    }
+
+    await changeRequest.save();
+
+    // Çalışana bildirim gönder
+    if (changeRequest.user) {
+      try {
+        await notificationService.send({
+          recipient: changeRequest.user._id,
+          recipientType: 'employee',
+          company: changeRequest.company,
+          type: action === 'approve' ? 'PROFILE_CHANGE_APPROVED' : 'PROFILE_CHANGE_REJECTED',
+          title: action === 'approve' ? 'Bilgi Değişikliğiniz Onaylandı' : 'Bilgi Değişikliğiniz Reddedildi',
+          body: action === 'approve'
+            ? 'Bilgi değişiklik talebiniz onaylandı ve güncellendi.'
+            : `Bilgi değişiklik talebiniz reddedildi.${reviewNote ? ' Neden: ' + reviewNote : ''}`,
+          data: { changeRequestId: changeRequest._id },
+          relatedModel: 'ProfileChangeRequest',
+          relatedId: changeRequest._id,
+          priority: 'high'
+        });
+      } catch (err) {
+        console.error('Bildirim gönderilemedi:', err.message);
+      }
+    }
+
+    return successResponse(res, {
+      data: changeRequest,
+      message: action === 'approve' ? 'Değişiklik onaylandı' : 'Değişiklik reddedildi'
+    });
+  } catch (error) {
+    return serverError(res, error);
+  }
+});
+
+// ==================== PROFİL FOTOĞRAFI ====================
+
+// Profil fotoğrafı multer config
+const profilePhotoUpload = multer({
+  dest: 'uploads/profilePhotos/',
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Sadece resim dosyaları yüklenebilir (JPEG, PNG, WebP)'));
+  }
+});
+
+// Profil fotoğrafı yükle (çalışan kendisi veya admin)
+router.put('/:id/profile-photo', auth, profilePhotoUpload.single('photo'), async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) {
+      return notFound(res, 'Çalışan bulunamadı');
+    }
+
+    // Yetki kontrolü: çalışan kendisi veya admin roller
+    const isOwnProfile = req.user.employee && req.user.employee._id.toString() === req.params.id;
+    const isAdmin = ['super_admin', 'bayi_admin', 'company_admin', 'hr_manager'].includes(req.user.role.name);
+
+    if (!isOwnProfile && !isAdmin) {
+      return forbidden(res, 'Bu işlem için yetkiniz yok');
+    }
+
+    if (!req.file) {
+      return errorResponse(res, { message: 'Fotoğraf dosyası gerekli' });
+    }
+
+    // Eski fotoğrafı sil
+    if (employee.profilePhoto) {
+      const oldPath = path.join(__dirname, '..', 'uploads', 'profilePhotos', path.basename(employee.profilePhoto));
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    }
+
+    // Yeni dosyayı taşı
+    const fileName = `profile_${employee._id}_${Date.now()}${path.extname(req.file.originalname)}`;
+    const uploadsDir = path.join(__dirname, '..', 'uploads', 'profilePhotos');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const filePath = path.join(uploadsDir, fileName);
+    fs.renameSync(req.file.path, filePath);
+
+    employee.profilePhoto = `/uploads/profilePhotos/${fileName}`;
+    await employee.save();
+
+    return successResponse(res, { data: { profilePhoto: employee.profilePhoto }, message: 'Fotoğraf yüklendi' });
+  } catch (error) {
+    // Multer hata yakalama
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return errorResponse(res, { message: 'Dosya boyutu maksimum 2MB olabilir' }, 400);
+    }
+    return serverError(res, error);
+  }
+});
+
+// Profil fotoğrafı sil
+router.delete('/:id/profile-photo', auth, async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) {
+      return notFound(res, 'Çalışan bulunamadı');
+    }
+
+    const isOwnProfile = req.user.employee && req.user.employee._id.toString() === req.params.id;
+    const isAdmin = ['super_admin', 'bayi_admin', 'company_admin', 'hr_manager'].includes(req.user.role.name);
+
+    if (!isOwnProfile && !isAdmin) {
+      return forbidden(res, 'Bu işlem için yetkiniz yok');
+    }
+
+    if (employee.profilePhoto) {
+      const oldPath = path.join(__dirname, '..', 'uploads', 'profilePhotos', path.basename(employee.profilePhoto));
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+      employee.profilePhoto = null;
+      await employee.save();
+    }
+
+    return successResponse(res, { message: 'Fotoğraf silindi' });
   } catch (error) {
     return serverError(res, error);
   }

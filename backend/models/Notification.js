@@ -60,7 +60,10 @@ const notificationSchema = new mongoose.Schema({
       'BORDRO_PENDING_APPROVAL',  // Bordro onay bekliyor (şirket admin'e)
       'BORDRO_APPROVAL_CODE',     // Bordro onay kodu gönderildi
       'BORDRO_APPROVED',          // Bordro onaylandı
-      'BORDRO_REJECTED'           // Bordro reddedildi (itiraz)
+      'BORDRO_REJECTED',          // Bordro reddedildi (itiraz)
+      'PROFILE_CHANGE_REQUEST',   // Çalışan bilgi değişiklik talebi
+      'PROFILE_CHANGE_APPROVED',  // Bilgi değişiklik onaylandı
+      'PROFILE_CHANGE_REJECTED'   // Bilgi değişiklik reddedildi
     ],
     required: true,
     index: true
@@ -69,7 +72,7 @@ const notificationSchema = new mongoose.Schema({
   // İlişkili Kayıt
   relatedModel: {
     type: String,
-    enum: ['LeaveRequest', 'AdvanceRequest', 'OvertimeRequest', 'Message', 'Employee', 'ExpenseRequest', 'Announcement', 'Bordro', 'BordroUpload']
+    enum: ['LeaveRequest', 'AdvanceRequest', 'OvertimeRequest', 'Message', 'Employee', 'ExpenseRequest', 'Announcement', 'Bordro', 'BordroUpload', 'ProfileChangeRequest', 'RegistrationRequest']
   },
   relatedId: {
     type: mongoose.Schema.Types.ObjectId

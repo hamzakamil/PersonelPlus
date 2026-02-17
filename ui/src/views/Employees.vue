@@ -782,6 +782,58 @@
         <!-- Modal Body -->
         <form @submit.prevent="saveEmployee" class="flex-1 flex flex-col overflow-hidden">
           <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            <!-- Profil Fotoğrafı (düzenleme modunda) -->
+            <div v-if="editingEmployee" class="flex items-center gap-4">
+              <div class="relative group">
+                <div
+                  v-if="editPhotoPreview || editingEmployee.profilePhoto"
+                  class="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-200 cursor-pointer"
+                  @click="$refs.adminPhotoInput.click()"
+                >
+                  <img :src="editPhotoPreview || editingEmployee.profilePhoto" alt="Profil" class="w-full h-full object-cover" />
+                </div>
+                <div
+                  v-else
+                  class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-lg font-bold border-2 border-gray-200 cursor-pointer"
+                  @click="$refs.adminPhotoInput.click()"
+                >
+                  {{ editingEmployee.firstName?.charAt(0) }}{{ editingEmployee.lastName?.charAt(0) }}
+                </div>
+                <div
+                  class="absolute inset-0 w-16 h-16 rounded-full bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  @click="$refs.adminPhotoInput.click()"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <input
+                  ref="adminPhotoInput"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  class="hidden"
+                  @change="handleAdminPhotoChange"
+                />
+              </div>
+              <div>
+                <div class="flex gap-2">
+                  <button type="button" @click="$refs.adminPhotoInput.click()" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                    {{ adminPhotoUploading ? 'Yükleniyor...' : 'Fotoğraf Yükle' }}
+                  </button>
+                  <button
+                    v-if="editingEmployee.profilePhoto"
+                    type="button"
+                    @click="deleteAdminPhoto"
+                    class="text-xs text-red-500 hover:text-red-700 font-medium"
+                  >
+                    Sil
+                  </button>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-0.5">Maks. 2MB (JPEG, PNG, WebP)</p>
+              </div>
+            </div>
+
             <!-- Şirket Seçimi (bayi_admin için) -->
             <div
               v-if="isSuperAdmin || isBayiAdmin"
@@ -1563,25 +1615,30 @@
           <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <h3 class="text-sm font-semibold text-yellow-800 mb-2">Zorunlu Alanlar:</h3>
             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-yellow-700">
-              <div>• Adı</div>
-              <div>• Soyadı</div>
+              <div>• Adı Soyadı</div>
               <div>• TC Kimlik No <span class="text-xs text-yellow-600">(11 hane)</span></div>
               <div>• Görevi</div>
               <div>
                 • İşe Giriş Tarihi <span class="text-xs text-yellow-600">(GG.AA.YYYY)</span>
               </div>
-              <div>• Doğum Tarihi <span class="text-xs text-yellow-600">(GG.AA.YYYY)</span></div>
-              <div>• Email Adresi</div>
-              <div>• Telefon Numarası</div>
             </div>
             <p class="text-xs text-yellow-600 mt-2">
               ⚠️ Bu alanlar eksik ise satır içeri aktarılmaz.
             </p>
           </div>
 
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p class="text-xs text-blue-700">
+              💡 Email/telefon girilmezse TC Kimlik No ile giriş yapılır (varsayılan şifre: 123456). İlk girişte email, telefon ve şifre değişikliği zorunludur.
+            </p>
+          </div>
+
           <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h3 class="text-sm font-semibold text-gray-700 mb-2">Opsiyonel Alanlar:</h3>
             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600">
+              <div>• Doğum Tarihi <span class="text-xs">(GG.AA.YYYY)</span></div>
+              <div>• Email Adresi</div>
+              <div>• Telefon Numarası</div>
               <div>• Personel Numarası</div>
               <div>• Departman</div>
               <div>• SGK İşyeri</div>
@@ -1599,90 +1656,150 @@
             </p>
           </div>
 
+          <!-- İsim Onay Adımı -->
+          <div v-if="importStep === 'confirm' && previewData" class="space-y-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p class="text-sm text-blue-800">
+                <strong>{{ previewData.totalRows }}</strong> satırdan
+                <strong>{{ previewData.autoResolvedCount }}</strong> tanesi otomatik ayrıldı.
+                <strong>{{ previewData.ambiguousNames.length }}</strong> isim için onayınız gerekiyor:
+              </p>
+            </div>
+
+            <div class="max-h-96 overflow-y-auto space-y-3">
+              <div
+                v-for="item in previewData.ambiguousNames"
+                :key="item.row"
+                class="bg-gray-50 border border-gray-200 rounded-lg p-3"
+              >
+                <p class="text-sm font-medium text-gray-800 mb-2">
+                  Satır {{ item.row }}: <strong>{{ item.fullName }}</strong>
+                </p>
+                <div class="space-y-2">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      :name="'name-' + item.row"
+                      value="A"
+                      v-model="nameResolutions[item.row]"
+                      class="text-blue-600"
+                    />
+                    <span class="text-sm">
+                      Ad: <strong class="text-green-700">{{ item.optionA.firstName }}</strong>
+                      — Soyad: <strong class="text-blue-700">{{ item.optionA.lastName }}</strong>
+                    </span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      :name="'name-' + item.row"
+                      value="B"
+                      v-model="nameResolutions[item.row]"
+                      class="text-blue-600"
+                    />
+                    <span class="text-sm">
+                      Ad: <strong class="text-green-700">{{ item.optionB.firstName }}</strong>
+                      — Soyad: <strong class="text-blue-700">{{ item.optionB.lastName }}</strong>
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex gap-2 justify-end">
+              <Button variant="secondary" @click="closeImportModal">İptal</Button>
+              <Button @click="confirmImport" :disabled="importing">
+                {{ importing ? 'İçe Aktarılıyor...' : 'Onayla ve İçe Aktar' }}
+              </Button>
+            </div>
+          </div>
+
           <!-- İçe aktarma sonucu -->
-          <div v-if="importResult" class="mb-4">
-            <div
-              :class="[
-                'rounded-lg p-4 border',
-                importResult.errorCount > 0
-                  ? 'bg-yellow-50 border-yellow-200'
-                  : 'bg-green-50 border-green-200',
-              ]"
-            >
-              <div class="flex items-center gap-2">
-                <span v-if="importResult.errorCount > 0" class="text-yellow-600 text-xl">⚠️</span>
-                <span v-else class="text-green-600 text-xl">✅</span>
-                <span
-                  :class="importResult.errorCount > 0 ? 'text-yellow-800' : 'text-green-800'"
-                  class="font-semibold"
-                >
-                  {{ importResult.added }} çalışan başarıyla eklendi
-                  <span v-if="importResult.errorCount > 0"
-                    >, {{ importResult.errorCount }} hata oluştu</span
+          <div v-if="importStep !== 'confirm'">
+            <div v-if="importResult" class="mb-4">
+              <div
+                :class="[
+                  'rounded-lg p-4 border',
+                  importResult.errorCount > 0
+                    ? 'bg-yellow-50 border-yellow-200'
+                    : 'bg-green-50 border-green-200',
+                ]"
+              >
+                <div class="flex items-center gap-2">
+                  <span v-if="importResult.errorCount > 0" class="text-yellow-600 text-xl">⚠️</span>
+                  <span v-else class="text-green-600 text-xl">✅</span>
+                  <span
+                    :class="importResult.errorCount > 0 ? 'text-yellow-800' : 'text-green-800'"
+                    class="font-semibold"
                   >
-                </span>
+                    {{ importResult.added }} çalışan başarıyla eklendi
+                    <span v-if="importResult.errorCount > 0"
+                      >, {{ importResult.errorCount }} hata oluştu</span
+                    >
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Hatalar listesi -->
-          <div v-if="importErrors.length > 0" class="mb-4">
-            <h3 class="text-sm font-semibold text-red-800 mb-2">Hatalar:</h3>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-3 max-h-64 overflow-y-auto">
-              <ul class="text-sm text-red-700 space-y-1">
-                <li
-                  v-for="(error, index) in importErrors"
-                  :key="index"
-                  class="flex items-start gap-2"
-                >
-                  <span class="text-red-500 mt-0.5">•</span>
-                  <span>{{ error }}</span>
-                </li>
-              </ul>
+            <!-- Hatalar listesi -->
+            <div v-if="importErrors.length > 0" class="mb-4">
+              <h3 class="text-sm font-semibold text-red-800 mb-2">Hatalar:</h3>
+              <div class="bg-red-50 border border-red-200 rounded-lg p-3 max-h-64 overflow-y-auto">
+                <ul class="text-sm text-red-700 space-y-1">
+                  <li
+                    v-for="(error, index) in importErrors"
+                    :key="index"
+                    class="flex items-start gap-2"
+                  >
+                    <span class="text-red-500 mt-0.5">•</span>
+                    <span>{{ error }}</span>
+                  </li>
+                </ul>
+              </div>
             </div>
-          </div>
 
-          <form @submit.prevent="importEmployees">
-            <div class="space-y-4">
-              <div v-if="isSuperAdmin || isBayiAdmin">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Şirket</label>
-                <select
-                  v-model="importCompany"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Seçiniz</option>
-                  <option v-for="comp in companies" :key="comp._id" :value="comp._id">
-                    {{ comp.name }}
-                  </option>
-                </select>
+            <form @submit.prevent="importEmployees">
+              <div class="space-y-4">
+                <div v-if="isSuperAdmin || isBayiAdmin">
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Şirket</label>
+                  <select
+                    v-model="importCompany"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">Seçiniz</option>
+                    <option v-for="comp in companies" :key="comp._id" :value="comp._id">
+                      {{ comp.name }}
+                    </option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Excel Dosyası</label>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    @change="handleFileChange"
+                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    required
+                  />
+                </div>
+                <div class="flex gap-2 justify-end">
+                  <Button variant="secondary" @click="closeImportModal">{{
+                    importErrors.length > 0 ? 'Kapat' : 'İptal'
+                  }}</Button>
+                  <Button
+                    v-if="!importResult || importErrors.length > 0"
+                    type="submit"
+                    :disabled="importing"
+                  >
+                    {{
+                      importing ? 'İçe Aktarılıyor...' : importResult ? 'Tekrar Dene' : 'İçe Aktar'
+                    }}
+                  </Button>
+                </div>
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Excel Dosyası</label>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  @change="handleFileChange"
-                  class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  required
-                />
-              </div>
-              <div class="flex gap-2 justify-end">
-                <Button variant="secondary" @click="closeImportModal">{{
-                  importErrors.length > 0 ? 'Kapat' : 'İptal'
-                }}</Button>
-                <Button
-                  v-if="!importResult || importErrors.length > 0"
-                  type="submit"
-                  :disabled="importing"
-                >
-                  {{
-                    importing ? 'İçe Aktarılıyor...' : importResult ? 'Tekrar Dene' : 'İçe Aktar'
-                  }}
-                </Button>
-              </div>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -1714,11 +1831,16 @@ const allEmployees = ref([]); // Tüm çalışanlar (manager seçimi için)
 const showModal = ref(false);
 const showImportModal = ref(false);
 const editingEmployee = ref(null);
+const editPhotoPreview = ref(null);
+const adminPhotoUploading = ref(false);
 const importing = ref(false);
 const importFile = ref(null);
 const importCompany = ref('');
 const importErrors = ref([]);
 const importResult = ref(null);
+const importStep = ref('upload'); // 'upload' | 'confirm' | 'result'
+const previewData = ref(null);
+const nameResolutions = ref({});
 const sendingActivation = ref(null);
 const sendingBulkActivation = ref(false);
 const manualActivatingId = ref(null);
@@ -2743,6 +2865,8 @@ const importEmployees = async () => {
   importing.value = true;
   importErrors.value = [];
   importResult.value = null;
+  previewData.value = null;
+  importStep.value = 'upload';
 
   try {
     const formData = new FormData();
@@ -2751,10 +2875,60 @@ const importEmployees = async () => {
       formData.append('company', importCompany.value);
     }
 
-    const response = await api.post('/employees/bulk-import', formData, {
+    const response = await api.post('/employees/bulk-import-preview', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+    });
+
+    const data = response.data.data;
+
+    if (data.needsConfirmation) {
+      // 3+ kelimeli isimler var - onay adımına geç
+      previewData.value = data;
+      importStep.value = 'confirm';
+      // Varsayılan olarak hepsini Seçenek A olarak ayarla
+      const resolutions = {};
+      data.ambiguousNames.forEach(item => {
+        resolutions[item.row] = 'A';
+      });
+      nameResolutions.value = resolutions;
+    } else {
+      // Tüm isimler otomatik çözüldü - direkt sonuç göster
+      const added = data.added || 0;
+      const errors = data.errors || [];
+
+      importResult.value = { added, errorCount: errors.length };
+      importErrors.value = errors;
+
+      if (errors.length > 0) {
+        toast.warning(`${added} çalışan eklendi, ${errors.length} hata oluştu`);
+      } else {
+        toast.success(`${added} çalışan başarıyla eklendi`);
+        closeImportModal();
+      }
+
+      loadEmployees();
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Hata oluştu');
+  } finally {
+    importing.value = false;
+  }
+};
+
+const confirmImport = async () => {
+  if (!previewData.value?.previewId) return;
+
+  importing.value = true;
+  importErrors.value = [];
+  importResult.value = null;
+
+  try {
+    const response = await api.post('/employees/bulk-import-confirm', {
+      previewId: previewData.value.previewId,
+      company: previewData.value.companyId || importCompany.value,
+      nameResolutions: nameResolutions.value
     });
 
     const added = response.data.data.added || 0;
@@ -2762,10 +2936,10 @@ const importEmployees = async () => {
 
     importResult.value = { added, errorCount: errors.length };
     importErrors.value = errors;
+    importStep.value = 'result';
 
     if (errors.length > 0) {
       toast.warning(`${added} çalışan eklendi, ${errors.length} hata oluştu`);
-      // Modal'ı açık tut, hataları göster
     } else {
       toast.success(`${added} çalışan başarıyla eklendi`);
       closeImportModal();
@@ -2774,6 +2948,7 @@ const importEmployees = async () => {
     loadEmployees();
   } catch (error) {
     toast.error(error.response?.data?.message || 'Hata oluştu');
+    importStep.value = 'upload';
   } finally {
     importing.value = false;
   }
@@ -2784,6 +2959,9 @@ const openImportModal = () => {
   importCompany.value = '';
   importErrors.value = [];
   importResult.value = null;
+  importStep.value = 'upload';
+  previewData.value = null;
+  nameResolutions.value = {};
   showImportModal.value = true;
 };
 
@@ -2793,6 +2971,9 @@ const closeImportModal = () => {
   importCompany.value = '';
   importErrors.value = [];
   importResult.value = null;
+  importStep.value = 'upload';
+  previewData.value = null;
+  nameResolutions.value = {};
 };
 
 const sendActivationLink = async employeeId => {
@@ -2899,9 +3080,46 @@ const manualActivateSelected = async () => {
   }
 };
 
+const handleAdminPhotoChange = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file || !editingEmployee.value) return;
+
+  const reader = new FileReader();
+  reader.onload = (ev) => { editPhotoPreview.value = ev.target.result; };
+  reader.readAsDataURL(file);
+
+  adminPhotoUploading.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const res = await api.put(`/employees/${editingEmployee.value._id}/profile-photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    editingEmployee.value.profilePhoto = res.data?.data?.profilePhoto;
+    editPhotoPreview.value = null;
+  } catch (err) {
+    alert(err.response?.data?.message || 'Fotoğraf yüklenemedi');
+    editPhotoPreview.value = null;
+  }
+  adminPhotoUploading.value = false;
+  e.target.value = '';
+};
+
+const deleteAdminPhoto = async () => {
+  if (!editingEmployee.value || !confirm('Fotoğrafı silmek istediğinize emin misiniz?')) return;
+  try {
+    await api.delete(`/employees/${editingEmployee.value._id}/profile-photo`);
+    editingEmployee.value.profilePhoto = null;
+    editPhotoPreview.value = null;
+  } catch (err) {
+    alert(err.response?.data?.message || 'Fotoğraf silinemedi');
+  }
+};
+
 const closeModal = () => {
   showModal.value = false;
   editingEmployee.value = null;
+  editPhotoPreview.value = null;
   form.value = {
     firstName: '',
     lastName: '',
