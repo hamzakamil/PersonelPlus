@@ -110,6 +110,51 @@
       </div>
     </div>
 
+    <!-- Deneme Hesabı Ayarları -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-4">Deneme Hesabı Ayarları</h2>
+      <p class="text-sm text-gray-500 mb-4">
+        Google ile kayıt olan yeni kullanıcıların deneme hesabı limitlerini belirleyin.
+      </p>
+
+      <div v-if="loadingTrial" class="text-center py-4">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+      </div>
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Deneme Süresi (gün)</label>
+          <input
+            v-model.number="trialForm.trialDays"
+            type="number"
+            min="1"
+            max="365"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          />
+          <p class="text-xs text-gray-400 mt-1">Yeni kayıt olan kullanıcıya verilen deneme süresi</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Çalışan Kotası</label>
+          <input
+            v-model.number="trialForm.trialEmployeeQuota"
+            type="number"
+            min="1"
+            max="1000"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          />
+          <p class="text-xs text-gray-400 mt-1">Deneme hesabında eklenebilecek maksimum çalışan sayısı</p>
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button
+          @click="saveTrialSettings"
+          :disabled="savingTrial"
+          class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+        >
+          {{ savingTrial ? 'Kaydediliyor...' : 'Kaydet' }}
+        </button>
+      </div>
+    </div>
+
     <!-- Destek İletişim Bilgileri -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Destek İletişim Bilgileri</h2>
@@ -299,6 +344,14 @@ const wageForm = ref({
   brut: null,
 });
 
+// Deneme hesabı ayarları
+const loadingTrial = ref(false);
+const savingTrial = ref(false);
+const trialForm = ref({
+  trialDays: 14,
+  trialEmployeeQuota: 1,
+});
+
 // Destek bilgileri
 const loadingSupportInfo = ref(false);
 const savingSupportInfo = ref(false);
@@ -427,6 +480,37 @@ const formatDate = date => {
   return d.toLocaleDateString('tr-TR');
 };
 
+const loadTrialSettings = async () => {
+  try {
+    loadingTrial.value = true;
+    const response = await api.get('/global-settings/trial-settings');
+    if (response.data.success) {
+      trialForm.value = {
+        trialDays: response.data.data.trialDays ?? 14,
+        trialEmployeeQuota: response.data.data.trialEmployeeQuota ?? 1,
+      };
+    }
+  } catch (error) {
+    console.error('Deneme ayarları yüklenemedi:', error);
+  } finally {
+    loadingTrial.value = false;
+  }
+};
+
+const saveTrialSettings = async () => {
+  try {
+    savingTrial.value = true;
+    const response = await api.put('/global-settings/trial-settings', trialForm.value);
+    if (response.data.success) {
+      toast.success(response.data.message || 'Deneme ayarları güncellendi');
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Deneme ayarları güncellenirken hata oluştu');
+  } finally {
+    savingTrial.value = false;
+  }
+};
+
 const loadSupportInfo = async () => {
   try {
     loadingSupportInfo.value = true;
@@ -467,6 +551,7 @@ const saveSupportInfo = async () => {
 
 onMounted(() => {
   loadRegistrationMode();
+  loadTrialSettings();
   loadMinimumWages();
   loadSupportInfo();
 });

@@ -600,6 +600,11 @@ router.post('/google', async (req, res) => {
       await targetDealer.save();
     }
 
+    // Deneme ayarlarını al
+    const settings = await Settings.getSettings();
+    const trialDays = settings.trialSettings?.trialDays || 14;
+    const trialQuota = settings.trialSettings?.trialEmployeeQuota || 1;
+
     // Şirket oluştur (deneme modu)
     const companyName = name ? `${name} Şirketi` : 'Yeni Şirket';
     const company = new Company({
@@ -619,12 +624,12 @@ router.post('/google', async (req, res) => {
         status: 'trial',
         billingType: 'monthly',
         startDate: new Date(),
-        endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 gün deneme
+        endDate: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
         price: 0,
         isPaid: true,
       },
       quota: {
-        allocated: 1,
+        allocated: trialQuota,
         used: 0,
         isUnlimited: false,
       },
@@ -678,7 +683,7 @@ router.post('/google', async (req, res) => {
             recipientType: 'super_admin',
             company: null,
             title: 'Yeni Google Kayıt (Deneme)',
-            body: `${name || email} Google ile kayıt oldu. Deneme modunda (1 çalışan, 14 gün).`,
+            body: `${name || email} Google ile kayıt oldu. Deneme modunda (${trialQuota} çalışan, ${trialDays} gün).`,
             type: 'SYSTEM',
             relatedModel: 'RegistrationRequest',
             relatedId: registrationRequest._id,

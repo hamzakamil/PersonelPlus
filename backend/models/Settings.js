@@ -35,6 +35,17 @@ const settingsSchema = new mongoose.Schema(
       enum: ['email_verification', 'manual_approval'],
       default: 'manual_approval',
     },
+    // Google OAuth Deneme Hesabı Ayarları
+    trialSettings: {
+      trialDays: {
+        type: Number,
+        default: 14, // Deneme süresi (gün)
+      },
+      trialEmployeeQuota: {
+        type: Number,
+        default: 1, // Deneme çalışan kotası
+      },
+    },
     // Destek İletişim Bilgileri
     supportEmail: {
       type: String,

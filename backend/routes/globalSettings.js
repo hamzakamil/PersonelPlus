@@ -156,6 +156,53 @@ router.put('/registration-mode', auth, requireRole('super_admin'), async (req, r
   }
 });
 
+// GET /api/global-settings/trial-settings - Deneme hesabı ayarlarını getir
+router.get('/trial-settings', auth, requireRole('super_admin'), async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+    return successResponse(res, {
+      data: {
+        trialDays: settings.trialSettings?.trialDays ?? 14,
+        trialEmployeeQuota: settings.trialSettings?.trialEmployeeQuota ?? 1,
+      },
+    });
+  } catch (error) {
+    console.error('Deneme ayarları getirme hatası:', error);
+    return serverError(res, error);
+  }
+});
+
+// PUT /api/global-settings/trial-settings - Deneme hesabı ayarlarını güncelle
+router.put('/trial-settings', auth, requireRole('super_admin'), async (req, res) => {
+  try {
+    const { trialDays, trialEmployeeQuota } = req.body;
+
+    const days = parseInt(trialDays);
+    const quota = parseInt(trialEmployeeQuota);
+
+    if (isNaN(days) || days < 1 || days > 365) {
+      return errorResponse(res, { message: 'Deneme süresi 1-365 gün arasında olmalıdır' });
+    }
+    if (isNaN(quota) || quota < 1 || quota > 1000) {
+      return errorResponse(res, { message: 'Çalışan kotası 1-1000 arasında olmalıdır' });
+    }
+
+    const settings = await Settings.getSettings();
+    if (!settings.trialSettings) settings.trialSettings = {};
+    settings.trialSettings.trialDays = days;
+    settings.trialSettings.trialEmployeeQuota = quota;
+    await settings.save();
+
+    return successResponse(res, {
+      data: { trialDays: days, trialEmployeeQuota: quota },
+      message: `Deneme ayarları güncellendi: ${days} gün, ${quota} çalışan`,
+    });
+  } catch (error) {
+    console.error('Deneme ayarları güncelleme hatası:', error);
+    return serverError(res, error);
+  }
+});
+
 // GET /api/global-settings/support-info - Destek bilgilerini getir (public - auth gerekmez)
 router.get('/support-info', async (req, res) => {
   try {
