@@ -679,6 +679,20 @@ router.post('/bulk-import-confirm', auth, requireRole('super_admin', 'bayi_admin
       companyId = req.user.company?._id || req.user.company;
     }
 
+    // Deneme modu kota kontrolü
+    const companyForQuota = await Company.findById(companyId);
+    if (companyForQuota && companyForQuota.subscription && companyForQuota.subscription.status === 'trial') {
+      const activeEmployeeCount = await Employee.countDocuments({ company: companyId, status: 'active' });
+      const trialLimit = companyForQuota.quota?.allocated || 1;
+      if (activeEmployeeCount >= trialLimit) {
+        return errorResponse(res, {
+          message: `Deneme hesabınızda en fazla ${trialLimit} çalışan ekleyebilirsiniz. Daha fazla çalışan eklemek için abonelik satın alın.`,
+          statusCode: 403,
+          errorCode: 'TRIAL_QUOTA_EXCEEDED',
+        });
+      }
+    }
+
     const previewPath = path.join(__dirname, '..', 'uploads', `preview_${previewId}.xlsx`);
     if (!fs.existsSync(previewPath)) {
       return errorResponse(res, { message: 'Preview dosyası bulunamadı veya süresi dolmuş', statusCode: 404 });
@@ -719,6 +733,21 @@ router.post('/bulk-import', auth, requireRole('super_admin', 'bayi_admin', 'comp
     let companyId = req.body.company;
     if (['company_admin', 'resmi_muhasebe_ik'].includes(req.user.role.name)) {
       companyId = req.user.company?._id || req.user.company;
+    }
+
+    // Deneme modu kota kontrolü
+    const companyForQuota = await Company.findById(companyId);
+    if (companyForQuota && companyForQuota.subscription && companyForQuota.subscription.status === 'trial') {
+      const activeEmployeeCount = await Employee.countDocuments({ company: companyId, status: 'active' });
+      const trialLimit = companyForQuota.quota?.allocated || 1;
+      if (activeEmployeeCount >= trialLimit) {
+        if (req.file) fs.unlinkSync(req.file.path);
+        return errorResponse(res, {
+          message: `Deneme hesabınızda en fazla ${trialLimit} çalışan ekleyebilirsiniz. Daha fazla çalışan eklemek için abonelik satın alın.`,
+          statusCode: 403,
+          errorCode: 'TRIAL_QUOTA_EXCEEDED',
+        });
+      }
     }
 
     const workbook = xlsx.readFile(req.file.path);
@@ -1228,6 +1257,20 @@ router.post('/', auth, requireRole('super_admin', 'bayi_admin', 'company_admin',
       companyIdForValidation = company;
     }
     console.log('STEP 3 DONE: companyIdForValidation =', companyIdForValidation);
+
+    // Deneme modu kota kontrolü
+    const companyForQuota = await Company.findById(companyIdForValidation);
+    if (companyForQuota && companyForQuota.subscription && companyForQuota.subscription.status === 'trial') {
+      const activeEmployeeCount = await Employee.countDocuments({ company: companyIdForValidation, status: 'active' });
+      const trialLimit = companyForQuota.quota?.allocated || 1;
+      if (activeEmployeeCount >= trialLimit) {
+        return errorResponse(res, {
+          message: `Deneme hesabınızda en fazla ${trialLimit} çalışan ekleyebilirsiniz. Daha fazla çalışan eklemek için abonelik satın alın.`,
+          statusCode: 403,
+          errorCode: 'TRIAL_QUOTA_EXCEEDED',
+        });
+      }
+    }
 
     console.log('STEP 4: Checking workplace...');
     // Workplace zorunlu kontrolü - şirkette birden fazla varsa zorunlu

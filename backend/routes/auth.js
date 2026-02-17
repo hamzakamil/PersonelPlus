@@ -583,65 +583,124 @@ router.post('/google', async (req, res) => {
       });
     }
 
-    // 3. Yeni kullanıcı - kayıt akışı
+    // 3. Yeni kullanıcı - Google ile anında kayıt + deneme modu
     const companyAdminRole = await Role.findOne({ name: 'company_admin' });
     if (!companyAdminRole) {
       return serverError(res, new Error('Role bulunamadı'), 'Sistem hatası');
     }
 
+    // "Bireysel Kayıtlar" bayisini bul veya oluştur
+    let targetDealer = await Dealer.findOne({ name: 'Bireysel Kayıtlar' });
+    if (!targetDealer) {
+      targetDealer = new Dealer({
+        name: 'Bireysel Kayıtlar',
+        contactEmail: 'system@personelplus.com',
+        isActive: true,
+      });
+      await targetDealer.save();
+    }
+
+    // Şirket oluştur (deneme modu)
+    const companyName = name ? `${name} Şirketi` : 'Yeni Şirket';
+    const company = new Company({
+      name: companyName,
+      dealer: targetDealer._id,
+      contactEmail: email,
+      contactPhone: '',
+      authorizedPerson: {
+        fullName: name || email,
+        phone: '',
+        email: email,
+      },
+      isActive: true,
+      isActivated: true,
+      activatedAt: new Date(),
+      subscription: {
+        status: 'trial',
+        billingType: 'monthly',
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 gün deneme
+        price: 0,
+        isPaid: true,
+      },
+      quota: {
+        allocated: 1,
+        used: 0,
+        isUnlimited: false,
+      },
+    });
+    await company.save();
+
+    // Varsayılan Merkez işyeri oluştur
+    const Workplace = require('../models/Workplace');
+    const defaultWorkplace = new Workplace({
+      name: 'Merkez',
+      company: company._id,
+      isDefault: true,
+      isActive: true,
+    });
+    await defaultWorkplace.save();
+
+    // Kullanıcı oluştur (aktif, deneme modu)
     const newUser = new User({
       email,
       password: null,
       role: companyAdminRole._id,
       googleId,
       profilePicture: picture || null,
-      isActive: false,
+      dealer: targetDealer._id,
+      company: company._id,
+      isActive: true,
       mustChangePassword: false,
     });
     await newUser.save();
 
-    // Kayıt talebi oluştur
+    // Kayıt talebi oluştur (otomatik onaylı)
     const registrationRequest = new RegistrationRequest({
       user: newUser._id,
       fullName: name || email,
       phone: '',
-      companyName: `${name || 'Yeni'} Şirketi`,
-      status: 'pending',
+      companyName: companyName,
+      status: 'approved',
+      processedAt: new Date(),
+      notes: 'Google OAuth - otomatik onay, deneme modu',
     });
     await registrationRequest.save();
 
-    // Kayıt modunu kontrol et
-    const settings = await Settings.getSettings();
-
-    if (settings.registrationMode === 'email_verification') {
-      // Google email zaten doğrulanmış - otomatik onayla
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-
-      newUser.activationToken = hashedToken;
-      newUser.activationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      await newUser.save();
-
-      registrationRequest.status = 'approved';
-      registrationRequest.processedAt = new Date();
-      registrationRequest.notes = 'Google OAuth - email doğrulanmış, otomatik onay';
-      await registrationRequest.save();
-
-      // Email doğrulama linki gönder (şirket oluşturma için gerekli)
-      sendRegistrationVerificationEmail(email, name || email, rawToken).catch(err =>
-        console.error('Google kayıt doğrulama email hatası:', err)
-      );
-
-      return successResponse(res, {
-        message: 'Google ile kayıt başarılı! Email adresinize bir doğrulama linki gönderildi.',
-        data: { email, mode: 'email_verification', isNewUser: true },
-      });
+    // Admin'lere bildirim gönder (bilgilendirme amaçlı)
+    const superAdminRole = await Role.findOne({ name: 'super_admin' });
+    if (superAdminRole) {
+      const adminUsers = await User.find({ role: superAdminRole._id, isActive: true }).select('_id');
+      for (const admin of adminUsers) {
+        try {
+          const notification = new Notification({
+            recipient: admin._id,
+            recipientType: 'super_admin',
+            company: null,
+            title: 'Yeni Google Kayıt (Deneme)',
+            body: `${name || email} Google ile kayıt oldu. Deneme modunda (1 çalışan, 14 gün).`,
+            type: 'SYSTEM',
+            relatedModel: 'RegistrationRequest',
+            relatedId: registrationRequest._id,
+            isRead: false,
+          });
+          await notification.save();
+        } catch (err) {
+          console.error('Admin bildirim hatası:', err);
+        }
+      }
     }
 
-    // Manuel onay modu
+    // JWT oluştur - hemen giriş yapabilsin
+    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    // Populate ile kullanıcıyı tekrar çek
+    const populatedUser = await User.findById(newUser._id).populate('role').populate('dealer').populate('company');
+    const userPayload = buildUserPayload(populatedUser);
+
     return successResponse(res, {
-      message: 'Google ile kayıt başarılı. Hesabınız onay bekliyor.',
-      data: { email, mode: 'manual_approval', isNewUser: true },
+      data: { token, user: userPayload, isNewUser: true },
+      message: 'Google ile kayıt başarılı! Deneme hesabınız oluşturuldu.',
     });
   } catch (error) {
     console.error('Google giriş hatası:', error);

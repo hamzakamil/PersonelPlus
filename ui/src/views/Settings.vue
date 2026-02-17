@@ -3244,7 +3244,7 @@ const loadCompanyInfo = async () => {
     const companyId = activeCompanyId.value;
     if (!companyId) return;
     const response = await api.get(`/companies/${companyId}`);
-    const company = response.data;
+    const company = response.data?.data || response.data;
     companyForm.value = {
       name: company.name || '',
       address: company.address || '',
@@ -3270,7 +3270,7 @@ const saveCompanyInfo = async () => {
       savingCompany.value = false;
       return;
     }
-    await api.put(`/companies/${companyId}`, {
+    const saveResponse = await api.put(`/companies/${companyId}`, {
       name: companyForm.value.name,
       address: companyForm.value.address,
       taxOffice: companyForm.value.taxOffice,
@@ -3280,6 +3280,15 @@ const saveCompanyInfo = async () => {
       authorizedPersonFullName: companyForm.value.authorizedPersonFullName,
       authorizedPersonPhone: companyForm.value.authorizedPersonPhone,
     });
+    // Auth store'daki şirket adını güncelle (header'da görünsün)
+    const updatedCompany = saveResponse.data?.data || saveResponse.data;
+    if (updatedCompany && authStore.user?.company) {
+      const currentUser = { ...authStore.user };
+      if (typeof currentUser.company === 'object') {
+        currentUser.company = { ...currentUser.company, name: updatedCompany.name };
+      }
+      authStore.setUser(currentUser);
+    }
     toast.success('Şirket bilgileri başarıyla kaydedildi');
   } catch (error) {
     toast.error(error.response?.data?.message || 'Şirket bilgileri kaydedilemedi');
@@ -3313,57 +3322,58 @@ const loadSettings = async () => {
     // companyId zaten yukarıda tanımlı
     if (companyId) {
       const companyResponse = await api.get(`/companies/${companyId}`);
+      const companyData = companyResponse.data?.data || companyResponse.data;
       form.value.activeAttendanceTemplate =
-        companyResponse.data.activeAttendanceTemplate?._id || '';
-      form.value.payrollCalculationType = companyResponse.data.payrollCalculationType || 'NET';
-      form.value.autoAddApprovedEmployees = companyResponse.data.autoAddApprovedEmployees !== false;
-      if (companyResponse.data.advanceSettings) {
+        companyData.activeAttendanceTemplate?._id || '';
+      form.value.payrollCalculationType = companyData.payrollCalculationType || 'NET';
+      form.value.autoAddApprovedEmployees = companyData.autoAddApprovedEmployees !== false;
+      if (companyData.advanceSettings) {
         form.value.advanceSettings = {
-          enabled: companyResponse.data.advanceSettings.enabled || false,
-          maxAmountType: companyResponse.data.advanceSettings.maxAmountType || 'PERCENTAGE',
-          maxAmountValue: companyResponse.data.advanceSettings.maxAmountValue || 50,
-          maxInstallments: companyResponse.data.advanceSettings.maxInstallments || 3,
-          minWorkMonths: companyResponse.data.advanceSettings.minWorkMonths || 3,
-          requestStartDay: companyResponse.data.advanceSettings.requestStartDay || 1,
-          monthlyRequestLimit: companyResponse.data.advanceSettings.monthlyRequestLimit || 1,
-          approvalRequired: companyResponse.data.advanceSettings.approvalRequired !== false,
-          allowInstallments: companyResponse.data.advanceSettings.allowInstallments !== false,
+          enabled: companyData.advanceSettings.enabled || false,
+          maxAmountType: companyData.advanceSettings.maxAmountType || 'PERCENTAGE',
+          maxAmountValue: companyData.advanceSettings.maxAmountValue || 50,
+          maxInstallments: companyData.advanceSettings.maxInstallments || 3,
+          minWorkMonths: companyData.advanceSettings.minWorkMonths || 3,
+          requestStartDay: companyData.advanceSettings.requestStartDay || 1,
+          monthlyRequestLimit: companyData.advanceSettings.monthlyRequestLimit || 1,
+          approvalRequired: companyData.advanceSettings.approvalRequired !== false,
+          allowInstallments: companyData.advanceSettings.allowInstallments !== false,
         };
       }
-      if (companyResponse.data.leaveApprovalSettings) {
+      if (companyData.leaveApprovalSettings) {
         form.value.leaveApprovalSettings = {
-          enabled: companyResponse.data.leaveApprovalSettings.enabled !== false,
-          requireApproval: companyResponse.data.leaveApprovalSettings.requireApproval !== false,
+          enabled: companyData.leaveApprovalSettings.enabled !== false,
+          requireApproval: companyData.leaveApprovalSettings.requireApproval !== false,
           autoApproveIfNoApprover:
-            companyResponse.data.leaveApprovalSettings.autoApproveIfNoApprover || false,
-          approvalLevels: companyResponse.data.leaveApprovalSettings.approvalLevels || 0,
-          allowSelfApproval: companyResponse.data.leaveApprovalSettings.allowSelfApproval || false,
+            companyData.leaveApprovalSettings.autoApproveIfNoApprover || false,
+          approvalLevels: companyData.leaveApprovalSettings.approvalLevels || 0,
+          allowSelfApproval: companyData.leaveApprovalSettings.allowSelfApproval || false,
         };
       }
-      if (companyResponse.data.advanceApprovalSettings) {
+      if (companyData.advanceApprovalSettings) {
         form.value.advanceApprovalSettings = {
-          enabled: companyResponse.data.advanceApprovalSettings.enabled !== false,
+          enabled: companyData.advanceApprovalSettings.enabled !== false,
           useLeaveApprovalChain:
-            companyResponse.data.advanceApprovalSettings.useLeaveApprovalChain !== false,
-          requireApproval: companyResponse.data.advanceApprovalSettings.requireApproval !== false,
+            companyData.advanceApprovalSettings.useLeaveApprovalChain !== false,
+          requireApproval: companyData.advanceApprovalSettings.requireApproval !== false,
           autoApproveIfNoApprover:
-            companyResponse.data.advanceApprovalSettings.autoApproveIfNoApprover || false,
-          approvalLevels: companyResponse.data.advanceApprovalSettings.approvalLevels || 0,
+            companyData.advanceApprovalSettings.autoApproveIfNoApprover || false,
+          approvalLevels: companyData.advanceApprovalSettings.approvalLevels || 0,
           allowSelfApproval:
-            companyResponse.data.advanceApprovalSettings.allowSelfApproval || false,
+            companyData.advanceApprovalSettings.allowSelfApproval || false,
         };
       }
-      if (companyResponse.data.approvalMode) {
-        form.value.approvalMode = companyResponse.data.approvalMode;
+      if (companyData.approvalMode) {
+        form.value.approvalMode = companyData.approvalMode;
       }
-      if (companyResponse.data.overtimeApprovalSettings) {
+      if (companyData.overtimeApprovalSettings) {
         form.value.overtimeApprovalSettings = {
-          enabled: companyResponse.data.overtimeApprovalSettings.enabled !== false,
+          enabled: companyData.overtimeApprovalSettings.enabled !== false,
           useLeaveApprovalChain:
-            companyResponse.data.overtimeApprovalSettings.useLeaveApprovalChain !== false,
-          approvalLevels: companyResponse.data.overtimeApprovalSettings.approvalLevels || 0,
+            companyData.overtimeApprovalSettings.useLeaveApprovalChain !== false,
+          approvalLevels: companyData.overtimeApprovalSettings.approvalLevels || 0,
           allowSelfApproval:
-            companyResponse.data.overtimeApprovalSettings.allowSelfApproval || false,
+            companyData.overtimeApprovalSettings.allowSelfApproval || false,
         };
       }
     }

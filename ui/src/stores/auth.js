@@ -64,22 +64,22 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await api.post('/auth/google', { credential })
       const resData = response.data?.data || response.data
 
-      // Yeni kullanıcı - kayıt akışı
-      if (resData.isNewUser) {
-        return {
-          success: false,
-          isNewUser: true,
-          message: response.data?.message || 'Kayıt talebi oluşturuldu',
-          mode: resData.mode
-        }
+      // Token varsa (mevcut kullanıcı veya yeni deneme kullanıcı) - giriş yap
+      if (resData.token) {
+        token.value = resData.token
+        user.value = resData.user
+        localStorage.setItem('token', resData.token)
+        localStorage.setItem('user', JSON.stringify(resData.user))
+        return { success: true, isNewUser: !!resData.isNewUser }
       }
 
-      // Mevcut kullanıcı - giriş
-      token.value = resData.token
-      user.value = resData.user
-      localStorage.setItem('token', resData.token)
-      localStorage.setItem('user', JSON.stringify(resData.user))
-      return { success: true }
+      // Token yoksa - kayıt onay bekliyor (eski akış fallback)
+      return {
+        success: false,
+        isNewUser: true,
+        message: response.data?.message || 'Kayıt talebi oluşturuldu',
+        mode: resData.mode
+      }
     } catch (error) {
       return {
         success: false,
