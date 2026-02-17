@@ -47,6 +47,12 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
+      path: '/terms-of-service',
+      name: 'TermsOfService',
+      component: () => import('@/views/TermsOfService.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
       path: '/forgot-password',
       name: 'ForgotPassword',
       component: () => import('@/views/ForgotPassword.vue'),
@@ -561,7 +567,8 @@ router.beforeEach((to, from, next) => {
     to.name === 'Register' ||
     to.name === 'VerifyEmail' ||
     to.name === 'ResetPassword' ||
-    to.name === 'PrivacyPolicy'
+    to.name === 'PrivacyPolicy' ||
+    to.name === 'TermsOfService'
   ) {
     next();
     return;

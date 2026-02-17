@@ -156,12 +156,19 @@
             </router-link>
           </div>
 
-          <div class="text-center mt-3">
+          <div class="text-center mt-3 flex items-center justify-center gap-2">
             <router-link
               to="/privacy-policy"
               class="text-gray-400 hover:text-gray-600 text-xs transition-colors"
             >
               Gizlilik Politikası
+            </router-link>
+            <span class="text-gray-300 text-xs">|</span>
+            <router-link
+              to="/terms-of-service"
+              class="text-gray-400 hover:text-gray-600 text-xs transition-colors"
+            >
+              Kullanım Şartları
             </router-link>
           </div>
         </div>

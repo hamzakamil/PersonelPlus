@@ -300,9 +300,15 @@
           <p class="text-gray-500 text-sm">
             &copy; {{ currentYear }} {{ appTitle }}. Tum haklar saklidir.
           </p>
-          <router-link to="/login" class="inline-block mt-4 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
-            &larr; Giris Sayfasina Don
-          </router-link>
+          <div class="flex items-center justify-center gap-4 mt-4">
+            <router-link to="/login" class="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
+              &larr; Giris Sayfasi
+            </router-link>
+            <span class="text-gray-300">|</span>
+            <router-link to="/terms-of-service" class="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
+              Kullanim Sartlari
+            </router-link>
+          </div>
         </div>
       </div>
     </main>
