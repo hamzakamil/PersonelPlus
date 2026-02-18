@@ -491,6 +491,20 @@
                     </button>
                   </div>
                 </div>
+
+                <!-- Belirli Süreli Sözleşme Bitiş Tarihi -->
+                <div v-if="form.employmentType === 'BELİRLİ_SÜRELİ'" class="mt-3">
+                  <label class="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    Sözleşme Bitiş Tarihi <span class="text-red-500">*</span>
+                  </label>
+                  <input
+                    v-model="form.contractEndDate"
+                    type="date"
+                    class="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent focus:bg-white transition-all"
+                    :min="form.startDate || undefined"
+                  />
+                  <p class="text-[10px] text-amber-600 mt-1">Belirli süreli sözleşmenin sona ereceği tarih</p>
+                </div>
               </div>
 
               <!-- Emeklilik Durumu -->
@@ -930,6 +944,7 @@ const form = ref({
   sectionId: '',
   salaryAmount: '',
   employmentType: 'BELİRSİZ_SÜRELİ',
+  contractEndDate: '',
   startDate: '',
   isRetired: false
 })
@@ -1395,6 +1410,13 @@ const handleSubmit = async () => {
       return
     }
 
+    // Belirli süreli sözleşme bitiş tarihi kontrolü
+    if (form.value.employmentType === 'BELİRLİ_SÜRELİ' && !form.value.contractEndDate) {
+      toast.error('Belirli süreli sözleşme için bitiş tarihi zorunludur')
+      currentStep.value = 0
+      return
+    }
+
     saving.value = true
 
     const selectedWorkplaceId = form.value.workplaceId ||
@@ -1411,6 +1433,7 @@ const handleSubmit = async () => {
       salaryAmount: form.value.salaryAmount ? parseFloat(form.value.salaryAmount) : null,
       salaryType: companyPayrollType.value || 'NET',
       employmentType: form.value.employmentType || 'BELİRSİZ_SÜRELİ',
+      contractEndDate: form.value.employmentType === 'BELİRLİ_SÜRELİ' ? form.value.contractEndDate : null,
       startDate: form.value.startDate,
       exitDate: null,
       companyId: form.value.companyId,

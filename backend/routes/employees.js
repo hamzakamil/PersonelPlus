@@ -1607,6 +1607,7 @@ router.put('/:id', auth, requireRole('super_admin', 'bayi_admin', 'company_admin
     const exitReasonCode = req.body?.exitReasonCode;
     const salary = req.body?.salary;
     const isNetSalary = req.body?.isNetSalary;
+    const contractType = req.body?.contractType;
     const birthPlace = req.body?.birthPlace;
     const passportNumber = req.body?.passportNumber;
     const bloodType = req.body?.bloodType;
@@ -1642,6 +1643,13 @@ router.put('/:id', auth, requireRole('super_admin', 'bayi_admin', 'company_admin
     employee.exitReasonCode = exitReasonCode !== undefined ? (exitReasonCode || undefined) : employee.exitReasonCode;
     employee.salary = salary !== undefined ? (salary || null) : employee.salary;
     employee.isNetSalary = isNetSalary !== undefined ? isNetSalary : employee.isNetSalary;
+    if (contractType !== undefined && ['BELİRSİZ_SÜRELİ', 'BELİRLİ_SÜRELİ', 'KISMİ_SÜRELİ', 'UZAKTAN_ÇALIŞMA'].includes(contractType)) {
+      employee.contractType = contractType;
+    }
+    // Sözleşme bitiş tarihi (belirli süreli için)
+    if (req.body.contractEndDate !== undefined) {
+      employee.contractEndDate = req.body.contractEndDate ? new Date(req.body.contractEndDate) : null;
+    }
     // employeeNumber read-only - güncelleme yapılamaz (sadece backend tarafından atanır)
     
     // Personel numarası güncelleme (unique kontrolü ile)

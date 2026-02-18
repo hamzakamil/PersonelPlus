@@ -83,6 +83,10 @@ const employmentPreRecordSchema = new mongoose.Schema({
     enum: ['BELİRSİZ_SÜRELİ', 'BELİRLİ_SÜRELİ', 'KISMİ_SÜRELİ', 'UZAKTAN_ÇALIŞMA'],
     default: 'BELİRSİZ_SÜRELİ'
   },
+  contractEndDate: {
+    type: Date, // Belirli süreli sözleşme bitiş tarihi
+    default: null
+  },
 
   // Emekli mi?
   isRetired: {

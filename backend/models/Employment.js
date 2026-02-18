@@ -49,7 +49,7 @@ const employmentSchema = new mongoose.Schema({
   },
   contractType: {
     type: String,
-    enum: ['BELİRSİZ_SÜRELİ', 'BELİRLİ_SÜRELİ', 'KISMİ_SÜRELİ'],
+    enum: ['BELİRSİZ_SÜRELİ', 'BELİRLİ_SÜRELİ', 'KISMİ_SÜRELİ', 'UZAKTAN_ÇALIŞMA'],
     default: 'BELİRSİZ_SÜRELİ'
   },
   createdBy: {

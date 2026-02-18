@@ -79,8 +79,41 @@
         >
           Temizle
         </button>
+        <!-- Sütun Görünürlük Ayarları -->
+        <div class="relative">
+          <button
+            @click="showColumnMenu = !showColumnMenu"
+            class="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-1"
+            title="Sütunları Ayarla"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Sütunlar
+          </button>
+          <div
+            v-if="showColumnMenu"
+            class="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 min-w-[160px]"
+          >
+            <label
+              v-for="(label, key) in columnLabels"
+              :key="key"
+              class="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-xs text-gray-700"
+            >
+              <input
+                type="checkbox"
+                v-model="columnVisibility[key]"
+                class="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              {{ label }}
+            </label>
+          </div>
+        </div>
       </div>
     </div>
+    <!-- Sütun menü dışı tıklama -->
+    <div v-if="showColumnMenu" class="fixed inset-0 z-10" @click="showColumnMenu = false"></div>
 
     <!-- Seçili İşlemler Toolbar -->
     <div
@@ -107,6 +140,13 @@
             title="Email ile aktivasyon linki gönder"
           >
             {{ sendingBulkActivation ? 'Gönderiliyor...' : 'Email Gönder' }}
+          </button>
+          <button
+            @click="openBulkSalaryModal"
+            class="px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+            title="Seçili çalışanların ücretini toplu değiştir"
+          >
+            Toplu Ücret Değiştir
           </button>
           <button
             @click="deleteSelectedEmployees"
@@ -165,10 +205,11 @@
                   </svg>
                 </div>
               </th>
-              <th class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
+              <th v-if="columnVisibility.tcKimlik" class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
                 TCKN
               </th>
               <th
+                v-if="columnVisibility.position"
                 @click="toggleSort('position')"
                 class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
               >
@@ -193,6 +234,7 @@
                 </div>
               </th>
               <th
+                v-if="columnVisibility.department"
                 @click="toggleSort('department')"
                 class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
               >
@@ -216,13 +258,14 @@
                   </svg>
                 </div>
               </th>
-              <th class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
+              <th v-if="columnVisibility.phone" class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
                 Telefon
               </th>
-              <th class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
+              <th v-if="columnVisibility.email" class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
                 Email
               </th>
               <th
+                v-if="columnVisibility.hireDate"
                 @click="toggleSort('hireDate')"
                 class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
               >
@@ -246,10 +289,16 @@
                   </svg>
                 </div>
               </th>
-              <th class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
+              <th v-if="columnVisibility.salary" class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
+                Ücret
+              </th>
+              <th v-if="columnVisibility.contractType" class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
+                Sözleşme
+              </th>
+              <th v-if="columnVisibility.retirement" class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
                 Emeklilik
               </th>
-              <th class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
+              <th v-if="columnVisibility.status" class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
                 Durum
               </th>
               <th class="px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">
@@ -263,7 +312,7 @@
               <template v-for="group in groupedEmployees" :key="group.companyId">
                 <!-- Şirket Başlık Satırı -->
                 <tr class="bg-gradient-to-r from-slate-100 to-slate-50 sticky">
-                  <td :colspan="12" class="px-3 py-1.5">
+                  <td :colspan="visibleColumnCount" class="px-3 py-1.5">
                     <div class="flex items-center gap-2">
                       <svg
                         class="w-4 h-4 text-slate-500"
@@ -297,11 +346,16 @@
                 <tr
                   v-for="(employee, index) in group.employees"
                   :key="employee._id"
+                  @click="showPreview(employee, $event)"
+                  @dblclick="handleRowDblClick(employee, $event)"
+                  class="cursor-pointer"
                   :class="{
                     'bg-blue-50': isSelected(employee._id),
                     'bg-red-50': !isSelected(employee._id) && employee.status === 'separated',
+                    'bg-orange-50': !isSelected(employee._id) && employee.status !== 'separated' && employee.isRetired,
+                    'bg-amber-50': !isSelected(employee._id) && employee.status !== 'separated' && !employee.isRetired && employee.contractType === 'BELİRLİ_SÜRELİ',
                     'hover:bg-gray-50':
-                      !isSelected(employee._id) && employee.status !== 'separated',
+                      !isSelected(employee._id) && employee.status !== 'separated' && !employee.isRetired && employee.contractType !== 'BELİRLİ_SÜRELİ',
                   }"
                 >
                   <td class="px-1 py-1.5">
@@ -321,10 +375,10 @@
                       {{ employee.firstName }} {{ employee.lastName }}
                     </div>
                   </td>
-                  <td class="px-2 py-1.5 text-[10px] text-gray-600 font-mono">
+                  <td v-if="columnVisibility.tcKimlik" class="px-2 py-1.5 text-[10px] text-gray-600 font-mono">
                     {{ employee.tcKimlik || '-' }}
                   </td>
-                  <td class="px-2 py-1.5">
+                  <td v-if="columnVisibility.position" class="px-2 py-1.5">
                     <div
                       class="text-[10px] text-gray-600 truncate max-w-[100px]"
                       :title="employee.position"
@@ -332,7 +386,7 @@
                       {{ employee.position || '-' }}
                     </div>
                   </td>
-                  <td class="px-2 py-1.5">
+                  <td v-if="columnVisibility.department" class="px-2 py-1.5">
                     <div
                       class="text-[10px] text-gray-600 truncate max-w-[90px]"
                       :title="employee.department?.name"
@@ -340,8 +394,8 @@
                       {{ employee.department?.name || '-' }}
                     </div>
                   </td>
-                  <td class="px-2 py-1.5 text-[10px] text-gray-600">{{ employee.phone || '-' }}</td>
-                  <td class="px-2 py-1.5">
+                  <td v-if="columnVisibility.phone" class="px-2 py-1.5 text-[10px] text-gray-600">{{ employee.phone || '-' }}</td>
+                  <td v-if="columnVisibility.email" class="px-2 py-1.5">
                     <div
                       class="text-[10px] text-gray-600 truncate max-w-[120px] lowercase"
                       :title="employee.email"
@@ -349,10 +403,33 @@
                       {{ employee.email || '-' }}
                     </div>
                   </td>
-                  <td class="px-2 py-1.5 text-[10px] text-gray-600">
+                  <td v-if="columnVisibility.hireDate" class="px-2 py-1.5 text-[10px] text-gray-600">
                     {{ employee.hireDate ? formatDate(employee.hireDate) : '-' }}
                   </td>
-                  <td class="px-2 py-1.5">
+                  <td v-if="columnVisibility.salary" class="px-2 py-1.5 text-[10px] text-gray-600" @dblclick.stop="startSalaryEdit(employee, $event)">
+                    <template v-if="editingSalaryId === employee._id">
+                      <input
+                        v-model="editingSalaryValue"
+                        class="salary-inline-input w-20 px-1 py-0.5 text-[10px] border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        @keyup.enter="saveSalaryEdit(employee)"
+                        @keyup.escape="cancelSalaryEdit"
+                        @blur="saveSalaryEdit(employee)"
+                        @click.stop
+                      />
+                    </template>
+                    <template v-else>
+                      <span class="cursor-pointer hover:text-blue-600" :title="'Çift tıkla düzenle'">
+                        {{ employee.salary ? new Intl.NumberFormat('tr-TR').format(employee.salary) + ' ₺' : '-' }}
+                      </span>
+                    </template>
+                  </td>
+                  <td v-if="columnVisibility.contractType" class="px-2 py-1.5 text-[10px]" :class="employee.contractType === 'BELİRLİ_SÜRELİ' ? 'text-amber-700 font-medium' : 'text-gray-600'">
+                    {{ contractTypeLabel(employee.contractType) }}
+                    <span v-if="employee.contractType === 'BELİRLİ_SÜRELİ' && employee.contractEndDate" class="block text-[9px] text-amber-600">
+                      {{ formatDate(employee.contractEndDate) }}
+                    </span>
+                  </td>
+                  <td v-if="columnVisibility.retirement" class="px-2 py-1.5">
                     <span
                       :class="
                         employee.isRetired
@@ -364,7 +441,7 @@
                       {{ employee.isRetired ? 'Emekli' : 'Normal' }}
                     </span>
                   </td>
-                  <td class="px-2 py-1.5">
+                  <td v-if="columnVisibility.status" class="px-2 py-1.5">
                     <span
                       v-if="employee.status === 'separated'"
                       class="px-1 py-0.5 text-[9px] font-medium rounded bg-red-100 text-red-700"
@@ -493,10 +570,15 @@
               <tr
                 v-for="(employee, index) in sortedEmployees"
                 :key="employee._id"
+                @click="showPreview(employee, $event)"
+                @dblclick="handleRowDblClick(employee, $event)"
+                class="cursor-pointer"
                 :class="{
                   'bg-blue-50': isSelected(employee._id),
                   'bg-red-50': !isSelected(employee._id) && employee.status === 'separated',
-                  'hover:bg-gray-50': !isSelected(employee._id) && employee.status !== 'separated',
+                  'bg-orange-50': !isSelected(employee._id) && employee.status !== 'separated' && employee.isRetired,
+                  'bg-amber-50': !isSelected(employee._id) && employee.status !== 'separated' && !employee.isRetired && employee.contractType === 'BELİRLİ_SÜRELİ',
+                  'hover:bg-gray-50': !isSelected(employee._id) && employee.status !== 'separated' && !employee.isRetired && employee.contractType !== 'BELİRLİ_SÜRELİ',
                 }"
               >
                 <td class="px-1 py-1.5">
@@ -516,10 +598,10 @@
                     {{ employee.firstName }} {{ employee.lastName }}
                   </div>
                 </td>
-                <td class="px-2 py-1.5 text-[10px] text-gray-600 font-mono">
+                <td v-if="columnVisibility.tcKimlik" class="px-2 py-1.5 text-[10px] text-gray-600 font-mono">
                   {{ employee.tcKimlik || '-' }}
                 </td>
-                <td class="px-2 py-1.5">
+                <td v-if="columnVisibility.position" class="px-2 py-1.5">
                   <div
                     class="text-[10px] text-gray-600 truncate max-w-[100px]"
                     :title="employee.position"
@@ -527,7 +609,7 @@
                     {{ employee.position || '-' }}
                   </div>
                 </td>
-                <td class="px-2 py-1.5">
+                <td v-if="columnVisibility.department" class="px-2 py-1.5">
                   <div
                     class="text-[10px] text-gray-600 truncate max-w-[90px]"
                     :title="employee.department?.name"
@@ -535,8 +617,8 @@
                     {{ employee.department?.name || '-' }}
                   </div>
                 </td>
-                <td class="px-2 py-1.5 text-[10px] text-gray-600">{{ employee.phone || '-' }}</td>
-                <td class="px-2 py-1.5">
+                <td v-if="columnVisibility.phone" class="px-2 py-1.5 text-[10px] text-gray-600">{{ employee.phone || '-' }}</td>
+                <td v-if="columnVisibility.email" class="px-2 py-1.5">
                   <div
                     class="text-[10px] text-gray-600 truncate max-w-[120px] lowercase"
                     :title="employee.email"
@@ -544,10 +626,30 @@
                     {{ employee.email || '-' }}
                   </div>
                 </td>
-                <td class="px-2 py-1.5 text-[10px] text-gray-600">
+                <td v-if="columnVisibility.hireDate" class="px-2 py-1.5 text-[10px] text-gray-600">
                   {{ employee.hireDate ? formatDate(employee.hireDate) : '-' }}
                 </td>
-                <td class="px-2 py-1.5">
+                <td v-if="columnVisibility.salary" class="px-2 py-1.5 text-[10px] text-gray-600" @dblclick.stop="startSalaryEdit(employee, $event)">
+                  <template v-if="editingSalaryId === employee._id">
+                    <input
+                      v-model="editingSalaryValue"
+                      class="salary-inline-input w-20 px-1 py-0.5 text-[10px] border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      @keyup.enter="saveSalaryEdit(employee)"
+                      @keyup.escape="cancelSalaryEdit"
+                      @blur="saveSalaryEdit(employee)"
+                      @click.stop
+                    />
+                  </template>
+                  <template v-else>
+                    <span class="cursor-pointer hover:text-blue-600" :title="'Çift tıkla düzenle'">
+                      {{ employee.salary ? new Intl.NumberFormat('tr-TR').format(employee.salary) + ' ₺' : '-' }}
+                    </span>
+                  </template>
+                </td>
+                <td v-if="columnVisibility.contractType" class="px-2 py-1.5 text-[10px] text-gray-600">
+                  {{ contractTypeLabel(employee.contractType) }}
+                </td>
+                <td v-if="columnVisibility.retirement" class="px-2 py-1.5">
                   <span
                     :class="
                       employee.isRetired
@@ -559,7 +661,7 @@
                     {{ employee.isRetired ? 'Emekli' : 'Normal' }}
                   </span>
                 </td>
-                <td class="px-2 py-1.5">
+                <td v-if="columnVisibility.status" class="px-2 py-1.5">
                   <span
                     v-if="employee.status === 'separated'"
                     class="px-1 py-0.5 text-[9px] font-medium rounded bg-red-100 text-red-700"
@@ -724,7 +826,7 @@
         </table>
       </div>
       <!-- Alt Bilgi -->
-      <div class="px-3 py-2 bg-gray-50 border-t">
+      <div class="px-3 py-2 bg-gray-50 border-t flex justify-between items-center">
         <p class="text-xs text-gray-600">
           Toplam
           {{
@@ -734,6 +836,15 @@
           }}
           çalışan
         </p>
+        <button
+          @click="exportToExcel"
+          class="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Excel'e Aktar
+        </button>
       </div>
     </div>
 
@@ -1803,11 +1914,106 @@
         </div>
       </div>
     </div>
+    <!-- Toplu Ücret Değiştirme Modalı -->
+    <Teleport to="body">
+      <div v-if="showBulkSalaryModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30" @click="showBulkSalaryModal = false">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-[400px] max-w-[90vw]" @click.stop>
+          <h3 class="text-lg font-semibold text-gray-900 mb-1">Toplu Ücret Değiştir</h3>
+          <p class="text-xs text-gray-500 mb-4">{{ selectedEmployees.length }} çalışanın ücreti güncellenecek</p>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Yeni Ücret</label>
+              <input
+                v-model="bulkSalaryValue"
+                type="text"
+                inputmode="numeric"
+                placeholder="Örn: 30000"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="checkbox" v-model="bulkSalaryIsNet" id="bulkIsNet" class="w-4 h-4 text-blue-600 border-gray-300 rounded" />
+              <label for="bulkIsNet" class="text-sm text-gray-700">Net ücret</label>
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 mt-5">
+            <button @click="showBulkSalaryModal = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">İptal</button>
+            <button @click="saveBulkSalary" :disabled="savingBulkSalary" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              {{ savingBulkSalary ? 'Kaydediliyor...' : 'Uygula' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Hızlı Önizleme Modalı -->
+    <Teleport to="body">
+      <div v-if="previewEmployee" class="fixed inset-0 z-50" @click="closePreview">
+        <div
+          class="fixed left-1/2 -translate-x-1/2 w-[600px] max-w-[90vw] bg-white rounded-xl shadow-2xl border border-gray-200 p-4 cursor-pointer"
+          :style="{ top: modalTopPosition }"
+          @click.stop
+          @dblclick="editEmployee(previewEmployee); closePreview()"
+        >
+          <div class="flex items-center gap-4">
+            <!-- Fotoğraf -->
+            <div class="flex-shrink-0">
+              <img
+                v-if="previewEmployee.profilePhoto"
+                :src="previewEmployee.profilePhoto"
+                alt="Profil"
+                class="w-20 h-20 rounded-full object-cover border-2 border-gray-100"
+              />
+              <div
+                v-else
+                class="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl font-bold border-2 border-gray-100"
+              >
+                {{ previewEmployee.firstName?.charAt(0) }}{{ previewEmployee.lastName?.charAt(0) }}
+              </div>
+            </div>
+            <!-- Bilgiler -->
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-semibold text-gray-900">
+                {{ previewEmployee.firstName }} {{ previewEmployee.lastName }}
+              </h3>
+              <p class="text-sm text-gray-500">{{ previewEmployee.position || '-' }}</p>
+              <div class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600">
+                <div><span class="text-gray-400">Departman:</span> {{ previewEmployee.department?.name || '-' }}</div>
+                <div><span class="text-gray-400">Telefon:</span> {{ previewEmployee.phone || '-' }}</div>
+                <div><span class="text-gray-400">Email:</span> {{ previewEmployee.email || '-' }}</div>
+                <div><span class="text-gray-400">İşe Giriş:</span> {{ previewEmployee.hireDate ? formatDate(previewEmployee.hireDate) : '-' }}</div>
+                <div><span class="text-gray-400">TCKN:</span> {{ previewEmployee.tcKimlik || '-' }}</div>
+                <div><span class="text-gray-400">Ücret:</span> {{ previewEmployee.salary ? new Intl.NumberFormat('tr-TR').format(previewEmployee.salary) + ' ₺' + (previewEmployee.isNetSalary ? ' (Net)' : ' (Brüt)') : '-' }}</div>
+                <div>
+                  <span class="text-gray-400">Sözleşme:</span>
+                  <span :class="previewEmployee.contractType === 'BELİRLİ_SÜRELİ' ? 'text-amber-700 font-medium' : ''">
+                    {{ contractTypeLabel(previewEmployee.contractType) }}
+                  </span>
+                </div>
+                <div v-if="previewEmployee.contractType === 'BELİRLİ_SÜRELİ'">
+                  <span class="text-gray-400">Bitiş Tarihi:</span>
+                  <span class="text-amber-700 font-medium">{{ previewEmployee.contractEndDate ? formatDate(previewEmployee.contractEndDate) : '-' }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-400">Durum:</span>
+                  <span
+                    class="ml-1 px-1.5 py-0.5 text-[10px] font-medium rounded"
+                    :class="previewEmployee.status === 'separated' ? 'bg-red-100 text-red-700' : previewEmployee.isActivated ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
+                  >
+                    {{ previewEmployee.status === 'separated' ? 'Ayrılmış' : previewEmployee.isActivated ? 'Aktif' : 'Bekliyor' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useToastStore } from '@/stores/toast';
@@ -1816,6 +2022,7 @@ import api from '@/services/api';
 import Button from '@/components/Button.vue';
 import Input from '@/components/Input.vue';
 import PhoneInput from '@/components/PhoneInput.vue';
+import * as XLSX from 'xlsx';
 
 const router = useRouter();
 
@@ -1833,6 +2040,48 @@ const showImportModal = ref(false);
 const editingEmployee = ref(null);
 const editPhotoPreview = ref(null);
 const adminPhotoUploading = ref(false);
+const previewEmployee = ref(null);
+const previewPosition = ref({ top: 0 });
+const showColumnMenu = ref(false);
+const columnVisibility = ref({
+  tcKimlik: true,
+  position: true,
+  department: true,
+  phone: true,
+  email: true,
+  hireDate: true,
+  salary: true,
+  contractType: false,
+  retirement: true,
+  status: true,
+});
+const columnLabels = {
+  tcKimlik: 'TCKN',
+  position: 'Görev',
+  department: 'Departman',
+  phone: 'Telefon',
+  email: 'Email',
+  hireDate: 'İşe Giriş',
+  salary: 'Ücret',
+  contractType: 'Sözleşme',
+  retirement: 'Emeklilik',
+  status: 'Durum',
+};
+const contractTypeLabel = (type) => {
+  const labels = {
+    'BELİRSİZ_SÜRELİ': 'Normal',
+    'BELİRLİ_SÜRELİ': 'Belirli Süreli',
+    'KISMİ_SÜRELİ': 'Part Time',
+    'UZAKTAN_ÇALIŞMA': 'Uzaktan',
+  };
+  return labels[type] || 'Normal';
+};
+const editingSalaryId = ref(null);
+const editingSalaryValue = ref('');
+const showBulkSalaryModal = ref(false);
+const bulkSalaryValue = ref('');
+const bulkSalaryIsNet = ref(true);
+const savingBulkSalary = ref(false);
 const importing = ref(false);
 const importFile = ref(null);
 const importCompany = ref('');
@@ -3115,6 +3364,209 @@ const deleteAdminPhoto = async () => {
     alert(err.response?.data?.message || 'Fotoğraf silinemedi');
   }
 };
+
+const visibleColumnCount = computed(() => {
+  // checkbox + # + ad soyad + işlem = 4 sabit sütun + görünür sütunlar
+  return 4 + Object.values(columnVisibility.value).filter(Boolean).length;
+});
+
+const exportToExcel = () => {
+  const companyName = authStore.user?.company?.name || authStore.user?.company || 'Şirket';
+  const employees = isBayiAdmin.value
+    ? groupedEmployees.value.flatMap(g => g.employees)
+    : sortedEmployees.value;
+
+  if (!employees.length) {
+    toast.warning('Aktarılacak çalışan bulunamadı');
+    return;
+  }
+
+  // Görünür sütun tanımları
+  const allCols = [
+    { key: 'index', label: '#', always: true },
+    { key: 'name', label: 'Ad Soyad', always: true },
+    { key: 'tcKimlik', label: 'TCKN' },
+    { key: 'position', label: 'Görev' },
+    { key: 'department', label: 'Departman' },
+    { key: 'phone', label: 'Telefon' },
+    { key: 'email', label: 'Email' },
+    { key: 'hireDate', label: 'İşe Giriş' },
+    { key: 'salary', label: 'Ücret' },
+    { key: 'contractType', label: 'Sözleşme' },
+    { key: 'retirement', label: 'Emeklilik' },
+    { key: 'status', label: 'Durum' },
+  ];
+  const cols = allCols.filter(c => c.always || columnVisibility.value[c.key]);
+
+  // Veri satırları
+  const rows = employees.map((emp, idx) => {
+    const row = {};
+    cols.forEach(c => {
+      switch (c.key) {
+        case 'index': row[c.label] = idx + 1; break;
+        case 'name': row[c.label] = `${emp.firstName} ${emp.lastName}`; break;
+        case 'tcKimlik': row[c.label] = emp.tcKimlik || ''; break;
+        case 'position': row[c.label] = emp.position || ''; break;
+        case 'department': row[c.label] = emp.department?.name || ''; break;
+        case 'phone': row[c.label] = emp.phone || ''; break;
+        case 'email': row[c.label] = emp.email || ''; break;
+        case 'hireDate': row[c.label] = emp.hireDate ? formatDate(emp.hireDate) : ''; break;
+        case 'salary': row[c.label] = emp.salary ? new Intl.NumberFormat('tr-TR').format(emp.salary) + ' ₺' : ''; break;
+        case 'contractType': row[c.label] = contractTypeLabel(emp.contractType) + (emp.contractType === 'BELİRLİ_SÜRELİ' && emp.contractEndDate ? ' (' + formatDate(emp.contractEndDate) + ')' : ''); break;
+        case 'retirement': row[c.label] = emp.isRetired ? 'Emekli' : 'Normal'; break;
+        case 'status': row[c.label] = emp.status === 'separated' ? 'Ayrılmış' : emp.isActivated ? 'Aktif' : 'Bekliyor'; break;
+      }
+    });
+    return row;
+  });
+
+  const wb = XLSX.utils.book_new();
+  const colCount = cols.length;
+
+  // Başlık satırı (firma adı)
+  const headerRow = Array(colCount).fill('');
+  headerRow[0] = companyName;
+  // Boş satır
+  const emptyRow = Array(colCount).fill('');
+  // Alt satır (powered by)
+  const footerRow = Array(colCount).fill('');
+  footerRow[0] = 'Powered by personelplus.com';
+
+  // Tablo başlıkları
+  const tableHeaders = cols.map(c => c.label);
+
+  // Veri dizileri
+  const dataArrays = rows.map(r => cols.map(c => r[c.label]));
+
+  // Tüm satırları birleştir
+  const allRows = [headerRow, emptyRow, tableHeaders, ...dataArrays, emptyRow, footerRow];
+
+  const ws = XLSX.utils.aoa_to_sheet(allRows);
+
+  // Sütun genişlikleri
+  ws['!cols'] = cols.map(c => ({
+    wch: c.key === 'name' ? 25 : c.key === 'email' ? 28 : c.key === 'tcKimlik' ? 14 : c.key === 'position' ? 22 : c.key === 'phone' ? 15 : 14
+  }));
+
+  // Firma adı hücresini merge et
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } },
+    { s: { r: allRows.length - 1, c: 0 }, e: { r: allRows.length - 1, c: colCount - 1 } },
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Çalışanlar');
+
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  XLSX.writeFile(wb, `Calisanlar_${dateStr}.xlsx`);
+  toast.success('Excel dosyası indirildi');
+};
+
+// Inline ücret düzenleme
+const startSalaryEdit = (employee, event) => {
+  event.stopPropagation();
+  editingSalaryId.value = employee._id;
+  editingSalaryValue.value = employee.salary ? String(employee.salary) : '';
+  nextTick(() => {
+    const input = document.querySelector('.salary-inline-input');
+    if (input) input.focus();
+  });
+};
+
+const saveSalaryEdit = async (employee) => {
+  const newSalary = editingSalaryValue.value ? Number(editingSalaryValue.value.replace(/\D/g, '')) : null;
+  if (newSalary === employee.salary) {
+    editingSalaryId.value = null;
+    return;
+  }
+  try {
+    await api.put(`/employees/${employee._id}`, { salary: newSalary });
+    employee.salary = newSalary;
+    toast.success('Ücret güncellendi');
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Ücret güncellenemedi');
+  }
+  editingSalaryId.value = null;
+};
+
+const cancelSalaryEdit = () => {
+  editingSalaryId.value = null;
+};
+
+// Toplu ücret güncelleme
+const openBulkSalaryModal = () => {
+  bulkSalaryValue.value = '';
+  bulkSalaryIsNet.value = true;
+  showBulkSalaryModal.value = true;
+};
+
+const saveBulkSalary = async () => {
+  const salary = bulkSalaryValue.value ? Number(String(bulkSalaryValue.value).replace(/\D/g, '')) : null;
+  if (!salary || salary <= 0) {
+    toast.error('Geçerli bir ücret giriniz');
+    return;
+  }
+  savingBulkSalary.value = true;
+  let successCount = 0;
+  let failCount = 0;
+  for (const empId of selectedEmployees.value) {
+    try {
+      await api.put(`/employees/${empId}`, { salary, isNetSalary: bulkSalaryIsNet.value });
+      // Listedeki veriyi güncelle
+      const allEmps = isBayiAdmin.value
+        ? groupedEmployees.value.flatMap(g => g.employees)
+        : sortedEmployees.value;
+      const emp = allEmps.find(e => e._id === empId);
+      if (emp) {
+        emp.salary = salary;
+        emp.isNetSalary = bulkSalaryIsNet.value;
+      }
+      successCount++;
+    } catch {
+      failCount++;
+    }
+  }
+  savingBulkSalary.value = false;
+  showBulkSalaryModal.value = false;
+  if (failCount > 0) {
+    toast.warning(`${successCount} çalışan güncellendi, ${failCount} başarısız`);
+  } else {
+    toast.success(`${successCount} çalışanın ücreti güncellendi`);
+  }
+};
+
+// Hızlı önizleme (tek tıklama gecikmeli, çift tıklama iptal eder)
+let clickTimer = null;
+
+const showPreview = (employee, event) => {
+  if (event.target.closest('input, button')) return;
+  if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; }
+  const row = event.currentTarget;
+  const rect = row.getBoundingClientRect();
+  clickTimer = setTimeout(() => {
+    previewEmployee.value = employee;
+    previewPosition.value = { top: rect.top + rect.height / 2 };
+    clickTimer = null;
+  }, 250);
+};
+
+const handleRowDblClick = (employee, event) => {
+  if (event.target.closest('input, button')) return;
+  if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+  editEmployee(employee);
+};
+
+const closePreview = () => {
+  previewEmployee.value = null;
+};
+
+const modalTopPosition = computed(() => {
+  const modalHeight = 140;
+  const viewportHeight = window.innerHeight;
+  let top = previewPosition.value.top - modalHeight / 2;
+  top = Math.max(16, Math.min(top, viewportHeight - modalHeight - 16));
+  return top + 'px';
+});
 
 const closeModal = () => {
   showModal.value = false;

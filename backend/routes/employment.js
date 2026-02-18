@@ -313,6 +313,7 @@ router.post('/start', auth, requireRole('company_admin', 'super_admin', 'bayi_ad
       jobName: jobName || null,
       ucret: finalUcret,
       contractType: finalEmploymentType,
+      contractEndDate: finalEmploymentType === 'BELİRLİ_SÜRELİ' && req.body.contractEndDate ? new Date(req.body.contractEndDate) : null,
       isRetired: req.body.isRetired || false,
       // Part-time detayları (sadece KISMİ_SÜRELİ için)
       partTimeDetails: finalEmploymentType === 'KISMİ_SÜRELİ' && partTimeDetails ? {
@@ -452,7 +453,7 @@ router.post('/hire', auth, requireRole('company_admin', 'resmi_muhasebe_ik', 'su
     }
 
     // Sözleşme tipi validasyonu
-    const validContractTypes = ['BELİRSİZ_SÜRELİ', 'BELİRLİ_SÜRELİ', 'KISMİ_SÜRELİ'];
+    const validContractTypes = ['BELİRSİZ_SÜRELİ', 'BELİRLİ_SÜRELİ', 'KISMİ_SÜRELİ', 'UZAKTAN_ÇALIŞMA'];
     const finalContractType = contractType || 'BELİRSİZ_SÜRELİ';
     if (!validContractTypes.includes(finalContractType)) {
       return errorResponse(res, { message: 'Geçersiz Sözleşme Tipi' });
@@ -536,6 +537,7 @@ router.post('/hire', auth, requireRole('company_admin', 'resmi_muhasebe_ik', 'su
       sgkMeslekKodu: sgkMeslekKodu || null,
       ucret: finalUcret,
       contractType: finalContractType,
+      contractEndDate: finalContractType === 'BELİRLİ_SÜRELİ' && req.body.contractEndDate ? new Date(req.body.contractEndDate) : null,
       isRetired: req.body.isRetired || false,
       status: initialStatus,
       pendingDate: new Date(),
@@ -843,6 +845,7 @@ router.post('/create', auth, requireRole('company_admin', 'super_admin', 'bayi_a
         jobName: jobName || null,
         ucret: finalUcret,
         contractType: finalEmploymentType,
+        contractEndDate: finalEmploymentType === 'BELİRLİ_SÜRELİ' && req.body.contractEndDate ? new Date(req.body.contractEndDate) : null,
         isRetired: req.body.isRetired || false,
         partTimeDetails: finalEmploymentType === 'KISMİ_SÜRELİ' && partTimeDetails ? {
           weeklyHours: partTimeDetails.weeklyHours,
@@ -1531,6 +1534,8 @@ router.post('/:id/approve', auth, requirePermission('attendance:approve'), async
             position: preRecord.sgkMeslekKodu || '',
             salary: preRecord.ucret,
             isNetSalary: (company.payrollCalculationType || 'BRUT') === 'NET',
+            contractType: preRecord.contractType || 'BELİRSİZ_SÜRELİ',
+            contractEndDate: preRecord.contractEndDate || null,
             previousEmploymentRecordId: null // Önceki dönem için EmploymentPreRecord referansı gerekirse eklenebilir
           });
 
@@ -1574,6 +1579,8 @@ router.post('/:id/approve', auth, requirePermission('attendance:approve'), async
             status: 'active',
             salary: preRecord.ucret,
             isNetSalary: (company.payrollCalculationType || 'BRUT') === 'NET',
+            contractType: preRecord.contractType || 'BELİRSİZ_SÜRELİ',
+            contractEndDate: preRecord.contractEndDate || null,
             employmentHistory: [], // Boş geçmiş
             totalWorkMonths: 0,
             rehireCount: 0
@@ -2849,7 +2856,9 @@ router.post('/fix-missing-employee/:preRecordId', auth, requireRole('super_admin
         hireDate: hireDate,
         status: 'active',
         salary: salary,
-        isNetSalary: (company.payrollCalculationType || 'BRUT') === 'NET'
+        isNetSalary: (company.payrollCalculationType || 'BRUT') === 'NET',
+        contractType: preRecord.contractType || 'BELİRSİZ_SÜRELİ',
+        contractEndDate: preRecord.contractEndDate || null
       });
 
       if (useTransaction && session) {
@@ -3293,7 +3302,9 @@ router.post('/:id/create-employee', auth, requireRole('company_admin', 'bayi_adm
       hireDate: preRecord.hireDate,
       status: 'active',
       salary: preRecord.ucret,
-      isNetSalary: (company.payrollCalculationType || 'BRUT') === 'NET'
+      isNetSalary: (company.payrollCalculationType || 'BRUT') === 'NET',
+      contractType: preRecord.contractType || 'BELİRSİZ_SÜRELİ',
+      contractEndDate: preRecord.contractEndDate || null
     });
 
     await employee.save();

@@ -108,6 +108,15 @@ const employeeSchema = new mongoose.Schema({
       type: Boolean,
       default: true
     },
+    contractType: {
+      type: String,
+      enum: ['BELİRSİZ_SÜRELİ', 'BELİRLİ_SÜRELİ', 'KISMİ_SÜRELİ', 'UZAKTAN_ÇALIŞMA'],
+      default: 'BELİRSİZ_SÜRELİ'
+    },
+    contractEndDate: {
+      type: Date,
+      default: null
+    },
     employmentRecordId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'EmploymentPreRecord',
@@ -152,6 +161,15 @@ const employeeSchema = new mongoose.Schema({
   },
   position: {
     type: String // Görevi
+  },
+  contractType: {
+    type: String,
+    enum: ['BELİRSİZ_SÜRELİ', 'BELİRLİ_SÜRELİ', 'KISMİ_SÜRELİ', 'UZAKTAN_ÇALIŞMA'],
+    default: 'BELİRSİZ_SÜRELİ'
+  },
+  contractEndDate: {
+    type: Date, // Belirli süreli sözleşme bitiş tarihi
+    default: null
   },
   // Kimlik Bilgileri
   birthPlace: {
@@ -329,6 +347,8 @@ employeeSchema.methods.reactivateEmployee = function(rehireData) {
   if (rehireData.position) this.position = rehireData.position;
   if (rehireData.salary) this.salary = rehireData.salary;
   if (rehireData.isNetSalary !== undefined) this.isNetSalary = rehireData.isNetSalary;
+  if (rehireData.contractType) this.contractType = rehireData.contractType;
+  this.contractEndDate = rehireData.contractEndDate || null;
 
   // Rehire sayısını artır
   this.rehireCount = (this.rehireCount || 0) + 1;

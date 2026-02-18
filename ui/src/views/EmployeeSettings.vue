@@ -7,6 +7,58 @@
     <div class="bg-white rounded-lg shadow p-6 max-w-4xl max-h-[600px] overflow-y-auto">
       <form @submit.prevent="saveEmployee" @input="hasChanges = true">
         <div class="space-y-6">
+          <!-- Profil Fotoğrafı -->
+          <div v-if="employee" class="flex items-center gap-4">
+            <div class="relative group">
+              <div
+                v-if="photoPreview || employee.profilePhoto"
+                class="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-200 cursor-pointer"
+                @click="$refs.photoInput.click()"
+              >
+                <img :src="photoPreview || employee.profilePhoto" alt="Profil" class="w-full h-full object-cover" />
+              </div>
+              <div
+                v-else
+                class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-lg font-bold border-2 border-gray-200 cursor-pointer"
+                @click="$refs.photoInput.click()"
+              >
+                {{ employee.firstName?.charAt(0) }}{{ employee.lastName?.charAt(0) }}
+              </div>
+              <div
+                class="absolute inset-0 w-16 h-16 rounded-full bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                @click="$refs.photoInput.click()"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <input
+                ref="photoInput"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                class="hidden"
+                @change="handlePhotoChange"
+              />
+            </div>
+            <div>
+              <div class="flex gap-2">
+                <button type="button" @click="$refs.photoInput.click()" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                  {{ photoUploading ? 'Yükleniyor...' : 'Fotoğraf Yükle' }}
+                </button>
+                <button
+                  v-if="employee.profilePhoto"
+                  type="button"
+                  @click="deletePhoto"
+                  class="text-xs text-red-500 hover:text-red-700 font-medium"
+                >
+                  Sil
+                </button>
+              </div>
+              <p class="text-[10px] text-gray-400 mt-0.5">Maks. 2MB (JPEG, PNG, WebP)</p>
+            </div>
+          </div>
+
           <!-- Genel Bilgiler -->
           <div>
             <h2 class="text-lg font-semibold text-gray-800 mb-4">Genel Bilgiler</h2>
@@ -185,6 +237,40 @@
                   ({{ form.isNetSalary ? 'Net' : 'Brüt' }} ücret olarak işaretlendi)
                 </p>
               </div>
+            </div>
+          </div>
+
+          <!-- Sözleşme Tipi -->
+          <div class="border-t pt-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Sözleşme Tipi</h2>
+            <div class="flex flex-wrap gap-3">
+              <button
+                v-for="ct in contractTypes"
+                :key="ct.value"
+                type="button"
+                @click="form.contractType = ct.value; hasChanges = true"
+                :title="ct.tooltip"
+                class="px-4 py-2.5 rounded-lg text-sm font-medium border-2 transition-all"
+                :class="form.contractType === ct.value
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300 hover:bg-blue-50'"
+              >
+                {{ ct.label }}
+              </button>
+            </div>
+
+            <!-- Belirli Süreli Sözleşme Bitiş Tarihi -->
+            <div v-if="form.contractType === 'BELİRLİ_SÜRELİ'" class="mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Sözleşme Bitiş Tarihi <span class="text-red-500">*</span>
+              </label>
+              <input
+                v-model="form.contractEndDate"
+                @change="hasChanges = true"
+                type="date"
+                class="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p class="mt-1 text-xs text-gray-500">Belirli süreli sözleşmenin sona ereceği tarih</p>
             </div>
           </div>
 
@@ -788,6 +874,13 @@ import api from '@/services/api';
 import Button from '@/components/Button.vue';
 import Input from '@/components/Input.vue';
 
+const contractTypes = [
+  { value: 'BELİRSİZ_SÜRELİ', label: 'Normal', tooltip: 'Belirsiz süreli' },
+  { value: 'BELİRLİ_SÜRELİ', label: 'Belirli Süreli', tooltip: 'Proje bazlı' },
+  { value: 'KISMİ_SÜRELİ', label: 'Part Time', tooltip: 'Kısmi süreli' },
+  { value: 'UZAKTAN_ÇALIŞMA', label: 'Uzaktan Çalışma', tooltip: 'Uzaktan çalışma' },
+];
+
 const route = useRoute();
 const toast = useToastStore();
 const confirmModal = useConfirmStore();
@@ -799,6 +892,8 @@ const departments = ref([]);
 const allEmployees = ref([]); // Tüm çalışanlar (manager seçimi için)
 const saving = ref(false);
 const hasChanges = ref(false);
+const photoPreview = ref(null);
+const photoUploading = ref(false);
 
 // İzin talepleri için
 const leaveRequests = ref([]);
@@ -885,6 +980,8 @@ const form = ref({
   salary: null,
   salaryDisplay: '',
   isNetSalary: true,
+  contractType: 'BELİRSİZ_SÜRELİ',
+  contractEndDate: '',
   birthPlace: '',
   passportNumber: '',
   bloodType: '',
@@ -984,6 +1081,44 @@ const allExitReasons = [
   },
 ];
 
+const handlePhotoChange = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file || !employee.value) return;
+
+  const reader = new FileReader();
+  reader.onload = (ev) => { photoPreview.value = ev.target.result; };
+  reader.readAsDataURL(file);
+
+  photoUploading.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const res = await api.put(`/employees/${route.params.id}/profile-photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    employee.value.profilePhoto = res.data?.data?.profilePhoto;
+    photoPreview.value = null;
+    toast.success('Fotoğraf yüklendi');
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Fotoğraf yüklenemedi');
+    photoPreview.value = null;
+  }
+  photoUploading.value = false;
+  e.target.value = '';
+};
+
+const deletePhoto = async () => {
+  if (!employee.value || !confirm('Fotoğrafı silmek istediğinize emin misiniz?')) return;
+  try {
+    await api.delete(`/employees/${route.params.id}/profile-photo`);
+    employee.value.profilePhoto = null;
+    photoPreview.value = null;
+    toast.success('Fotoğraf silindi');
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Fotoğraf silinemedi');
+  }
+};
+
 const loadEmployee = async () => {
   try {
     const response = await api.get(`/employees/${route.params.id}`);
@@ -1015,6 +1150,8 @@ const loadEmployee = async () => {
       salary: employee.value.salary || null,
       salaryDisplay: employee.value.salary ? formatNumber(employee.value.salary) : '',
       isNetSalary: employee.value.isNetSalary !== undefined ? employee.value.isNetSalary : true,
+      contractType: employee.value.contractType || 'BELİRSİZ_SÜRELİ',
+      contractEndDate: formatDateForInput(employee.value.contractEndDate),
       birthPlace: employee.value.birthPlace || '',
       passportNumber: employee.value.passportNumber || '',
       bloodType: employee.value.bloodType || '',
@@ -1185,6 +1322,7 @@ const saveEmployee = async () => {
       exitReasonCode: form.value.exitReasonCode || undefined,
       salary: form.value.salary || null,
       isNetSalary: form.value.isNetSalary !== undefined ? form.value.isNetSalary : true,
+      contractEndDate: form.value.contractType === 'BELİRLİ_SÜRELİ' && form.value.contractEndDate ? new Date(form.value.contractEndDate) : null,
       phone: form.value.phone.replace(/\s/g, ''), // Remove spaces before sending
       tcKimlik: form.value.tcKimlik,
     };

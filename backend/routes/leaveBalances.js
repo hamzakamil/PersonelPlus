@@ -48,6 +48,7 @@ router.get('/', auth, async (req, res) => {
       if (balance) {
         balances.push({
           _id: emp._id,
+          ...balance,
           employee: {
             _id: emp._id,
             firstName: emp.firstName,
@@ -58,7 +59,6 @@ router.get('/', auth, async (req, res) => {
             birthDate: emp.birthDate
           },
           company: emp.company,
-          ...balance
         });
       }
     }
