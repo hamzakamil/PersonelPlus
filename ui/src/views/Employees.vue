@@ -134,12 +134,22 @@
             {{ manualActivating ? 'Aktif Ediliyor...' : 'Manuel Aktif Et' }}
           </button>
           <button
+            v-if="activationMode === 'email' || activationMode === 'both'"
             @click="sendActivationToSelected"
             :disabled="sendingBulkActivation"
             class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             title="Email ile aktivasyon linki gönder"
           >
             {{ sendingBulkActivation ? 'Gönderiliyor...' : 'Email Gönder' }}
+          </button>
+          <button
+            v-if="activationMode === 'sms' || activationMode === 'both'"
+            @click="sendSmsActivationToSelected"
+            :disabled="sendingBulkSmsActivation"
+            class="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
+            title="SMS ile aktivasyon kodu gönder"
+          >
+            {{ sendingBulkSmsActivation ? 'Gönderiliyor...' : 'SMS Gönder' }}
           </button>
           <button
             @click="openBulkSalaryModal"
@@ -473,7 +483,7 @@
                         </svg>
                       </button>
                       <button
-                        v-if="!employee.isActivated && employee.status !== 'separated'"
+                        v-if="!employee.isActivated && employee.status !== 'separated' && (activationMode === 'email' || activationMode === 'both')"
                         @click="sendActivationLink(employee._id)"
                         :disabled="sendingActivation === employee._id"
                         class="p-1 text-blue-600 hover:bg-blue-50 rounded"
@@ -512,6 +522,26 @@
                             stroke-width="2"
                             d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                           />
+                        </svg>
+                      </button>
+                      <button
+                        v-if="!employee.isActivated && employee.status !== 'separated' && employee.phone && (activationMode === 'sms' || activationMode === 'both')"
+                        @click="sendSmsActivation(employee._id)"
+                        :disabled="sendingSmsActivation === employee._id"
+                        class="p-1 text-teal-600 hover:bg-teal-50 rounded"
+                        title="SMS ile Aktivasyon Kodu Gönder"
+                      >
+                        <svg
+                          v-if="sendingSmsActivation === employee._id"
+                          class="w-3.5 h-3.5 animate-spin"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
                       </button>
                       <button
@@ -706,7 +736,7 @@
                       </svg>
                     </button>
                     <button
-                      v-if="!employee.isActivated && employee.status !== 'separated'"
+                      v-if="!employee.isActivated && employee.status !== 'separated' && (activationMode === 'email' || activationMode === 'both')"
                       @click="sendActivationLink(employee._id)"
                       :disabled="sendingActivation === employee._id"
                       class="p-1 text-blue-600 hover:bg-blue-50 rounded"
@@ -745,6 +775,26 @@
                           stroke-width="2"
                           d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                         />
+                      </svg>
+                    </button>
+                    <button
+                      v-if="!employee.isActivated && employee.status !== 'separated' && employee.phone && (activationMode === 'sms' || activationMode === 'both')"
+                      @click="sendSmsActivation(employee._id)"
+                      :disabled="sendingSmsActivation === employee._id"
+                      class="p-1 text-teal-600 hover:bg-teal-50 rounded"
+                      title="SMS ile Aktivasyon Kodu Gönder"
+                    >
+                      <svg
+                        v-if="sendingSmsActivation === employee._id"
+                        class="w-3.5 h-3.5 animate-spin"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                      </svg>
+                      <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
                     </button>
                     <button
@@ -1996,6 +2046,62 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- SMS OTP Doğrulama Modalı -->
+    <Teleport to="body">
+      <div v-if="smsOtpModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="smsOtpModal = false">
+        <div class="bg-white rounded-xl shadow-2xl w-[420px] max-w-[90vw] p-6">
+          <h3 class="text-lg font-semibold text-gray-800 mb-2">SMS Aktivasyon Doğrulama</h3>
+          <p class="text-sm text-gray-500 mb-4">
+            <span class="font-medium text-gray-700">{{ smsOtpData?.employeeName }}</span> için
+            <span class="font-medium text-teal-600">{{ smsOtpData?.maskedPhone }}</span> numarasına gönderilen
+            6 haneli kodu girin.
+          </p>
+
+          <div class="mb-4">
+            <input
+              v-model="smsOtpCode"
+              type="text"
+              maxlength="6"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              class="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              placeholder="______"
+              @keyup.enter="verifySmsOtp"
+              autofocus
+            />
+          </div>
+
+          <div class="flex items-center justify-between mb-4">
+            <button
+              @click="resendSmsOtp"
+              class="text-sm text-teal-600 hover:text-teal-800 underline"
+            >
+              Tekrar Gönder
+            </button>
+            <span class="text-xs text-gray-400">
+              Kod 5 dakika geçerlidir
+            </span>
+          </div>
+
+          <div class="flex gap-3">
+            <button
+              @click="smsOtpModal = false; smsOtpData = null; smsOtpCode = ''"
+              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              İptal
+            </button>
+            <button
+              @click="verifySmsOtp"
+              :disabled="verifyingSmsOtp || smsOtpCode.length !== 6"
+              class="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
+            >
+              {{ verifyingSmsOtp ? 'Doğrulanıyor...' : 'Doğrula' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -2092,6 +2198,14 @@ const sendingActivation = ref(null);
 const sendingBulkActivation = ref(false);
 const manualActivatingId = ref(null);
 const manualActivating = ref(false);
+// SMS aktivasyon
+const activationMode = ref('email'); // 'email' | 'sms' | 'both'
+const sendingSmsActivation = ref(null); // employee._id
+const sendingBulkSmsActivation = ref(false);
+const smsOtpModal = ref(false);
+const smsOtpData = ref(null); // { verificationId, employeeId, employeeName, maskedPhone, expiresAt }
+const smsOtpCode = ref('');
+const verifyingSmsOtp = ref(false);
 const showLeaveRequestModalFlag = ref(false);
 const selectedEmployeeForLeave = ref(null);
 const savingLeaveRequest = ref(false);
@@ -2421,6 +2535,17 @@ const updatePersonelNumarasi = async employee => {
     toast.error(error.response?.data?.message || 'Personel numarası güncellenemedi');
     // Hata durumunda listeyi yeniden yükle
     loadEmployees();
+  }
+};
+
+const loadActivationMode = async () => {
+  try {
+    const response = await api.get('/global-settings/activation-mode');
+    if (response.data.success) {
+      activationMode.value = response.data.data.activationMode || 'email';
+    }
+  } catch (error) {
+    console.error('Aktivasyon modu yüklenemedi:', error);
   }
 };
 
@@ -3327,6 +3452,121 @@ const manualActivateSelected = async () => {
   }
 };
 
+// SMS ile aktivasyon gönder (tek çalışan)
+const sendSmsActivation = async (employeeId) => {
+  sendingSmsActivation.value = employeeId;
+  try {
+    const response = await api.post(`/employees/${employeeId}/send-sms-activation`);
+    if (response.data.success) {
+      const data = response.data.data;
+      smsOtpData.value = {
+        verificationId: data.verificationId,
+        employeeId: data.employeeId,
+        employeeName: data.employeeName,
+        maskedPhone: data.maskedPhone,
+        expiresAt: data.expiresAt,
+      };
+      smsOtpCode.value = '';
+      smsOtpModal.value = true;
+      toast.success(response.data.message);
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'SMS gönderilemedi');
+  } finally {
+    sendingSmsActivation.value = null;
+  }
+};
+
+// SMS OTP doğrula
+const verifySmsOtp = async () => {
+  if (!smsOtpCode.value || smsOtpCode.value.length !== 6) {
+    toast.warning('Lütfen 6 haneli doğrulama kodunu girin');
+    return;
+  }
+
+  verifyingSmsOtp.value = true;
+  try {
+    const response = await api.post('/employees/verify-sms-activation', {
+      verificationId: smsOtpData.value.verificationId,
+      code: smsOtpCode.value,
+      employeeId: smsOtpData.value.employeeId,
+    });
+    if (response.data.success) {
+      const data = response.data.data;
+      const msg = data.userCreated
+        ? `${data.fullName} aktif edildi! Varsayılan şifre: 123456`
+        : response.data.message;
+      toast.success(msg);
+      smsOtpModal.value = false;
+      smsOtpData.value = null;
+      smsOtpCode.value = '';
+      loadEmployees();
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Doğrulama başarısız');
+  } finally {
+    verifyingSmsOtp.value = false;
+  }
+};
+
+// SMS OTP tekrar gönder
+const resendSmsOtp = async () => {
+  if (!smsOtpData.value) return;
+  try {
+    const response = await api.post(`/employees/${smsOtpData.value.employeeId}/send-sms-activation`);
+    if (response.data.success) {
+      const data = response.data.data;
+      smsOtpData.value.verificationId = data.verificationId;
+      smsOtpData.value.expiresAt = data.expiresAt;
+      smsOtpCode.value = '';
+      toast.success('Yeni kod gönderildi');
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Kod tekrar gönderilemedi');
+  }
+};
+
+// Toplu SMS aktivasyon
+const sendSmsActivationToSelected = async () => {
+  const notActivatedSelected = selectedEmployees.value.filter(id => {
+    const emp = employees.value.find(e => e._id === id);
+    return emp && !emp.isActivated;
+  });
+
+  if (notActivatedSelected.length === 0) {
+    toast.info('Seçili çalışanların tamamı zaten aktive edilmiş.');
+    return;
+  }
+
+  const confirmed = await confirmModal.show({
+    title: 'Toplu SMS Aktivasyon',
+    message: `${notActivatedSelected.length} çalışana SMS ile aktivasyon kodu gönderilecek.\nTelefon numarası olmayan çalışanlara SMS gönderilemez.\n\nDevam etmek istiyor musunuz?`,
+    type: 'info',
+    confirmText: 'Gönder',
+  });
+  if (!confirmed) return;
+
+  sendingBulkSmsActivation.value = true;
+  try {
+    const response = await api.post('/employees/bulk-send-sms-activation', {
+      employeeIds: notActivatedSelected,
+    });
+    const data = response.data.data;
+    if (data.noPhoneCount > 0) {
+      toast.warning(`${data.successCount} SMS gönderildi, ${data.noPhoneCount} çalışanın telefonu yok`);
+    } else if (data.errorCount > 0) {
+      toast.warning(`${data.successCount} SMS gönderildi, ${data.errorCount} hata`);
+    } else {
+      toast.success(`${data.successCount} çalışana SMS gönderildi`);
+    }
+    selectedEmployees.value = [];
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Toplu SMS gönderilemedi');
+  } finally {
+    sendingBulkSmsActivation.value = false;
+  }
+};
+
 const handleAdminPhotoChange = async (e) => {
   const file = e.target.files?.[0];
   if (!file || !editingEmployee.value) return;
@@ -3623,6 +3863,9 @@ onMounted(async () => {
 
   // SGK meslek kodları sayısını yükle
   await loadSgkJobCodesCount();
+
+  // Aktivasyon modunu yükle
+  loadActivationMode();
 
   await loadEmployees();
   await loadAllDepartments(); // Filtreleme için tüm departmanları yükle

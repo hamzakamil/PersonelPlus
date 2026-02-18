@@ -1,6 +1,8 @@
 /**
  * SMS Servisi - Verimor API Entegrasyonu
  * Dokümantasyon: https://developer.verimor.com.tr/smsapi
+ *
+ * Config önceliği: DB (Settings.smsConfig) > .env değişkenleri
  */
 
 const axios = require('axios');
@@ -8,12 +10,74 @@ const crypto = require('crypto');
 const SmsVerification = require('../models/SmsVerification');
 const smsConfig = require('../config/sms');
 
+// Cache süresi: 5 dakika
+const CONFIG_CACHE_TTL = 5 * 60 * 1000;
+
 class SmsService {
   constructor() {
-    this.config = smsConfig.verimor;
+    this.envConfig = smsConfig.verimor;
     this.otpConfig = smsConfig.otp;
     this.templates = smsConfig.templates;
     this.devConfig = smsConfig.development;
+
+    // DB config cache
+    this._cachedConfig = null;
+    this._cacheExpiry = 0;
+  }
+
+  /**
+   * DB'den SMS config'ini oku (cache ile)
+   */
+  async getConfig() {
+    const now = Date.now();
+
+    // Cache geçerliyse kullan
+    if (this._cachedConfig && now < this._cacheExpiry) {
+      return this._cachedConfig;
+    }
+
+    try {
+      // Lazy-load Settings modeli (circular dependency'yi önlemek için)
+      const Settings = require('../models/Settings');
+      const settings = await Settings.getSettings();
+
+      if (settings.smsConfig && settings.smsConfig.enabled && settings.smsConfig.username) {
+        this._cachedConfig = {
+          apiUrl: this.envConfig.apiUrl,
+          username: settings.smsConfig.username,
+          password: settings.smsConfig.password,
+          sourceAddr: settings.smsConfig.sourceAddr || 'PersonelPlus',
+          datacoding: this.envConfig.datacoding,
+          timeout: this.envConfig.timeout,
+          mockSms: settings.smsConfig.mockSms || false,
+        };
+        this._cacheExpiry = now + CONFIG_CACHE_TTL;
+        return this._cachedConfig;
+      }
+    } catch (err) {
+      console.error('[SMS] DB config okunamadı, env fallback kullanılıyor:', err.message);
+    }
+
+    // Env fallback
+    this._cachedConfig = {
+      apiUrl: this.envConfig.apiUrl,
+      username: this.envConfig.username,
+      password: this.envConfig.password,
+      sourceAddr: this.envConfig.sourceAddr,
+      datacoding: this.envConfig.datacoding,
+      timeout: this.envConfig.timeout,
+      mockSms: this.devConfig.mockSms,
+    };
+    this._cacheExpiry = now + CONFIG_CACHE_TTL;
+    return this._cachedConfig;
+  }
+
+  /**
+   * Config cache'ini temizle (ayarlar güncellendiğinde çağrılır)
+   */
+  clearConfigCache() {
+    this._cachedConfig = null;
+    this._cacheExpiry = 0;
   }
 
   /**
@@ -65,9 +129,10 @@ class SmsService {
    */
   async sendSms(phone, message, customId = null) {
     const normalizedPhone = this.normalizePhone(phone);
+    const config = await this.getConfig();
 
     // Mock modda gerçek SMS gönderme
-    if (this.devConfig.mockSms) {
+    if (config.mockSms) {
       console.log(`[SMS MOCK] To: ${normalizedPhone}, Message: ${message}`);
       return {
         success: true,
@@ -78,18 +143,18 @@ class SmsService {
     }
 
     // API bilgileri kontrolü
-    if (!this.config.username || !this.config.password) {
+    if (!config.username || !config.password) {
       throw new Error(
-        'Verimor API bilgileri eksik. VERIMOR_USERNAME ve VERIMOR_PASSWORD env degiskenlerini ayarlayin.'
+        'Verimor API bilgileri eksik. Global Ayarlar > SMS Ayarları bölümünden veya .env ile yapılandırın.'
       );
     }
 
     try {
       const payload = {
-        username: this.config.username,
-        password: this.config.password,
-        source_addr: this.config.sourceAddr,
-        datacoding: this.config.datacoding,
+        username: config.username,
+        password: config.password,
+        source_addr: config.sourceAddr,
+        datacoding: config.datacoding,
         messages: [
           {
             dest: normalizedPhone,
@@ -102,8 +167,8 @@ class SmsService {
         payload.messages[0].custom_id = customId;
       }
 
-      const response = await axios.post(`${this.config.apiUrl}/send.json`, payload, {
-        timeout: this.config.timeout,
+      const response = await axios.post(`${config.apiUrl}/send.json`, payload, {
+        timeout: config.timeout,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -301,18 +366,20 @@ class SmsService {
       return { status: 'DELIVERED', mock: true };
     }
 
-    if (!this.config.username || !this.config.password) {
+    const config = await this.getConfig();
+
+    if (!config.username || !config.password) {
       throw new Error('Verimor API bilgileri eksik');
     }
 
     try {
-      const response = await axios.get(`${this.config.apiUrl}/status`, {
+      const response = await axios.get(`${config.apiUrl}/status`, {
         params: {
-          username: this.config.username,
-          password: this.config.password,
+          username: config.username,
+          password: config.password,
           id: campaignId,
         },
-        timeout: this.config.timeout,
+        timeout: config.timeout,
       });
 
       return {
@@ -375,6 +442,23 @@ class SmsService {
       employee,
       company,
       messageBuilder: code => this.templates.leaveAcceptance(code, startDate, endDate, days),
+    });
+  }
+
+  /**
+   * Çalışan aktivasyon OTP gönder
+   */
+  async sendEmployeeActivationOtp({ phone, employeeId, employee, company }) {
+    return this.sendOtp({
+      phone,
+      type: 'EMPLOYEE_ACTIVATION',
+      relatedModel: 'Employee',
+      relatedId: employeeId,
+      employee,
+      company,
+      messageBuilder: code => this.templates.employeeActivation
+        ? this.templates.employeeActivation(code)
+        : `PersonelPlus - Hesap Aktivasyon Kodu: ${code}\nHesabinizi aktif etmek icin bu kodu kullanin.\nGecerlilik: 5 dakika`,
     });
   }
 }

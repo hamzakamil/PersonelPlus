@@ -200,6 +200,175 @@
       </form>
     </div>
 
+    <!-- Çalışan Aktivasyon Modu -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-4">Çalışan Aktivasyon Modu</h2>
+      <p class="text-sm text-gray-500 mb-4">
+        Çalışanların hesap aktivasyonunda hangi yöntemin kullanılacağını belirleyin.
+      </p>
+
+      <div v-if="loadingActivationMode" class="text-center py-4">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+      </div>
+      <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Email -->
+        <label
+          class="relative flex flex-col p-4 border-2 rounded-lg cursor-pointer transition-all"
+          :class="activationMode === 'email' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+        >
+          <input type="radio" name="activationMode" value="email" v-model="activationMode" @change="saveActivationMode" class="sr-only" />
+          <div class="flex items-center mb-2">
+            <svg class="w-6 h-6 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <span class="font-medium text-gray-900">Email</span>
+          </div>
+          <p class="text-sm text-gray-500">Çalışana email ile aktivasyon linki gönderilir.</p>
+          <div v-if="activationMode === 'email'" class="absolute top-3 right-3">
+            <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </label>
+
+        <!-- SMS -->
+        <label
+          class="relative flex flex-col p-4 border-2 rounded-lg cursor-pointer transition-all"
+          :class="activationMode === 'sms' ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'"
+        >
+          <input type="radio" name="activationMode" value="sms" v-model="activationMode" @change="saveActivationMode" class="sr-only" />
+          <div class="flex items-center mb-2">
+            <svg class="w-6 h-6 text-teal-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            <span class="font-medium text-gray-900">SMS</span>
+          </div>
+          <p class="text-sm text-gray-500">Çalışana SMS ile doğrulama kodu gönderilir.</p>
+          <div v-if="activationMode === 'sms'" class="absolute top-3 right-3">
+            <svg class="w-5 h-5 text-teal-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </label>
+
+        <!-- Her İkisi -->
+        <label
+          class="relative flex flex-col p-4 border-2 rounded-lg cursor-pointer transition-all"
+          :class="activationMode === 'both' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'"
+        >
+          <input type="radio" name="activationMode" value="both" v-model="activationMode" @change="saveActivationMode" class="sr-only" />
+          <div class="flex items-center mb-2">
+            <svg class="w-6 h-6 text-purple-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span class="font-medium text-gray-900">Her İkisi</span>
+          </div>
+          <p class="text-sm text-gray-500">Email ve SMS seçenekleri birlikte gösterilir.</p>
+          <div v-if="activationMode === 'both'" class="absolute top-3 right-3">
+            <svg class="w-5 h-5 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- SMS Ayarları (Verimor) -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-4">SMS Ayarları (Verimor)</h2>
+      <p class="text-sm text-gray-500 mb-4">
+        Çalışan aktivasyonu ve OTP doğrulamaları için SMS sağlayıcı bilgilerini yapılandırın.
+      </p>
+
+      <div v-if="loadingSms" class="text-center py-4">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+      </div>
+      <form v-else @submit.prevent="saveSmsConfig" class="space-y-4">
+        <!-- SMS Aktif/Pasif Toggle -->
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div>
+            <span class="text-sm font-medium text-gray-700">SMS Servisi</span>
+            <p class="text-xs text-gray-400">Aktif edildiğinde DB ayarları kullanılır, pasifse .env değişkenleri geçerli olur</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" v-model="smsForm.enabled" class="sr-only peer" />
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Verimor Kullanıcı Adı <span class="text-red-500">*</span>
+            </label>
+            <input
+              v-model="smsForm.username"
+              type="text"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              placeholder="Verimor hesap kullanıcı adı"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Verimor Şifre <span class="text-red-500">*</span>
+            </label>
+            <input
+              v-model="smsForm.password"
+              type="password"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              :placeholder="smsForm.hasPassword ? 'Değiştirmek için yeni şifre girin' : 'Verimor hesap şifresi'"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Gönderici Adı</label>
+            <input
+              v-model="smsForm.sourceAddr"
+              type="text"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              placeholder="PersonelPlus"
+            />
+            <p class="text-xs text-gray-400 mt-1">SMS'lerde görünecek gönderici adı</p>
+          </div>
+          <div class="flex items-center">
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="smsForm.mockSms" class="sr-only peer" />
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+              <span class="ml-3 text-sm font-medium text-gray-700">Test Modu (Mock)</span>
+            </label>
+            <p class="text-xs text-gray-400 ml-2">Aktifken gerçek SMS gönderilmez, konsola yazılır</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 justify-end">
+          <!-- Test SMS Gönder -->
+          <div class="flex items-center gap-2">
+            <PhoneInput
+              v-model="testSmsPhone"
+              label=""
+              :required="false"
+              placeholder="Test numarası"
+              class="w-48"
+            />
+            <button
+              type="button"
+              @click="sendTestSms"
+              :disabled="sendingTestSms || !testSmsPhone"
+              class="px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors whitespace-nowrap"
+            >
+              {{ sendingTestSms ? 'Gönderiliyor...' : 'Test SMS' }}
+            </button>
+          </div>
+          <button
+            type="submit"
+            :disabled="savingSms"
+            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {{ savingSms ? 'Kaydediliyor...' : 'Kaydet' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
     <!-- Yıllık Asgari Ücret Yönetimi -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Yıllık Asgari Ücret Yönetimi</h2>
@@ -336,6 +505,8 @@ const loading = ref(false);
 const saving = ref(false);
 const registrationMode = ref('manual_approval');
 const loadingMode = ref(false);
+const activationMode = ref('email');
+const loadingActivationMode = ref(false);
 const minimumWages = ref([]);
 const editingWage = ref(null);
 const wageForm = ref({
@@ -358,6 +529,20 @@ const savingSupportInfo = ref(false);
 const supportForm = ref({
   supportEmail: '',
   supportPhone: '',
+});
+
+// SMS ayarları
+const loadingSms = ref(false);
+const savingSms = ref(false);
+const sendingTestSms = ref(false);
+const testSmsPhone = ref('');
+const smsForm = ref({
+  enabled: false,
+  username: '',
+  password: '',
+  sourceAddr: 'PersonelPlus',
+  mockSms: false,
+  hasPassword: false,
 });
 
 const loadRegistrationMode = async () => {
@@ -385,6 +570,34 @@ const saveRegistrationMode = async () => {
   } catch (error) {
     console.error('Kayıt modu kaydedilemedi:', error);
     toast.error(error.response?.data?.message || 'Kayıt modu güncellenirken bir hata oluştu');
+  }
+};
+
+const loadActivationMode = async () => {
+  try {
+    loadingActivationMode.value = true;
+    const response = await api.get('/global-settings/activation-mode');
+    if (response.data.success) {
+      activationMode.value = response.data.data.activationMode || 'email';
+    }
+  } catch (error) {
+    console.error('Aktivasyon modu yüklenemedi:', error);
+  } finally {
+    loadingActivationMode.value = false;
+  }
+};
+
+const saveActivationMode = async () => {
+  try {
+    const response = await api.put('/global-settings/activation-mode', {
+      activationMode: activationMode.value,
+    });
+    if (response.data.success) {
+      toast.success(response.data.message || 'Aktivasyon modu güncellendi');
+    }
+  } catch (error) {
+    console.error('Aktivasyon modu kaydedilemedi:', error);
+    toast.error(error.response?.data?.message || 'Aktivasyon modu güncellenirken bir hata oluştu');
   }
 };
 
@@ -549,10 +762,85 @@ const saveSupportInfo = async () => {
   }
 };
 
+const loadSmsConfig = async () => {
+  try {
+    loadingSms.value = true;
+    const response = await api.get('/global-settings/sms-config');
+    if (response.data.success) {
+      const data = response.data.data;
+      smsForm.value = {
+        enabled: data.enabled || false,
+        username: data.username || '',
+        password: '', // Şifre maskeli gelir, input boş başlar
+        sourceAddr: data.sourceAddr || 'PersonelPlus',
+        mockSms: data.mockSms || false,
+        hasPassword: data.hasPassword || false,
+      };
+    }
+  } catch (error) {
+    console.error('SMS ayarları yüklenemedi:', error);
+  } finally {
+    loadingSms.value = false;
+  }
+};
+
+const saveSmsConfig = async () => {
+  try {
+    savingSms.value = true;
+    const payload = {
+      enabled: smsForm.value.enabled,
+      username: smsForm.value.username,
+      sourceAddr: smsForm.value.sourceAddr,
+      mockSms: smsForm.value.mockSms,
+    };
+    // Şifre sadece girilmişse gönder
+    if (smsForm.value.password) {
+      payload.password = smsForm.value.password;
+    }
+
+    const response = await api.put('/global-settings/sms-config', payload);
+    if (response.data.success) {
+      toast.success(response.data.message || 'SMS ayarları güncellendi');
+      smsForm.value.hasPassword = response.data.data.hasPassword;
+      smsForm.value.password = ''; // Şifreyi temizle
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'SMS ayarları güncellenirken hata oluştu');
+  } finally {
+    savingSms.value = false;
+  }
+};
+
+const sendTestSms = async () => {
+  if (!testSmsPhone.value) {
+    toast.warning('Test SMS için telefon numarası girin');
+    return;
+  }
+
+  try {
+    sendingTestSms.value = true;
+    // Önce kaydet, sonra test gönder
+    await saveSmsConfig();
+
+    const response = await api.post('/global-settings/sms-config/test', {
+      phone: testSmsPhone.value,
+    });
+    if (response.data.success) {
+      toast.success(response.data.message || 'Test SMS gönderildi');
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Test SMS gönderilemedi');
+  } finally {
+    sendingTestSms.value = false;
+  }
+};
+
 onMounted(() => {
   loadRegistrationMode();
+  loadActivationMode();
   loadTrialSettings();
   loadMinimumWages();
   loadSupportInfo();
+  loadSmsConfig();
 });
 </script>

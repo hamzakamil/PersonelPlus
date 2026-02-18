@@ -55,6 +55,20 @@ const settingsSchema = new mongoose.Schema(
       type: String,
       default: '0555 123 45 67',
     },
+    // Çalışan aktivasyon modu
+    activationMode: {
+      type: String,
+      enum: ['email', 'sms', 'both'],
+      default: 'email',
+    },
+    // SMS Yapılandırması (Verimor API)
+    smsConfig: {
+      enabled: { type: Boolean, default: false },
+      username: { type: String, default: '' },
+      password: { type: String, default: '' },
+      sourceAddr: { type: String, default: 'PersonelPlus' },
+      mockSms: { type: Boolean, default: false },
+    },
   },
   {
     timestamps: true,

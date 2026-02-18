@@ -10,7 +10,7 @@ const smsVerificationSchema = new mongoose.Schema(
     // Doğrulama türü
     type: {
       type: String,
-      enum: ['BORDRO_APPROVAL', 'LEAVE_ACCEPTANCE'],
+      enum: ['BORDRO_APPROVAL', 'LEAVE_ACCEPTANCE', 'EMPLOYEE_ACTIVATION'],
       required: true,
       index: true,
     },
@@ -103,7 +103,7 @@ const smsVerificationSchema = new mongoose.Schema(
     // İlişkili kayıt
     relatedModel: {
       type: String,
-      enum: ['Bordro', 'LeaveRequest'],
+      enum: ['Bordro', 'LeaveRequest', 'Employee'],
       required: true,
     },
 

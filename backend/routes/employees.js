@@ -20,6 +20,7 @@ const { successResponse, errorResponse, notFound, forbidden, serverError, create
 const ProfileChangeRequest = require('../models/ProfileChangeRequest');
 const EmployeePuantaj = require('../models/EmployeePuantaj');
 const notificationService = require('../services/notificationService');
+const smsService = require('../services/smsService');
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -2185,6 +2186,208 @@ router.post('/bulk-manual-activate', auth, requireRole('super_admin', 'bayi_admi
     });
   } catch (error) {
     console.error('Toplu manuel aktivasyon hatası:', error);
+    return serverError(res, error);
+  }
+});
+
+// SMS ile aktivasyon OTP gönder
+router.post('/:id/send-sms-activation', auth, requireRole('super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik'), async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) {
+      return notFound(res, 'Çalışan bulunamadı');
+    }
+
+    // Yetki kontrolü
+    if (['company_admin', 'resmi_muhasebe_ik'].includes(req.user.role.name)) {
+      const userCompanyId = req.user.company?._id?.toString() || req.user.company?.toString();
+      if (userCompanyId !== employee.company.toString()) {
+        return forbidden(res);
+      }
+    } else if (req.user.role.name === 'bayi_admin') {
+      const employeeCompany = await Company.findById(employee.company);
+      const userDealerId = req.user.dealer?._id?.toString() || req.user.dealer?.toString();
+      if (employeeCompany?.dealer?.toString() !== userDealerId) {
+        return forbidden(res);
+      }
+    }
+
+    if (employee.isActivated) {
+      return errorResponse(res, { message: 'Çalışan zaten aktif' });
+    }
+
+    if (!employee.phone) {
+      return errorResponse(res, { message: 'Çalışanın telefon numarası kayıtlı değil. Önce telefon numarası ekleyin.' });
+    }
+
+    const result = await smsService.sendEmployeeActivationOtp({
+      phone: employee.phone,
+      employeeId: employee._id,
+      employee: employee._id,
+      company: employee.company,
+    });
+
+    return successResponse(res, {
+      data: {
+        verificationId: result.verificationId,
+        maskedPhone: result.maskedPhone,
+        expiresAt: result.expiresAt,
+        expiresInMinutes: result.expiresInMinutes,
+        employeeId: employee._id,
+        employeeName: `${employee.firstName} ${employee.lastName}`,
+      },
+      message: `Aktivasyon kodu ${result.maskedPhone} numarasına gönderildi`,
+    });
+  } catch (error) {
+    console.error('SMS aktivasyon gönderme hatası:', error);
+    return errorResponse(res, { message: error.message || 'SMS gönderilemedi' });
+  }
+});
+
+// SMS OTP doğrula ve çalışanı aktif et
+router.post('/verify-sms-activation', auth, requireRole('super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik'), async (req, res) => {
+  try {
+    const { verificationId, code, employeeId } = req.body;
+
+    if (!verificationId || !code || !employeeId) {
+      return errorResponse(res, { message: 'Doğrulama ID, kod ve çalışan ID gereklidir' });
+    }
+
+    // OTP doğrula
+    const ip = req.ip || req.connection?.remoteAddress;
+    const verifyResult = await smsService.verifyOtp(verificationId, code, ip);
+
+    if (!verifyResult.success) {
+      return errorResponse(res, { message: 'Doğrulama başarısız' });
+    }
+
+    // Çalışanı aktif et
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      return notFound(res, 'Çalışan bulunamadı');
+    }
+
+    if (employee.isActivated) {
+      return successResponse(res, { message: 'Çalışan zaten aktif' });
+    }
+
+    employee.isActivated = true;
+    employee.activatedAt = new Date();
+    employee.activationToken = null;
+    await employee.save({ validateBeforeSave: false });
+
+    // Kullanıcı hesabı oluştur (manuel aktivasyonla aynı mantık)
+    let userCreated = false;
+    if (employee.email) {
+      const existingUser = await User.findOne({ email: employee.email?.toLowerCase() });
+      if (!existingUser) {
+        const employeeRole = await Role.findOne({ name: 'employee' });
+        if (employeeRole) {
+          const hashedPassword = await bcrypt.hash('123456', 10);
+          const newUser = new User({
+            email: employee.email.toLowerCase(),
+            password: hashedPassword,
+            role: employeeRole._id,
+            company: employee.company,
+            employee: employee._id,
+            isActive: true,
+            mustChangePassword: true,
+          });
+          await newUser.save();
+          userCreated = true;
+        }
+      }
+    }
+
+    return successResponse(res, {
+      data: {
+        employeeId: employee._id,
+        fullName: `${employee.firstName} ${employee.lastName}`,
+        userCreated,
+        defaultPassword: userCreated ? '123456' : null,
+        note: userCreated ? 'İlk girişte şifre değiştirmesi gerekecektir' : null,
+      },
+      message: `${employee.firstName} ${employee.lastName} başarıyla aktif edildi`,
+    });
+  } catch (error) {
+    console.error('SMS aktivasyon doğrulama hatası:', error);
+    return errorResponse(res, { message: error.message || 'Doğrulama sırasında hata oluştu' });
+  }
+});
+
+// Toplu SMS aktivasyon gönder
+router.post('/bulk-send-sms-activation', auth, requireRole('super_admin', 'bayi_admin', 'company_admin', 'resmi_muhasebe_ik'), async (req, res) => {
+  try {
+    const { employeeIds } = req.body;
+
+    if (!employeeIds || !Array.isArray(employeeIds) || employeeIds.length === 0) {
+      return errorResponse(res, { message: 'Çalışan ID listesi gereklidir' });
+    }
+
+    let query = { _id: { $in: employeeIds }, isActivated: false };
+
+    // Yetki kontrolü
+    if (['company_admin', 'resmi_muhasebe_ik'].includes(req.user.role.name)) {
+      const userCompanyId = req.user.company?._id?.toString() || req.user.company?.toString();
+      query.company = userCompanyId;
+    }
+
+    const employees = await Employee.find(query);
+
+    if (employees.length === 0) {
+      return notFound(res, 'SMS gönderilecek çalışan bulunamadı');
+    }
+
+    let successCount = 0;
+    let errorCount = 0;
+    let noPhoneCount = 0;
+    const results = [];
+
+    for (const employee of employees) {
+      if (!employee.phone) {
+        noPhoneCount++;
+        results.push({
+          employeeId: employee._id,
+          fullName: `${employee.firstName} ${employee.lastName}`,
+          success: false,
+          error: 'Telefon numarası yok',
+        });
+        continue;
+      }
+
+      try {
+        const result = await smsService.sendEmployeeActivationOtp({
+          phone: employee.phone,
+          employeeId: employee._id,
+          employee: employee._id,
+          company: employee.company,
+        });
+
+        successCount++;
+        results.push({
+          employeeId: employee._id,
+          fullName: `${employee.firstName} ${employee.lastName}`,
+          success: true,
+          verificationId: result.verificationId,
+          maskedPhone: result.maskedPhone,
+        });
+      } catch (err) {
+        errorCount++;
+        results.push({
+          employeeId: employee._id,
+          fullName: `${employee.firstName} ${employee.lastName}`,
+          success: false,
+          error: err.message,
+        });
+      }
+    }
+
+    return successResponse(res, {
+      data: { successCount, errorCount, noPhoneCount, results },
+      message: `${successCount} çalışana SMS gönderildi${errorCount > 0 ? `, ${errorCount} hata` : ''}${noPhoneCount > 0 ? `, ${noPhoneCount} telefonsuz` : ''}`,
+    });
+  } catch (error) {
+    console.error('Toplu SMS aktivasyon hatası:', error);
     return serverError(res, error);
   }
 });

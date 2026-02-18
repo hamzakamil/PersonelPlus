@@ -41,6 +41,10 @@ module.exports = {
     leaveAcceptance: (code, startDate, endDate, days) =>
       `PersonelPlus - Izin Kabul Kodu: ${code}\n${startDate} - ${endDate} tarihleri arasi ${days} gunluk izniniz onaylandi.\nKabul etmek icin bu kodu kullanin.\nGecerlilik: 5 dakika`,
 
+    // Çalışan aktivasyon kodu
+    employeeActivation: code =>
+      `PersonelPlus - Hesap Aktivasyon Kodu: ${code}\nHesabinizi aktif etmek icin bu kodu kullanin.\nGecerlilik: 5 dakika`,
+
     // Genel OTP
     genericOtp: code => `PersonelPlus - Dogrulama Kodu: ${code}\nGecerlilik: 5 dakika`,
   },
