@@ -913,7 +913,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">Dosyalar</label>
             <ul class="list-disc list-inside space-y-1">
               <li v-for="(doc, index) in getOtherDocuments(selectedRecord)" :key="index" class="text-sm text-gray-900">
-                {{ getDocumentTypeName(doc.type) }} - <a :href="'http://localhost:3333' + doc.fileUrl" target="_blank" class="text-blue-600 hover:underline">Görüntüle</a>
+                {{ getDocumentTypeName(doc.type) }} - <a :href="doc.fileUrl" target="_blank" class="text-blue-600 hover:underline">Görüntüle</a>
               </li>
             </ul>
           </div>
@@ -924,7 +924,7 @@
             <div class="flex flex-wrap gap-2">
               <a
                 v-if="getContractUrl(selectedRecord)"
-                :href="'http://localhost:3333' + getContractUrl(selectedRecord)"
+                :href="getContractUrl(selectedRecord)"
                 download
                 class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
               >
@@ -935,7 +935,7 @@
               </a>
               <a
                 v-if="getApplicationFormUrl(selectedRecord)"
-                :href="'http://localhost:3333' + getApplicationFormUrl(selectedRecord)"
+                :href="getApplicationFormUrl(selectedRecord)"
                 download
                 class="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
               >
@@ -2372,9 +2372,7 @@ const getDeclarationDocument = (record) => {
 // Bildirge indirme URL'si
 const getDeclarationDownloadUrl = (declaration) => {
   if (!declaration?.fileUrl) return '#'
-  // Backend API base URL
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3333'
-  return `${baseUrl}${declaration.fileUrl}`
+  return declaration.fileUrl
 }
 
 const closeDeclarationModal = () => {

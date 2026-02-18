@@ -459,7 +459,7 @@ const isFormValid = computed(() => {
 })
 
 const templateUrl = computed(() => {
-  return `${import.meta.env.VITE_API_URL || 'http://localhost:3333'}/api/bordro/template`
+  return `/api/bordro/template`
 })
 
 onMounted(async () => {

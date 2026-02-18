@@ -1673,6 +1673,19 @@ router.put('/:id', auth, requireRole('super_admin', 'bayi_admin', 'company_admin
     if (req.body.contractEndDate !== undefined) {
       employee.contractEndDate = req.body.contractEndDate ? new Date(req.body.contractEndDate) : null;
     }
+    // Part-time detayları (kısmi süreli için)
+    if (req.body.partTimeDetails !== undefined) {
+      if (req.body.partTimeDetails && contractType === 'KISMİ_SÜRELİ') {
+        employee.partTimeDetails = {
+          weeklyHours: req.body.partTimeDetails.weeklyHours || null,
+          workDays: req.body.partTimeDetails.workDays || [],
+          dailyHours: req.body.partTimeDetails.dailyHours || null,
+          paymentType: req.body.partTimeDetails.paymentType || 'monthly',
+        };
+      } else {
+        employee.partTimeDetails = undefined;
+      }
+    }
     // employeeNumber read-only - güncelleme yapılamaz (sadece backend tarafından atanır)
     
     // Personel numarası güncelleme (unique kontrolü ile)

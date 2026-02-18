@@ -248,7 +248,7 @@
                 v-for="ct in contractTypes"
                 :key="ct.value"
                 type="button"
-                @click="form.contractType = ct.value; hasChanges = true"
+                @click="selectContractType(ct.value)"
                 :title="ct.tooltip"
                 class="px-4 py-2.5 rounded-lg text-sm font-medium border-2 transition-all"
                 :class="form.contractType === ct.value
@@ -271,6 +271,20 @@
                 class="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p class="mt-1 text-xs text-gray-500">Belirli süreli sözleşmenin sona ereceği tarih</p>
+            </div>
+
+            <!-- Part Time Detay Özeti -->
+            <div v-if="form.contractType === 'KISMİ_SÜRELİ' && partTimeDetails.weeklyHours" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-blue-800">Part Time Detayları</span>
+                <button type="button" @click="showPartTimeModal = true" class="text-xs text-blue-600 hover:text-blue-800 underline">Düzenle</button>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-xs text-blue-700">
+                <div>Haftalık: <strong>{{ partTimeDetails.weeklyHours }} saat</strong></div>
+                <div>Günlük: <strong>{{ partTimeDetails.dailyHours }} saat</strong></div>
+                <div>Günler: <strong>{{ partTimeDetails.workDays.map(d => d.slice(0,3)).join(', ') }}</strong></div>
+                <div>Ücret: <strong>{{ partTimeDetails.paymentType === 'monthly' ? 'Aylık Sabit' : 'Saatlik' }}</strong></div>
+              </div>
             </div>
           </div>
 
@@ -862,6 +876,122 @@
       </div>
     </div>
   </div>
+
+  <!-- Part Time Detay Modalı -->
+  <div v-if="showPartTimeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="cancelPartTime">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Kısmi Süreli (Part Time) Detayları
+      </h3>
+
+      <!-- Haftalık Saat -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Haftalık Toplam Çalışma Saati</label>
+        <input
+          type="number"
+          v-model.number="partTimeDetails.weeklyHours"
+          @input="validateWeeklyHours"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Örn: 20"
+          min="1"
+          max="44"
+        />
+        <p v-if="partTimeWarning" class="text-amber-600 text-sm mt-1 flex items-center gap-1">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+          </svg>
+          {{ partTimeWarning }}
+        </p>
+        <p class="text-gray-500 text-xs mt-1">Tam zamanlı: 45 saat | Part-time: Max 30 saat</p>
+      </div>
+
+      <!-- Çalışma Günleri -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Çalışma Günleri</label>
+        <div class="flex flex-wrap gap-2">
+          <label
+            v-for="day in weekDays"
+            :key="day"
+            class="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg cursor-pointer transition-colors"
+            :class="partTimeDetails.workDays.includes(day)
+              ? 'bg-blue-100 border-blue-500 text-blue-700'
+              : 'bg-white border-gray-300 text-gray-700 hover:border-blue-300'"
+          >
+            <input type="checkbox" :value="day" v-model="partTimeDetails.workDays" class="sr-only" />
+            <span class="text-sm font-medium">{{ day.slice(0, 3) }}</span>
+          </label>
+        </div>
+        <p class="text-gray-500 text-xs mt-1">Seçili: {{ partTimeDetails.workDays.length }} gün</p>
+      </div>
+
+      <!-- Günlük Saat -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Günlük Çalışma Saati</label>
+        <input
+          type="number"
+          v-model.number="partTimeDetails.dailyHours"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Örn: 4"
+          min="1"
+          max="11"
+        />
+      </div>
+
+      <!-- Ücret Türü -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Ücretlendirme Tercihi</label>
+        <div class="flex gap-3">
+          <label
+            class="flex-1 flex items-center justify-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors"
+            :class="partTimeDetails.paymentType === 'monthly'
+              ? 'bg-blue-100 border-blue-500 text-blue-700'
+              : 'bg-white border-gray-300 text-gray-700 hover:border-blue-300'"
+          >
+            <input type="radio" value="monthly" v-model="partTimeDetails.paymentType" class="sr-only" />
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span class="font-medium text-sm">Aylık Sabit</span>
+          </label>
+          <label
+            class="flex-1 flex items-center justify-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors"
+            :class="partTimeDetails.paymentType === 'hourly'
+              ? 'bg-blue-100 border-blue-500 text-blue-700'
+              : 'bg-white border-gray-300 text-gray-700 hover:border-blue-300'"
+          >
+            <input type="radio" value="hourly" v-model="partTimeDetails.paymentType" class="sr-only" />
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="font-medium text-sm">Saatlik</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Butonlar -->
+      <div class="flex gap-3 justify-end">
+        <button
+          type="button"
+          @click="cancelPartTime"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+        >
+          İptal
+        </button>
+        <button
+          type="button"
+          @click="confirmPartTime"
+          :disabled="!isPartTimeValid"
+          class="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors"
+          :class="isPartTimeValid ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'"
+        >
+          Onayla
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -993,6 +1123,55 @@ const form = ref({
   department: '',
   manager: '',
 });
+
+// Part-time detayları
+const partTimeDetails = ref({
+  weeklyHours: null,
+  workDays: [],
+  dailyHours: null,
+  paymentType: 'monthly'
+});
+const showPartTimeModal = ref(false);
+const partTimeWarning = ref('');
+const weekDays = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+
+const isPartTimeValid = computed(() => {
+  const pt = partTimeDetails.value;
+  return pt.weeklyHours && pt.weeklyHours < 30 && pt.workDays.length > 0 && pt.dailyHours;
+});
+
+const selectContractType = (type) => {
+  form.value.contractType = type;
+  hasChanges.value = true;
+  if (type === 'KISMİ_SÜRELİ') {
+    showPartTimeModal.value = true;
+  }
+};
+
+const validateWeeklyHours = () => {
+  const hours = partTimeDetails.value.weeklyHours;
+  if (hours >= 30) {
+    partTimeWarning.value = 'Part-time için haftalık süre 30 saatten az olmalıdır. 30 saat ve üzeri tam zamanlı kabul edilir.';
+    return false;
+  }
+  partTimeWarning.value = '';
+  return true;
+};
+
+const cancelPartTime = () => {
+  showPartTimeModal.value = false;
+  // Eğer daha önce part-time detayları yoksa, sözleşme tipini geri al
+  if (!partTimeDetails.value.weeklyHours) {
+    form.value.contractType = 'BELİRSİZ_SÜRELİ';
+  }
+};
+
+const confirmPartTime = () => {
+  if (isPartTimeValid.value) {
+    showPartTimeModal.value = false;
+    hasChanges.value = true;
+  }
+};
 
 const showAllExitReasons = ref(false);
 
@@ -1163,6 +1342,19 @@ const loadEmployee = async () => {
       department: employee.value.department?._id || '',
       manager: employee.value.manager?._id || employee.value.manager || '',
     };
+
+    // Part-time detaylarını yükle
+    if (employee.value.partTimeDetails) {
+      partTimeDetails.value = {
+        weeklyHours: employee.value.partTimeDetails.weeklyHours || null,
+        workDays: employee.value.partTimeDetails.workDays || [],
+        dailyHours: employee.value.partTimeDetails.dailyHours || null,
+        paymentType: employee.value.partTimeDetails.paymentType || 'monthly',
+      };
+    } else {
+      partTimeDetails.value = { weeklyHours: null, workDays: [], dailyHours: null, paymentType: 'monthly' };
+    }
+
     hasChanges.value = false;
 
     // İzin talepleri ve izin türlerini yükle
@@ -1323,6 +1515,12 @@ const saveEmployee = async () => {
       salary: form.value.salary || null,
       isNetSalary: form.value.isNetSalary !== undefined ? form.value.isNetSalary : true,
       contractEndDate: form.value.contractType === 'BELİRLİ_SÜRELİ' && form.value.contractEndDate ? new Date(form.value.contractEndDate) : null,
+      partTimeDetails: form.value.contractType === 'KISMİ_SÜRELİ' ? {
+        weeklyHours: partTimeDetails.value.weeklyHours,
+        workDays: partTimeDetails.value.workDays,
+        dailyHours: partTimeDetails.value.dailyHours,
+        paymentType: partTimeDetails.value.paymentType,
+      } : null,
       phone: form.value.phone.replace(/\s/g, ''), // Remove spaces before sending
       tcKimlik: form.value.tcKimlik,
     };

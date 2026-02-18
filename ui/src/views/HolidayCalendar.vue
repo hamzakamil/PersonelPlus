@@ -366,8 +366,7 @@ const loadGoogleHolidays = async () => {
     error.value = null
 
     // Backend API'den resmi tatilleri çek
-    const url = `${import.meta.env.VITE_API_URL}/official-holidays/${selectedYear.value}`
-    const response = await axios.get(url)
+    const response = await axios.get(`/api/official-holidays/${selectedYear.value}`)
 
     if (response.data && response.data.data) {
       const holidayList = response.data.data

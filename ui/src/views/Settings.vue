@@ -3306,7 +3306,7 @@ const loadSettings = async () => {
     const params = isDealer.value ? { companyId } : {};
     const response = await api.get('/settings', { params });
     form.value.title = response.data.title || '';
-    form.value.logo = response.data.logo ? `http://localhost:3333${response.data.logo}` : '';
+    form.value.logo = response.data.logo || '';
     if (response.data.checkInSettings) {
       form.value.checkInSettings = {
         enabled: response.data.checkInSettings.enabled || false,

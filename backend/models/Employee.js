@@ -171,6 +171,13 @@ const employeeSchema = new mongoose.Schema({
     type: Date, // Belirli süreli sözleşme bitiş tarihi
     default: null
   },
+  // Part-time (Kısmi Süreli) çalışma detayları
+  partTimeDetails: {
+    weeklyHours: { type: Number, default: null },
+    workDays: [{ type: String }],
+    dailyHours: { type: Number, default: null },
+    paymentType: { type: String, enum: ['monthly', 'hourly'], default: 'monthly' }
+  },
   // Kimlik Bilgileri
   birthPlace: {
     type: String // Doğum yeri

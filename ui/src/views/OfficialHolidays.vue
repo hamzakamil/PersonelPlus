@@ -77,9 +77,8 @@ const loadHolidays = async () => {
 
     // Backend API'den tüm resmi tatilleri çek (mevcut yıl)
     const currentYear = new Date().getFullYear()
-    const url = `${import.meta.env.VITE_API_URL}/official-holidays/${currentYear}`
 
-    const response = await axios.get(url)
+    const response = await axios.get(`/api/official-holidays/${currentYear}`)
 
     if (response.data && response.data.data) {
       // Backend'den gelen veri formatı

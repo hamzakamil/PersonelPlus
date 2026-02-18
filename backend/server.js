@@ -45,7 +45,9 @@ app.use(
       'http://10.0.2.2:3333', // Android Emulator -> Host
       'http://127.0.0.1:3333', // Localhost alternative
       /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // Local network (gerçek cihaz testi)
-      process.env.FRONTEND_URL, // Production frontend
+      'https://www.personelplus.com', // Production
+      'https://personelplus.com', // Production (www olmadan)
+      process.env.FRONTEND_URL, // Production frontend (custom)
     ].filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
