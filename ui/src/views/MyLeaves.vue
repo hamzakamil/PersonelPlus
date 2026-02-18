@@ -522,7 +522,7 @@
           <div v-if="selectedRequest.document">
             <strong>Rapor:</strong>
             <a
-              :href="`http://localhost:3000${selectedRequest.document}`"
+              :href="`http://localhost:3333${selectedRequest.document}`"
               target="_blank"
               class="text-blue-600 hover:underline ml-2"
             >

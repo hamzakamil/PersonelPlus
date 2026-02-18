@@ -554,7 +554,7 @@ onMounted(async () => {
       if (data?.logo) {
         companyLogo.value = data.logo.startsWith('http')
           ? data.logo
-          : `http://localhost:3000${data.logo}`;
+          : `http://localhost:3333${data.logo}`;
       }
     } catch (error) {
       console.error('Şirket bilgisi alınamadı:', error);

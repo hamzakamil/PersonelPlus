@@ -42,7 +42,7 @@ Multi-tenant SaaS HR Yönetim Platformu için RESTful API.
     },
     servers: [
       {
-        url: 'http://localhost:3000',
+        url: 'http://localhost:3333',
         description: 'Geliştirme sunucusu',
       },
       {

@@ -73,7 +73,7 @@ const paymentService = {
             </div>
           </div>
 
-          <form method="POST" action="${callbackUrl || (process.env.API_URL || 'http://localhost:3000') + '/api/payments/callback'}">
+          <form method="POST" action="${callbackUrl || (process.env.API_URL || 'http://localhost:3333') + '/api/payments/callback'}">
             <input type="hidden" name="token" value="${mockToken}" />
 
             <button
@@ -128,7 +128,7 @@ const paymentService = {
       currency: Iyzipay.CURRENCY.TRY,
       basketId: `PKG_${pkg._id}`,
       paymentGroup: Iyzipay.PAYMENT_GROUP.SUBSCRIPTION,
-      callbackUrl: callbackUrl || `${process.env.API_URL || 'http://localhost:3000'}/api/payments/callback`,
+      callbackUrl: callbackUrl || `${process.env.API_URL || 'http://localhost:3333'}/api/payments/callback`,
       enabledInstallments: [1, 2, 3, 6],
       buyer: {
         id: dealer._id.toString(),

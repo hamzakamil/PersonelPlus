@@ -304,7 +304,7 @@
           <div v-if="selectedLeaveRequest.document" class="border-t pt-4">
             <p class="text-xs text-gray-500 mb-2">Ek Dosya</p>
             <a
-              :href="`http://localhost:3000${selectedLeaveRequest.document}`"
+              :href="`http://localhost:3333${selectedLeaveRequest.document}`"
               target="_blank"
               class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
             >

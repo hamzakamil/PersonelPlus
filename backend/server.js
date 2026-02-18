@@ -41,9 +41,9 @@ app.use(
   cors({
     origin: [
       'http://localhost:5173', // Vue.js development
-      'http://localhost:3000', // Backend (self)
-      'http://10.0.2.2:3000', // Android Emulator -> Host
-      'http://127.0.0.1:3000', // Localhost alternative
+      'http://localhost:3333', // Backend (self)
+      'http://10.0.2.2:3333', // Android Emulator -> Host
+      'http://127.0.0.1:3333', // Localhost alternative
       /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // Local network (gerçek cihaz testi)
       process.env.FRONTEND_URL, // Production frontend
     ].filter(Boolean),
@@ -273,7 +273,7 @@ app.use(notFoundHandler);
 // Global error handler (en sonda olmali)
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3333;
 const server = app.listen(PORT, () => {
   console.log(`Server ${PORT} portunda calisiyor`);
 });

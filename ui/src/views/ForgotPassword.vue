@@ -116,7 +116,7 @@ const handleSubmit = async () => {
   loading.value = true;
 
   try {
-    await axios.post('http://localhost:3000/api/auth/forgot-password', {
+    await axios.post('http://localhost:3333/api/auth/forgot-password', {
       email: email.value
     });
 

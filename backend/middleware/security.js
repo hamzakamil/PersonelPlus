@@ -127,7 +127,7 @@ const corsOptions = {
     // İzin verilen origin'ler
     const allowedOrigins = [
       'http://localhost:5173', // Vue dev server
-      'http://localhost:3000',
+      'http://localhost:3333',
       'http://localhost:3001',
       process.env.FRONTEND_URL,
     ].filter(Boolean);

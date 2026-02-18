@@ -532,7 +532,7 @@ const getLeaveStatusClass = (status) => {
 const getAttachmentUrl = (attachment) => {
   if (!attachment) return ''
   if (attachment.startsWith('http')) return attachment
-  return `http://localhost:3000${attachment}`
+  return `http://localhost:3333${attachment}`
 }
 
 const showLeaveDetail = async (leaveRequest) => {

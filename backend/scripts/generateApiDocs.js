@@ -164,7 +164,7 @@ function generateMarkdown(routes, yamlDocs) {
   md += `\n## 🌐 Base URL
 
 \`\`\`
-Development: http://localhost:3000
+Development: http://localhost:3333
 Production:  https://api.personelplus.com
 \`\`\`
 
@@ -299,7 +299,7 @@ Content-Type: application/json
   md += `- **Kategori Sayısı:** ${Object.keys(categorized).length}\n\n`;
 
   md += `## 📖 Detaylı Dokümantasyon\n\n`;
-  md += `Swagger UI dokümantasyonu için: [http://localhost:3000/api-docs](http://localhost:3000/api-docs)\n\n`;
+  md += `Swagger UI dokümantasyonu için: [http://localhost:3333/api-docs](http://localhost:3333/api-docs)\n\n`;
   md += `---\n\n`;
   md += `> 💡 **Not:** Bu dokümantasyon otomatik olarak \`node scripts/generateApiDocs.js\` komutu ile oluşturulmuştur.\n`;
 
