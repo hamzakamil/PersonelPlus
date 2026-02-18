@@ -349,14 +349,7 @@
                   @click="showPreview(employee, $event)"
                   @dblclick="handleRowDblClick(employee, $event)"
                   class="cursor-pointer"
-                  :class="{
-                    'bg-blue-50': isSelected(employee._id),
-                    'bg-red-50': !isSelected(employee._id) && employee.status === 'separated',
-                    'bg-orange-50': !isSelected(employee._id) && employee.status !== 'separated' && employee.isRetired,
-                    'bg-amber-50': !isSelected(employee._id) && employee.status !== 'separated' && !employee.isRetired && employee.contractType === 'BELİRLİ_SÜRELİ',
-                    'hover:bg-gray-50':
-                      !isSelected(employee._id) && employee.status !== 'separated' && !employee.isRetired && employee.contractType !== 'BELİRLİ_SÜRELİ',
-                  }"
+                  :class="rowClass(employee)"
                 >
                   <td class="px-1 py-1.5">
                     <input
@@ -573,13 +566,7 @@
                 @click="showPreview(employee, $event)"
                 @dblclick="handleRowDblClick(employee, $event)"
                 class="cursor-pointer"
-                :class="{
-                  'bg-blue-50': isSelected(employee._id),
-                  'bg-red-50': !isSelected(employee._id) && employee.status === 'separated',
-                  'bg-orange-50': !isSelected(employee._id) && employee.status !== 'separated' && employee.isRetired,
-                  'bg-amber-50': !isSelected(employee._id) && employee.status !== 'separated' && !employee.isRetired && employee.contractType === 'BELİRLİ_SÜRELİ',
-                  'hover:bg-gray-50': !isSelected(employee._id) && employee.status !== 'separated' && !employee.isRetired && employee.contractType !== 'BELİRLİ_SÜRELİ',
-                }"
+                :class="rowClass(employee)"
               >
                 <td class="px-1 py-1.5">
                   <input
@@ -2075,6 +2062,17 @@ const contractTypeLabel = (type) => {
     'UZAKTAN_ÇALIŞMA': 'Uzaktan',
   };
   return labels[type] || 'Normal';
+};
+
+// Satır renk sınıfı (öncelik sırası: seçili > ayrılmış > emekli > belirli süreli > SGK müdahale > normal)
+const rowClass = (employee) => {
+  const selected = isSelected(employee._id);
+  if (selected) return 'bg-blue-50';
+  if (employee.status === 'separated') return 'bg-red-50';
+  if (employee.isRetired) return 'bg-orange-50';
+  if (employee.contractType === 'BELİRLİ_SÜRELİ') return 'bg-amber-50';
+  if (employee.hasSgkGunOverride) return 'bg-purple-50';
+  return 'hover:bg-gray-50';
 };
 const editingSalaryId = ref(null);
 const editingSalaryValue = ref('');

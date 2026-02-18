@@ -18,6 +18,7 @@ const { auth, requireRole } = require('../middleware/auth');
 const { normalizePhone } = require('../utils/phoneUtils');
 const { successResponse, errorResponse, notFound, forbidden, serverError, createdResponse } = require('../utils/responseHelper');
 const ProfileChangeRequest = require('../models/ProfileChangeRequest');
+const EmployeePuantaj = require('../models/EmployeePuantaj');
 const notificationService = require('../services/notificationService');
 
 const upload = multer({ dest: 'uploads/' });
@@ -137,7 +138,28 @@ router.get('/', auth, async (req, res) => {
       .populate('department', 'name')
       .sort({ status: 1, createdAt: -1 }); // Önce aktifler, sonra ayrılanlar
 
-    return successResponse(res, { data: employees });
+    // SGK gün müdahalesi yapılmış çalışanları işaretle
+    const now = new Date();
+    const puantajYear = year ? parseInt(year) : now.getFullYear();
+    const puantajMonth = month ? parseInt(month) : now.getMonth() + 1;
+
+    const employeeIds = employees.map(e => e._id);
+    const sgkOverrides = await EmployeePuantaj.find({
+      employee: { $in: employeeIds },
+      year: puantajYear,
+      month: puantajMonth,
+      sgkGunManuallyEdited: true
+    }).select('employee').lean();
+
+    const sgkOverrideSet = new Set(sgkOverrides.map(p => p.employee.toString()));
+
+    const enrichedEmployees = employees.map(emp => {
+      const empObj = emp.toObject();
+      empObj.hasSgkGunOverride = sgkOverrideSet.has(emp._id.toString());
+      return empObj;
+    });
+
+    return successResponse(res, { data: enrichedEmployees });
   } catch (error) {
     return serverError(res, error);
   }
