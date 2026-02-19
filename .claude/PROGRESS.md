@@ -9,7 +9,7 @@
 | Bilgi | Değer |
 |-------|-------|
 | **Aktif Faz** | Özellik Geliştirme + DevOps (Beklemede) |
-| **Son Güncelleme** | 2026-02-18 |
+| **Son Güncelleme** | 2026-02-20 |
 | **Genel İlerleme** | 65% |
 
 ---
@@ -126,6 +126,30 @@ Tüm route dosyaları standart response formatına güncellendi.
 ---
 
 ## Oturum Özeti
+
+### Oturum #23 - 2026-02-20
+- ✅ **Driver.js Onboarding (Intro Tour) Sistemi:**
+  - `driver.js` paketi kuruldu
+  - `ui/src/stores/onboarding.js` - Pinia store (localStorage persist, userId bazlı key)
+  - `ui/src/onboarding/driverConfig.js` - Türkçe butonlar ile base config
+  - `ui/src/onboarding/useOnboarding.js` - Ana composable (init, replay, destroy lifecycle)
+  - `ui/src/onboarding/index.js` - Barrel export
+  - 4 rol bazlı tur dosyası:
+    - `superAdminTour.js` - 10 adım (bayiler, şirketler, global ayarlar, abonelik, mesajlar)
+    - `bayiAdminTour.js` - 11 adım (şirketler, paket, çalışanlar, izinler, puantaj, ayarlar)
+    - `companyAdminTour.js` - 12 adım (çalışanlar, izinler, avans, puantaj, bordro, hızlı onay)
+    - `employeeTour.js` - 10 adım (bordro, izin, avans, mesajlar, hesabım)
+  - `ui/src/components/OnboardingReplayButton.vue` - Sol alt köşe floating replay butonu
+  - `ui/src/style.css` - Driver.js tema CSS override (.pp-onboarding-popover)
+  - `ui/src/layouts/DashboardLayout.vue` - data-tour attribute'ları (sidebar, header, menü öğeleri), tourId, ReplayButton
+  - `ui/src/views/Dashboard.vue` - data-tour (summary cards, quick approve), initOnboarding + destroyTour lifecycle
+- ✅ Build başarılı
+
+### Oturum #22 - 2026-02-20
+- ✅ **SMS Aktivasyon Modu:** Çalışan aktivasyonu için SMS/Email seçimi
+- ✅ **Part Time Modal:** EmployeeSettings.vue - Part Time sözleşme tipi için zaman/gün seçim modalı
+- ✅ **Production Fix - Hardcoded localhost:3333:** 13+ dosyada localhost URL'leri relative path'e çevrildi
+- ✅ **Production Fix - Google OAuth:** COOP, CSP header'ları düzeltildi, CORS origin'leri eklendi
 
 ### Oturum #21 - 2026-02-18
 - ✅ **Belirli Süreli Sözleşme Bitiş Tarihi:**

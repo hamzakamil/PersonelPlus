@@ -17,7 +17,12 @@ const LoginAttempt = require('../models/LoginAttempt');
 const { verifyCaptcha } = require('../services/captchaService');
 const Employee = require('../models/Employee');
 const { normalizePhone } = require('../utils/phoneUtils');
-const { OAuth2Client } = require('google-auth-library');
+let OAuth2Client;
+try {
+  OAuth2Client = require('google-auth-library').OAuth2Client;
+} catch {
+  console.warn('google-auth-library yüklenemedi - Google OAuth devre dışı');
+}
 
 // Register - Yeni kullanıcı kaydı
 router.post('/register', async (req, res) => {
@@ -494,6 +499,10 @@ router.post('/login', async (req, res) => {
 // Google ile giriş / kayıt
 router.post('/google', async (req, res) => {
   try {
+    if (!OAuth2Client) {
+      return serverError(res, new Error('google-auth-library yüklü değil'), 'Google giriş modülü sunucuda yüklü değil. Lütfen npm install çalıştırın.');
+    }
+
     const { credential } = req.body;
 
     if (!credential) {

@@ -3,7 +3,7 @@
     <!-- Super Admin Dashboard -->
     <div v-if="isSuperAdmin">
       <!-- Özet Kartlar -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div data-tour="dashboard-summary-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <!-- Aktif Bayiler -->
         <div class="bg-white rounded-lg shadow-md p-6 relative overflow-hidden">
           <div class="absolute top-0 right-0 w-20 h-20 bg-blue-100 rounded-full -mr-10 -mt-10"></div>
@@ -115,7 +115,7 @@
     <!-- Company Admin Dashboard -->
     <div v-else-if="isCompanyAdmin">
       <!-- Özet Kartlar -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div data-tour="dashboard-summary-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <!-- Bugün Giriş Yapanlar -->
         <div class="bg-white rounded-lg shadow-md p-6 relative overflow-hidden">
           <div class="absolute top-0 right-0 w-20 h-20 bg-blue-100 rounded-full -mr-10 -mt-10"></div>
@@ -198,7 +198,7 @@
       </div>
 
       <!-- Hızlı Onay Paneli -->
-      <div ref="quickApproveSection" class="bg-white rounded-lg shadow-md p-6">
+      <div ref="quickApproveSection" data-tour="dashboard-quick-approve" class="bg-white rounded-lg shadow-md p-6">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-xl font-bold text-gray-800">Hızlı Onay</h2>
           <button
@@ -329,7 +329,7 @@
     <!-- Bayi Admin Dashboard -->
     <div v-else-if="isBayiAdmin">
       <!-- Özet Kartlar -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div data-tour="dashboard-summary-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <!-- Toplam Şirket -->
         <div class="bg-white rounded-lg shadow-md p-6 relative overflow-hidden">
           <div class="absolute top-0 right-0 w-20 h-20 bg-blue-100 rounded-full -mr-10 -mt-10"></div>
@@ -417,7 +417,7 @@
       <CheckInButton />
 
       <!-- Özet Kartlar -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div data-tour="dashboard-summary-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <!-- Bugün Giriş Durumu -->
         <div class="bg-white rounded-lg shadow-md p-6 relative overflow-hidden">
           <div class="absolute top-0 right-0 w-20 h-20 bg-blue-100 rounded-full -mr-10 -mt-10"></div>
@@ -516,6 +516,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { useConfirmStore } from '@/stores/confirm'
 import CheckInButton from '@/components/CheckInButton.vue'
+import { useOnboarding } from '@/onboarding'
 import api from '@/services/api'
 
 onMounted(async () => {
@@ -748,12 +749,14 @@ const scrollToQuickApprove = () => {
   }
 }
 
+const { initOnboarding, destroyTour } = useOnboarding()
+
 onMounted(async () => {
   await loadSummary()
-  
+
   if (isCompanyAdmin.value) {
     await loadPendingRequests()
-    
+
     // Her 30 saniyede bir otomatik yenile
     refreshInterval = setInterval(async () => {
       await loadSummary()
@@ -765,11 +768,15 @@ onMounted(async () => {
       await loadSummary()
     }, 30000)
   }
+
+  // Onboarding turu başlat (ilk giriş kontrolü composable içinde yapılır)
+  await initOnboarding()
 })
 
 onUnmounted(() => {
   if (refreshInterval) {
     clearInterval(refreshInterval)
   }
+  destroyTour()
 })
 </script>

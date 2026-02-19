@@ -2,10 +2,12 @@
   <div class="min-h-screen" :style="{ backgroundColor: 'var(--page-bg)' }">
     <ToastContainer />
     <ConfirmModal />
+    <OnboardingReplayButton />
     <div class="flex">
       <!-- Sidebar - Modern design with theme support -->
       <aside
         v-show="!isFullscreen"
+        data-tour="sidebar"
         class="sidebar-fixed min-h-screen flex-shrink-0 shadow-2xl"
         :style="{ background: 'var(--sidebar-bg)' }"
       >
@@ -36,6 +38,7 @@
             <div v-if="item.children" class="mb-1">
               <button
                 @click="toggleMenu(item.name)"
+                :data-tour="item.tourId || undefined"
                 class="w-full flex items-center justify-between gap-3 px-4 py-3 text-sm transition-all duration-200 mx-2 rounded-xl"
                 :style="{
                   color:
@@ -94,6 +97,7 @@
             <router-link
               v-else
               :to="item.path"
+              :data-tour="item.tourId || undefined"
               class="flex items-center gap-3 px-4 py-3 text-sm transition-all duration-200 mx-2 rounded-xl mb-1"
               :style="{
                 color:
@@ -128,8 +132,8 @@
               </h2>
             </div>
             <div class="flex items-center gap-4">
-              <NotificationBadge />
-              <MessageBadge />
+              <NotificationBadge data-tour="header-notifications" />
+              <MessageBadge data-tour="header-messages" />
               <div
                 class="flex items-center gap-3 px-4 py-2 rounded-xl"
                 :style="{ backgroundColor: 'var(--primary-light)' }"
@@ -201,6 +205,7 @@ import MessageBadge from '@/components/MessageBadge.vue';
 import NotificationBadge from '@/components/NotificationBadge.vue';
 import ToastContainer from '@/components/ToastContainer.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import OnboardingReplayButton from '@/components/OnboardingReplayButton.vue';
 import api from '@/services/api';
 
 const router = useRouter();
@@ -364,10 +369,10 @@ const menuItems = computed(() => {
 
   if (role === 'super_admin') {
     items.push({ path: '/', name: 'Genel Durum Özeti', icon: icons.dashboard });
-    items.push({ path: '/dealers', name: 'Bayiler', icon: icons.dealers });
+    items.push({ path: '/dealers', name: 'Bayiler', icon: icons.dealers, tourId: 'sidebar-dealers' });
     items.push({ path: '/admin/health-check', name: 'Veritabanı Kontrolü', icon: icons.database });
-    items.push({ path: '/companies', name: 'Şirketler', icon: icons.company });
-    items.push({ path: '/global-settings', name: 'Global Ayarlar', icon: icons.globe });
+    items.push({ path: '/companies', name: 'Şirketler', icon: icons.company, tourId: 'sidebar-companies' });
+    items.push({ path: '/global-settings', name: 'Global Ayarlar', icon: icons.globe, tourId: 'sidebar-global-settings' });
     items.push({
       path: '/registration-requests',
       name: 'Kayıt Talepleri',
@@ -378,7 +383,7 @@ const menuItems = computed(() => {
     items.push({ path: '/working-permits', name: 'Çalışan İzinleri', icon: icons.calendar });
     items.push({ path: '/manager-assignment', name: 'Yönetici Atama', icon: icons.userCog });
     // Abonelik Sistemi - Super Admin
-    items.push({ path: '/package-management', name: 'Paket Yönetimi', icon: icons.package });
+    items.push({ path: '/package-management', name: 'Paket Yönetimi', icon: icons.package, tourId: 'sidebar-subscriptions' });
     items.push({ path: '/subscriptions', name: 'Abonelik Yönetimi', icon: icons.creditCard });
     items.push({ path: '/payments', name: 'Ödeme Geçmişi', icon: icons.receipt });
     items.push({ path: '/revenue-analytics', name: 'Gelir Analitikleri', icon: icons.chart });
@@ -389,12 +394,12 @@ const menuItems = computed(() => {
     });
     items.push({ path: '/campaign-management', name: 'Kampanya Yönetimi', icon: icons.campaign });
     items.push({ path: '/invoice-management', name: 'e-Fatura Yönetimi', icon: icons.invoice });
-    items.push({ path: '/messages', name: 'Mesajlar', icon: icons.message });
+    items.push({ path: '/messages', name: 'Mesajlar', icon: icons.message, tourId: 'sidebar-messages' });
     items.push({ path: '/support', name: 'Destek', icon: icons.support });
   } else if (role === 'bayi_admin') {
     items.push({ path: '/', name: 'Genel Durum Özeti', icon: icons.dashboard });
-    items.push({ path: '/companies', name: 'Şirketler', icon: icons.company });
-    items.push({ path: '/subscription', name: 'Paket Satın Al', icon: icons.package });
+    items.push({ path: '/companies', name: 'Şirketler', icon: icons.company, tourId: 'sidebar-companies' });
+    items.push({ path: '/subscription', name: 'Paket Satın Al', icon: icons.package, tourId: 'sidebar-subscription' });
     items.push({
       path: '/company-subscriptions',
       name: 'Şirket Abonelikleri',
@@ -404,6 +409,7 @@ const menuItems = computed(() => {
     items.push({
       name: 'Çalışanlar',
       icon: icons.users,
+      tourId: 'sidebar-employees',
       children: [
         { path: '/employees', name: 'Çalışan Listesi', icon: icons.users },
         { path: '/employment/list', name: 'İşe Giriş/Çıkış', icon: icons.briefcase },
@@ -413,6 +419,7 @@ const menuItems = computed(() => {
     items.push({
       name: 'İzinler',
       icon: icons.calendar,
+      tourId: 'sidebar-leaves',
       children: [
         { path: '/leave-requests', name: 'İzin Talepleri', icon: icons.calendarCheck },
         { path: '/leave-ledger', name: 'İzin Cetveli', icon: icons.table },
@@ -420,7 +427,7 @@ const menuItems = computed(() => {
     });
     items.push({ path: '/advance-requests', name: 'Avanslar', icon: icons.wallet });
     items.push({ path: '/overtime-requests', name: 'Fazla Mesai', icon: icons.clock });
-    items.push({ path: '/puantaj', name: 'Aylık Puantaj', icon: icons.table });
+    items.push({ path: '/puantaj', name: 'Aylık Puantaj', icon: icons.table, tourId: 'sidebar-puantaj' });
     items.push({ path: '/attendance-dashboard', name: 'Devam Takip', icon: icons.clock });
     // Bordro Yönetimi - Alt menülü
     items.push({
@@ -434,7 +441,7 @@ const menuItems = computed(() => {
       ],
     });
     items.push({ path: '/reports', name: 'Raporlar', icon: icons.fileText });
-    items.push({ path: '/settings', name: 'Ayarlar', icon: icons.settings });
+    items.push({ path: '/settings', name: 'Ayarlar', icon: icons.settings, tourId: 'sidebar-settings' });
     items.push({ path: '/messages', name: 'Mesajlar', icon: icons.message });
     items.push({ path: '/support', name: 'Destek', icon: icons.support });
   } else if (
@@ -445,6 +452,7 @@ const menuItems = computed(() => {
     items.push({
       name: 'Çalışanlar',
       icon: icons.users,
+      tourId: 'sidebar-employees',
       children: [
         { path: '/employees', name: 'Çalışan Listesi', icon: icons.users },
         { path: '/employment/list', name: 'İşe Giriş/Çıkış', icon: icons.briefcase },
@@ -454,6 +462,7 @@ const menuItems = computed(() => {
     items.push({
       name: 'İzinler',
       icon: icons.calendar,
+      tourId: 'sidebar-leaves',
       children: [
         { path: '/leave-requests', name: 'İzin Talepleri', icon: icons.calendarCheck },
         { path: '/leave-summary', name: 'İzin Özeti', icon: icons.pieChart },
@@ -462,14 +471,15 @@ const menuItems = computed(() => {
         { path: '/approvals', name: 'Onaylar', icon: icons.checkCircle },
       ],
     });
-    items.push({ path: '/advance-requests', name: 'Avanslar', icon: icons.wallet });
+    items.push({ path: '/advance-requests', name: 'Avanslar', icon: icons.wallet, tourId: 'sidebar-advance' });
     items.push({ path: '/overtime-requests', name: 'Fazla Mesai', icon: icons.clock });
-    items.push({ path: '/puantaj', name: 'Aylık Puantaj', icon: icons.table });
+    items.push({ path: '/puantaj', name: 'Aylık Puantaj', icon: icons.table, tourId: 'sidebar-puantaj' });
     items.push({ path: '/attendance-dashboard', name: 'Devam Takip', icon: icons.clock });
     // Bordro Yönetimi - Şirket Admin
     items.push({
       name: 'Bordro Yönetimi',
       icon: icons.receipt,
+      tourId: 'sidebar-bordro',
       children: [
         { path: '/bordro-approval', name: 'Bordro Onayı', icon: icons.checkCircle },
         { path: '/bordro-company-list', name: 'Bordro Listesi', icon: icons.list },
@@ -477,18 +487,18 @@ const menuItems = computed(() => {
       ],
     });
     items.push({ path: '/reports', name: 'Raporlar', icon: icons.fileText });
-    items.push({ path: '/settings', name: 'Ayarlar', icon: icons.settings });
+    items.push({ path: '/settings', name: 'Ayarlar', icon: icons.settings, tourId: 'sidebar-settings' });
     items.push({ path: '/messages', name: 'Mesajlar', icon: icons.message });
     items.push({ path: '/support', name: 'Destek', icon: icons.support });
   } else if (role === 'employee') {
     items.push({ path: '/', name: 'Genel Durum Özeti', icon: icons.dashboard });
-    items.push({ path: '/my-bordros', name: 'Bordrolarım', icon: icons.receipt });
+    items.push({ path: '/my-bordros', name: 'Bordrolarım', icon: icons.receipt, tourId: 'sidebar-my-bordros' });
     items.push({ path: '/employee-leave-types', name: 'İzin Türleri', icon: icons.list });
-    items.push({ path: '/my-leaves', name: 'İzin Taleplerim', icon: icons.myLeaves });
-    items.push({ path: '/advance-requests', name: 'Avans Taleplerim', icon: icons.wallet });
+    items.push({ path: '/my-leaves', name: 'İzin Taleplerim', icon: icons.myLeaves, tourId: 'sidebar-my-leaves' });
+    items.push({ path: '/advance-requests', name: 'Avans Taleplerim', icon: icons.wallet, tourId: 'sidebar-advance-requests' });
     items.push({ path: '/leave-ledger', name: 'İzin Cetveli', icon: icons.table });
-    items.push({ path: '/messages', name: 'Mesajlar', icon: icons.message });
-    items.push({ path: '/my-account', name: 'Hesabım', icon: icons.userCog });
+    items.push({ path: '/messages', name: 'Mesajlar', icon: icons.message, tourId: 'sidebar-messages' });
+    items.push({ path: '/my-account', name: 'Hesabım', icon: icons.userCog, tourId: 'sidebar-my-account' });
   }
 
   return items;

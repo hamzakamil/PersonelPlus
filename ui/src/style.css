@@ -408,3 +408,91 @@ textarea:focus {
     transform: translateY(0);
   }
 }
+
+/* ============================================
+   Driver.js Onboarding Theme
+   ============================================ */
+.driver-popover.pp-onboarding-popover {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.25);
+  padding: 1.25rem;
+  max-width: 360px;
+}
+
+.driver-popover.pp-onboarding-popover .driver-popover-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+.driver-popover.pp-onboarding-popover .driver-popover-description {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+}
+
+.driver-popover.pp-onboarding-popover .driver-popover-progress-text {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.driver-popover.pp-onboarding-popover .driver-popover-navigation-btns {
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.driver-popover.pp-onboarding-popover .driver-popover-next-btn {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.625rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-shadow: none;
+}
+
+.driver-popover.pp-onboarding-popover .driver-popover-next-btn:hover {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.driver-popover.pp-onboarding-popover .driver-popover-prev-btn {
+  background-color: transparent;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.driver-popover.pp-onboarding-popover .driver-popover-prev-btn:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.driver-popover.pp-onboarding-popover .driver-popover-close-btn {
+  color: #94a3b8;
+  font-size: 1.25rem;
+  transition: color 0.2s ease;
+}
+
+.driver-popover.pp-onboarding-popover .driver-popover-close-btn:hover {
+  color: #1e293b;
+}
+
+.driver-active-element {
+  border-radius: 0.75rem !important;
+}
